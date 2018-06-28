@@ -131,6 +131,60 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
 
       static int finishchecksum = 0;
 
+      static int invocation = 0;
+      invocation++;
+      LOG(INFO) << "INVOCATION " << invocation;
+      // we need to find out which channel has data since we use a custom completion policy
+      static std::vector<bool> digitdataavailable;
+      static std::vector<bool> labeldataavailable;
+      static std::vector<bool> sectordataavailable;
+
+      auto probeDataAvailable = [&pc](int d, const char* name, std::vector<bool>& mask) {
+        // I don't like this string comparison
+    	if (pc.inputs().isValid(name)) {
+          mask[d] = true;
+        }
+      };
+
+      auto sourceIsComplete = [&digitdataavailable, &sectordataavailable, &labeldataavailable](int d) -> bool {
+        return digitdataavailable[d] && sectordataavailable[d] && labeldataavailable[d];
+      };
+
+      auto clearComplete = [&digitdataavailable, &sectordataavailable, &labeldataavailable](int d) {
+        digitdataavailable[d] = false;
+        sectordataavailable[d] = false;
+        labeldataavailable[d] = false;
+      };
+
+      if (invocation == 1) {
+        digitdataavailable.resize(numberofsourcedevices, false);
+        labeldataavailable.resize(numberofsourcedevices, false);
+        sectordataavailable.resize(numberofsourcedevices, false);
+      }
+
+      int completedchannelid;
+      bool comsumedata = false;
+
+      for (int d = 0; d < numberofsourcedevices; ++d) {
+        const auto dname = digitchannelname->operator[](d);
+        const auto sname = sectorchannelname->operator[](d);
+        const auto lname = labelchannelname->operator[](d);
+
+        probeDataAvailable(d, dname.c_str(), digitdataavailable);
+        probeDataAvailable(d, sname.c_str(), sectordataavailable);
+        probeDataAvailable(d, lname.c_str(), labeldataavailable);
+
+        if (sourceIsComplete(d)) {
+          LOG(INFO) << "INPUT FOR SUBCHANNEL " << d << " COMPLETE AT INVOCATION " << invocation;
+          completedchannelid = d;
+          consumedata = true;
+          clearComplete(d);
+        }
+      }
+      if (consumedata) {
+        return;
+      }
+
       auto isComplete = [numberofsourcedevices](int i) {
         if (i == numberofsourcedevices * (numberofsourcedevices - 1) / 2) {
           return true;
@@ -138,48 +192,46 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         return false;
       };
 
-      for (int d = 0; d < numberofsourcedevices; ++d) {
-        const auto cname = digitchannelname->operator[](d);
-        const auto sname = sectorchannelname->operator[](d);
-        const auto lname = labelchannelname->operator[](d);
+      const auto cname = digitchannelname->operator[](completedchannelid);
+      const auto sname = sectorchannelname->operator[](completedchannelid);
+      const auto lname = labelchannelname->operator[](completedchannelid);
 
-        const int sector = pc.inputs().get<int>(sname.c_str());
-        LOG(INFO) << "GOT DIGITS FOR SECTOR " << sector;
+      const int sector = pc.inputs().get<int>(sname.c_str());
+      LOG(INFO) << "GOT DIGITS FOR SECTOR " << sector;
 
-        if (sector < 0) {
-          finishchecksum += d;
-          if (isComplete(finishchecksum)) {
-            finished = true;
-            pc.services().get<ControlService>().readyToQuit(false);
-            return;
-          }
-        } else {
-          // have to do work ...
-          // the digits
-          auto indata = pc.inputs().get<std::vector<o2::TPC::Digit>>(cname.c_str());
-          LOG(INFO) << "DIGIT SIZE " << indata.size();
-          *digits.get() = std::move(indata);
-          {
-            // connect this to a particular branch
-            auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, digits.get());
-            br->Fill();
-            br->ResetAddress();
-          }
+      if (sector < 0) {
+        finishchecksum += completedchannelid;
+        if (isComplete(finishchecksum)) {
+          finished = true;
+          pc.services().get<ControlService>().readyToQuit(false);
+          return;
+        }
+      } else {
+        // have to do work ...
+        // the digits
+        auto indata = pc.inputs().get<std::vector<o2::TPC::Digit>>(cname.c_str());
+        LOG(INFO) << "DIGIT SIZE " << indata.size();
+        *digits.get() = std::move(indata);
+        {
+          // connect this to a particular branch
+          auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, digits.get());
+          br->Fill();
+          br->ResetAddress();
+        }
 
-          // the labels
-          auto labeldata = pc.inputs().get<o2::dataformats::MCTruthContainer<o2::MCCompLabel>*>(lname.c_str());
-          auto labeldataRaw = labeldata.get();
-          LOG(INFO) << "MCTRUTH ELEMENTS " << labeldataRaw->getNElements();
-          if (labeldataRaw->getNElements() != digits->size()) {
-            LOG(WARNING) << "Inconsistent number of label slots "
-                         << labeldataRaw->getNElements() << " versus digits " << digits->size();
-          }
+        // the labels
+        auto labeldata = pc.inputs().get<o2::dataformats::MCTruthContainer<o2::MCCompLabel>*>(lname.c_str());
+        auto labeldataRaw = labeldata.get();
+        LOG(INFO) << "MCTRUTH ELEMENTS " << labeldataRaw->getNElements();
+        if (labeldataRaw->getNElements() != digits->size()) {
+          LOG(WARNING) << "Inconsistent number of label slots "
+                       << labeldataRaw->getNElements() << " versus digits " << digits->size();
+        }
 
-          {
-            auto br = getOrMakeBranch(*outputtree.get(), "TPCDigitMCTruth", sector, &labeldataRaw);
-            br->Fill();
-            br->ResetAddress();
-          }
+        {
+          auto br = getOrMakeBranch(*outputtree.get(), "TPCDigitMCTruth", sector, &labeldataRaw);
+          br->Fill();
+          br->ResetAddress();
         }
       }
     };
