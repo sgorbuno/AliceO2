@@ -138,32 +138,35 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
       static std::vector<bool> digitdataavailable;
       static std::vector<bool> labeldataavailable;
       static std::vector<bool> sectordataavailable;
-
-      auto probeDataAvailable = [&pc](int d, const char* name, std::vector<bool>& mask) {
-        // I don't like this string comparison
-    	if (pc.inputs().isValid(name)) {
-          mask[d] = true;
-        }
-      };
-
-      auto sourceIsComplete = [&digitdataavailable, &sectordataavailable, &labeldataavailable](int d) -> bool {
-        return digitdataavailable[d] && sectordataavailable[d] && labeldataavailable[d];
-      };
-
-      auto clearComplete = [&digitdataavailable, &sectordataavailable, &labeldataavailable](int d) {
-        digitdataavailable[d] = false;
-        sectordataavailable[d] = false;
-        labeldataavailable[d] = false;
-      };
-
       if (invocation == 1) {
         digitdataavailable.resize(numberofsourcedevices, false);
         labeldataavailable.resize(numberofsourcedevices, false);
         sectordataavailable.resize(numberofsourcedevices, false);
       }
+      // these are introduced since I cannot capture a reference to a vector
+      auto digitdataavailptr = &digitdataavailable;
+      auto labeldataavailptr = &labeldataavailable;
+      auto sectordataavailptr = &sectordataavailable;
 
-      int completedchannelid;
-      bool comsumedata = false;
+      auto probeDataAvailable = [&pc](int d, const char* name, std::vector<bool>& mask) {
+        // I don't like this string comparison
+        if (pc.inputs().isValid(name)) {
+          mask[d] = true;
+        }
+      };
+
+      auto sourceIsComplete = [digitdataavailptr, sectordataavailptr, labeldataavailptr](int d) -> bool {
+        return (*digitdataavailptr)[d] && (*sectordataavailptr)[d] && (*labeldataavailptr)[d];
+      };
+
+      auto clearComplete = [digitdataavailptr, sectordataavailptr, labeldataavailptr](int d) {
+        (*digitdataavailptr)[d] = false;
+        (*sectordataavailptr)[d] = false;
+        (*labeldataavailptr)[d] = false;
+      };
+
+      int completedchannelid = -1;
+      bool consumedata = false;
 
       for (int d = 0; d < numberofsourcedevices; ++d) {
         const auto dname = digitchannelname->operator[](d);
@@ -181,9 +184,13 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
           clearComplete(d);
         }
       }
-      if (consumedata) {
+      if (!consumedata) {
         return;
       }
+
+
+      bool b = true;
+      while(b) {}
 
       auto isComplete = [numberofsourcedevices](int i) {
         if (i == numberofsourcedevices * (numberofsourcedevices - 1) / 2) {
