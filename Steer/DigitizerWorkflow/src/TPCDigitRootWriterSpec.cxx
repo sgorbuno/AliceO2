@@ -87,7 +87,7 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
     auto outputtree = std::make_shared<TTree>(treename.c_str(), treename.c_str());
 
     // container for incoming digits + label
-    auto digits = std::make_shared<std::vector<o2::TPC::Digit>>();
+    // auto digits = std::make_shared<std::vector<o2::TPC::Digit>>();
     auto labels = std::make_shared<o2::dataformats::MCTruthContainer<o2::MCCompLabel>>();
 
     // the callback to be set as hook at stop of processing for the framework
@@ -121,7 +121,7 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
     // using by-copy capture of the worker instance shared pointer
     // the shared pointer makes sure to clean up the instance when the processing
     // function gets out of scope
-    auto processingFct = [outputfile, outputtree, digits, digitchannelname, sectorchannelname, labelchannelname,
+    auto processingFct = [outputfile, outputtree, digitchannelname, sectorchannelname, labelchannelname,
                           numberofsourcedevices](ProcessingContext& pc) {
       static bool finished = false;
       if (finished) {
@@ -138,11 +138,18 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
       static std::vector<bool> digitdataavailable;
       static std::vector<bool> labeldataavailable;
       static std::vector<bool> sectordataavailable;
+      static std::vector<
+        std::unique_ptr<const std::vector<o2::TPC::Digit>>> digitbufferdata;
+      static std::vector<int> sectordata;
+
       if (invocation == 1) {
         digitdataavailable.resize(numberofsourcedevices, false);
         labeldataavailable.resize(numberofsourcedevices, false);
         sectordataavailable.resize(numberofsourcedevices, false);
+        digitbufferdata.resize(numberofsourcedevices);
+        sectordata.resize(numberofsourcedevices, -3);
       }
+
       // these are introduced since I cannot capture a reference to a vector
       auto digitdataavailptr = &digitdataavailable;
       auto labeldataavailptr = &labeldataavailable;
@@ -173,6 +180,24 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         const auto sname = sectorchannelname->operator[](d);
         const auto lname = labelchannelname->operator[](d);
 
+        // probe data: digits?
+        if (pc.inputs().isValid(dname.c_str())) {
+          LOG(INFO) << "HAVE DIGIT DATA ON CHANNEL " << d;
+          auto indata = pc.inputs().get<std::vector<o2::TPC::Digit>*>(dname.c_str());
+          digitbufferdata[d] = std::move(indata);
+        }
+        // labels?
+        if (pc.inputs().isValid(lname.c_str())) {
+          LOG(INFO) << "HAVE LABEL DATA ON CHANNEL " << d;
+          // auto indata = pc.inputs().get<std::vector<o2::TPC::Digit>*>(dname.c_str());
+          // digitbufferdata[d] = std::move(indata);
+        }
+        // which sector?
+        if (pc.inputs().isValid(sname.c_str())) {
+          LOG(INFO) << "HAVE SECTOR DATA ON CHANNEL " << d;
+          sectordata[d] = pc.inputs().get<int>(sname.c_str());
+        }
+
         probeDataAvailable(d, dname.c_str(), digitdataavailable);
         probeDataAvailable(d, sname.c_str(), sectordataavailable);
         probeDataAvailable(d, lname.c_str(), labeldataavailable);
@@ -188,9 +213,9 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         return;
       }
 
-
-      bool b = true;
-      while(b) {}
+      //LOG(INFO) << "NOW WAITING";
+      //bool b = true;
+      //while(b) {}
 
       auto isComplete = [numberofsourcedevices](int i) {
         if (i == numberofsourcedevices * (numberofsourcedevices - 1) / 2) {
@@ -203,7 +228,7 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
       const auto sname = sectorchannelname->operator[](completedchannelid);
       const auto lname = labelchannelname->operator[](completedchannelid);
 
-      const int sector = pc.inputs().get<int>(sname.c_str());
+      const int sector = sectordata[completedchannelid];
       LOG(INFO) << "GOT DIGITS FOR SECTOR " << sector;
 
       if (sector < 0) {
@@ -215,16 +240,19 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         }
       } else {
         // have to do work ...
-        // the digits
-        auto indata = pc.inputs().get<std::vector<o2::TPC::Digit>>(cname.c_str());
-        LOG(INFO) << "DIGIT SIZE " << indata.size();
-        *digits.get() = std::move(indata);
+        // take ownership of digits and write
+        auto digits = std::move(digitbufferdata[completedchannelid]);
+        LOG(INFO) << "DIGIT SIZE " << digits->size();
         {
           // connect this to a particular branch
-          auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, digits.get());
+          auto digitsraw = digits.get();
+          auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, &digitsraw);
+          br->SetAddress((void*)&digitsraw);
           br->Fill();
           br->ResetAddress();
         }
+
+        return;
 
         // the labels
         auto labeldata = pc.inputs().get<o2::dataformats::MCTruthContainer<o2::MCCompLabel>*>(lname.c_str());
