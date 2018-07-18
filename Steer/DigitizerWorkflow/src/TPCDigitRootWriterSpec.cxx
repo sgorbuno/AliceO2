@@ -138,8 +138,11 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
       static std::vector<bool> digitdataavailable;
       static std::vector<bool> labeldataavailable;
       static std::vector<bool> sectordataavailable;
+      //static std::vector<
+      //  std::unique_ptr<const std::vector<o2::TPC::Digit>>> digitbufferdata;
       static std::vector<
-        std::unique_ptr<const std::vector<o2::TPC::Digit>>> digitbufferdata;
+         std::vector<o2::TPC::Digit>> digitbufferdata;
+
       static std::vector<int> sectordata;
 
       if (invocation == 1) {
@@ -183,9 +186,9 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         // probe data: digits?
         if (pc.inputs().isValid(dname.c_str())) {
           LOG(INFO) << "HAVE DIGIT DATA ON CHANNEL " << d;
-          auto indata = pc.inputs().get<std::vector<o2::TPC::Digit>*>(dname.c_str());
-          digitbufferdata[d] = std::move(indata);
+          digitbufferdata[d] = pc.inputs().get<std::vector<o2::TPC::Digit>>(dname.c_str());
         }
+
         // labels?
         if (pc.inputs().isValid(lname.c_str())) {
           LOG(INFO) << "HAVE LABEL DATA ON CHANNEL " << d;

@@ -46,7 +46,7 @@ void customize(std::vector<o2::framework::CompletionPolicy>& policies)
   };
 
   auto policy = [](gsl::span<o2::framework::PartRef const> const& inputs) {
-    return CompletionPolicy::CompletionOp::Consume;
+    return CompletionPolicy::CompletionOp::Process;
   };
 
   policies.push_back({ CompletionPolicy{ "process-any", matcher, policy } });
