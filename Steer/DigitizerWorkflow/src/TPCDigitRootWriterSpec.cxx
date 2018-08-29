@@ -245,12 +245,11 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         // have to do work ...
         // take ownership of digits and write
         auto digits = std::move(digitbufferdata[completedchannelid]);
-        LOG(INFO) << "DIGIT SIZE " << digits->size();
+        LOG(INFO) << "DIGIT SIZE " << digits.size();
         {
           // connect this to a particular branch
-          auto digitsraw = digits.get();
-          auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, &digitsraw);
-          br->SetAddress((void*)&digitsraw);
+          // auto digitsraw = digits.get();
+          auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, &digits);
           br->Fill();
           br->ResetAddress();
         }
@@ -261,9 +260,9 @@ DataProcessorSpec getTPCDigitRootWriterSpec(int numberofsourcedevices)
         auto labeldata = pc.inputs().get<o2::dataformats::MCTruthContainer<o2::MCCompLabel>*>(lname.c_str());
         auto labeldataRaw = labeldata.get();
         LOG(INFO) << "MCTRUTH ELEMENTS " << labeldataRaw->getNElements();
-        if (labeldataRaw->getNElements() != digits->size()) {
+        if (labeldataRaw->getNElements() != digits.size()) {
           LOG(WARNING) << "Inconsistent number of label slots "
-                       << labeldataRaw->getNElements() << " versus digits " << digits->size();
+                       << labeldataRaw->getNElements() << " versus digits " << digits.size();
         }
 
         {
