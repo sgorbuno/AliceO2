@@ -1,0 +1,25 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Detectors/ITSMFT/common/simulation/src/Digitizer.cxx" name="/home/travis/build/AliceO2Group/AliceO2/Detectors/ITSMFT/common/simulation/src/Digitizer.cxx">
+<area shape="rect" id="node2" href="$d0/d06/ITSMFT_2common_2base_2include_2ITSMFTBase_2Digit_8h.html" title="ITSMFTBase/Digit.h" alt="" coords="311,208,453,235"/>
+<area shape="rect" id="node5" href="$d3/dba/SegmentationAlpide_8h.html" title="Definition of the SegmentationAlpide class. " alt="" coords="5,125,235,152"/>
+<area shape="rect" id="node6" href="$d7/d9c/ITSMFT_2common_2simulation_2include_2ITSMFTSimulation_2Digitizer_8h.html" title="ITSMFTSimulation/Digitizer.h" alt="" coords="948,125,1143,152"/>
+<area shape="rect" id="node22" href="$dd/d76/Cartesian3D_8h.html" title="MathUtils/Cartesian3D.h" alt="" coords="2631,389,2797,416"/>
+<area shape="rect" id="node50" href="$db/d14/MCTruthContainer_8h.html" title="Definition of a container to keep Monte Carlo truth external to simulation objects. " alt="" coords="3988,382,4140,423"/>
+<area shape="rect" id="node11" href="$da/d93/ChipDigitsContainer_8h.html" title="transient container for single chip digits accumulation " alt="" coords="581,201,776,242"/>
+<area shape="rect" id="node12" href="$d7/dcd/MCCompLabel_8h.html" title="SimulationDataFormat\l/MCCompLabel.h" alt="" coords="348,382,500,423"/>
+<area shape="rect" id="node15" href="$dc/d1a/AlpideSimResponse_8h.html" title="Definition of the ITSMFT Alpide simulated response parametrization. " alt="" coords="899,291,1093,333"/>
+<area shape="rect" id="node18" href="$df/d29/DigiParams_8h.html" title="Simulation parameters for the ALIPIDE chip. " alt="" coords="1169,299,1383,325"/>
+<area shape="rect" id="node20" href="$d0/dae/ITSMFT_2common_2simulation_2include_2ITSMFTSimulation_2Hit_8h.html" title="ITSMFTSimulation/Hit.h" alt="" coords="2076,208,2239,235"/>
+<area shape="rect" id="node34" href="$d0/d2d/common_2base_2include_2ITSMFTBase_2GeometryTGeo_8h.html" title="ITSMFTBase/GeometryTGeo.h" alt="" coords="1409,208,1612,235"/>
+<area shape="rect" id="node46" href="$d5/d08/ROFRecord_8h.html" title="Definition of the ITSMFT ROFrame (trigger) record. " alt="" coords="1459,299,1689,325"/>
+<area shape="rect" id="node13" href="$d2/d53/PreDigit_8h.html" title="Definition of the digit contribution from single hit. " alt="" coords="457,299,649,325"/>
+<area shape="rect" id="node19" href="$d1/d47/AlpideSignalTrapezoid_8h.html" title="Simple class describing ALPIDE signal time shape. " alt="" coords="1173,382,1379,423"/>
+<area shape="rect" id="node21" href="$d4/d25/BaseHits_8h.html" title="SimulationDataFormat\l/BaseHits.h" alt="" coords="2276,291,2428,333"/>
+<area shape="rect" id="node30" href="$d2/dd0/Cartesian2D_8h.html" title="MathUtils/Cartesian2D.h" alt="" coords="3978,480,4144,507"/>
+<area shape="rect" id="node36" href="$d4/d20/DetMatrixCache_8h.html" title="DetectorsCommonDataFormats\l/DetMatrixCache.h" alt="" coords="1765,291,1973,333"/>
+<area shape="rect" id="node38" href="$d6/d31/DetID_8h.html" title="DetectorsCommonDataFormats\l/DetID.h" alt="" coords="2276,382,2484,423"/>
+<area shape="rect" id="node43" href="$d9/d52/Common_2MathUtils_2include_2MathUtils_2Utils_8h.html" title="MathUtils/Utils.h" alt="" coords="2335,480,2455,507"/>
+<area shape="rect" id="node45" href="$d6/d84/MathConstants_8h.html" title="useful math constants " alt="" coords="2275,571,2513,597"/>
+<area shape="rect" id="node47" href="$d6/ddf/EvIndex_8h.html" title="Class to store event ID and index in the event for objects like track, cluster... ..." alt="" coords="1455,389,1661,416"/>
+<area shape="rect" id="node48" href="$d9/d80/InteractionRecord_8h.html" title="CommonDataFormat/Interaction\lRecord.h" alt="" coords="1907,382,2116,423"/>
+<area shape="rect" id="node49" href="$d4/dc6/LHCConstants_8h.html" title="Header to collect LHC related constants. " alt="" coords="1721,480,1957,507"/>
+</map>

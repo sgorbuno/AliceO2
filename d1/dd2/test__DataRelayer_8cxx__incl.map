@@ -1,0 +1,20 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Framework/Core/test/test_DataRelayer.cxx" name="/home/travis/build/AliceO2Group/AliceO2/Framework/Core/test/test_DataRelayer.cxx">
+<area shape="rect" id="node3" href="$dc/dcd/DataHeader_8h.html" title="Headers/DataHeader.h" alt="" coords="1783,389,1939,416"/>
+<area shape="rect" id="node12" href="$d4/d00/Headers_2include_2Headers_2Stack_8h.html" title="Headers/Stack.h" alt="" coords="1705,208,1825,235"/>
+<area shape="rect" id="node24" href="$d4/de5/CompletionPolicyHelpers_8h.html" title="Framework/CompletionPolicy\lHelpers.h" alt="" coords="3517,201,3709,242"/>
+<area shape="rect" id="node30" href="$df/d59/DataRelayer_8h.html" title="Framework/DataRelayer.h" alt="" coords="2351,125,2525,152"/>
+<area shape="rect" id="node42" href="$d6/dc9/DataProcessingHeader_8h.html" title="Framework/DataProcessing\lHeader.h" alt="" coords="1951,291,2135,333"/>
+<area shape="rect" id="node11" href="$d7/df8/Types_8h.html" title="MemoryResources/Types.h" alt="" coords="1723,472,1905,499"/>
+<area shape="rect" id="node13" href="$dc/d03/MemoryResources_8h.html" title="MemoryResources/MemoryResources.h" alt="" coords="1121,299,1377,325"/>
+<area shape="rect" id="node25" href="$d6/d72/ChannelSpec_8h.html" title="Framework/ChannelSpec.h" alt="" coords="3651,299,3831,325"/>
+<area shape="rect" id="node26" href="$df/dd6/CompletionPolicy_8h.html" title="Framework/CompletionPolicy.h" alt="" coords="2803,299,3007,325"/>
+<area shape="rect" id="node27" href="$d9/d32/PartRef_8h.html" title="Framework/PartRef.h" alt="" coords="2484,389,2631,416"/>
+<area shape="rect" id="node31" href="$d5/d19/InputRoute_8h.html" title="Framework/InputRoute.h" alt="" coords="3069,208,3235,235"/>
+<area shape="rect" id="node37" href="$d3/da3/DataDescriptorMatcher_8h.html" title="Framework/DataDescriptor\lMatcher.h" alt="" coords="2476,201,2655,242"/>
+<area shape="rect" id="node39" href="$d7/d12/ForwardRoute_8h.html" title="Framework/ForwardRoute.h" alt="" coords="3276,208,3460,235"/>
+<area shape="rect" id="node40" href="$d4/def/TimesliceIndex_8h.html" title="Framework/TimesliceIndex.h" alt="" coords="2159,299,2349,325"/>
+<area shape="rect" id="node32" href="$d2/dd9/ExpirationHandler_8h.html" title="Framework/ExpirationHandler.h" alt="" coords="3032,299,3237,325"/>
+<area shape="rect" id="node33" href="$d5/d3f/InputSpec_8h.html" title="Framework/InputSpec.h" alt="" coords="3363,299,3524,325"/>
+<area shape="rect" id="node34" href="$dc/dca/Lifetime_8h.html" title="Framework/Lifetime.h" alt="" coords="3301,389,3448,416"/>
+<area shape="rect" id="node41" href="$d1/daa/TimesliceIndex_8inl.html" title="TimesliceIndex.inl" alt="" coords="2250,389,2376,416"/>
+</map>

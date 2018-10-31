@@ -1,0 +1,16 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Detectors/FIT/macros/run_digi_fit.C" name="/home/travis/build/AliceO2Group/AliceO2/Detectors/FIT/macros/run_digi_fit.C">
+<area shape="rect" id="node10" href="$d4/dcd/FIT_2simulation_2include_2FITSimulation_2DigitizerTask_8h.html" title="FITSimulation/DigitizerTask.h" alt="" coords="1408,125,1603,152"/>
+<area shape="rect" id="node13" href="$d1/dde/FIT_2base_2include_2FITBase_2Digit_8h.html" title="FITBase/Digit.h" alt="" coords="1263,373,1377,400"/>
+<area shape="rect" id="node16" href="$de/d6b/FIT_2simulation_2include_2FITSimulation_2Detector_8h.html" title="FITSimulation/Detector.h" alt="" coords="1335,283,1503,309"/>
+<area shape="rect" id="node47" href="$d3/da0/FIT_2simulation_2include_2FITSimulation_2Digitizer_8h.html" title="FITSimulation/Digitizer.h" alt="" coords="1495,200,1661,227"/>
+<area shape="rect" id="node48" href="$db/d14/MCTruthContainer_8h.html" title="Definition of a container to keep Monte Carlo truth external to simulation objects. " alt="" coords="2476,275,2628,317"/>
+<area shape="rect" id="node53" href="$d7/dcd/MCCompLabel_8h.html" title="SimulationDataFormat\l/MCCompLabel.h" alt="" coords="1607,366,1759,407"/>
+<area shape="rect" id="node54" href="$d4/d6a/FIT_2simulation_2include_2FITSimulation_2MCLabel_8h.html" title="FITSimulation/MCLabel.h" alt="" coords="1628,283,1799,309"/>
+<area shape="rect" id="node14" href="$df/d5d/common_2include_2CommonDataFormat_2TimeStamp_8h.html" title="CommonDataFormat/TimeStamp.h" alt="" coords="1193,456,1420,483"/>
+<area shape="rect" id="node17" href="$d4/d25/BaseHits_8h.html" title="SimulationDataFormat\l/BaseHits.h" alt="" coords="1087,366,1239,407"/>
+<area shape="rect" id="node28" href="$d1/d3a/Base_2include_2DetectorsBase_2Detector_8h.html" title="DetectorsBase/Detector.h" alt="" coords="2225,373,2399,400"/>
+<area shape="rect" id="node45" href="$d1/db1/FIT_2base_2include_2FITBase_2Geometry_8h.html" title="FITBase/Geometry.h" alt="" coords="1416,373,1560,400"/>
+<area shape="rect" id="node18" href="$dd/d76/Cartesian3D_8h.html" title="MathUtils/Cartesian3D.h" alt="" coords="753,456,919,483"/>
+<area shape="rect" id="node25" href="$d2/dd0/Cartesian2D_8h.html" title="MathUtils/Cartesian2D.h" alt="" coords="453,539,619,565"/>
+<area shape="rect" id="node35" href="$d0/d9a/MaterialManager_8h.html" title="DetectorsBase/MaterialManager.h" alt="" coords="3042,456,3261,483"/>
+</map>

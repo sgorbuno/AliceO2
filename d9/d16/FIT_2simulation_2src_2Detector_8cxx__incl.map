@@ -1,0 +1,16 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Detectors/FIT/simulation/src/Detector.cxx" name="/home/travis/build/AliceO2Group/AliceO2/Detectors/FIT/simulation/src/Detector.cxx">
+<area shape="rect" id="node13" href="$d1/db1/FIT_2base_2include_2FITBase_2Geometry_8h.html" title="FITBase/Geometry.h" alt="" coords="2515,224,2659,251"/>
+<area shape="rect" id="node15" href="$de/d6b/FIT_2simulation_2include_2FITSimulation_2Detector_8h.html" title="FITSimulation/Detector.h" alt="" coords="2491,133,2659,160"/>
+<area shape="rect" id="node44" href="$d4/d03/simulation_2include_2SimulationDataFormat_2Stack_8h.html" title="SimulationDataFormat\l/Stack.h" alt="" coords="3496,126,3648,167"/>
+<area shape="rect" id="node16" href="$d4/d25/BaseHits_8h.html" title="SimulationDataFormat\l/BaseHits.h" alt="" coords="1625,217,1777,258"/>
+<area shape="rect" id="node28" href="$d1/d3a/Base_2include_2DetectorsBase_2Detector_8h.html" title="DetectorsBase/Detector.h" alt="" coords="1802,224,1976,251"/>
+<area shape="rect" id="node17" href="$dd/d76/Cartesian3D_8h.html" title="MathUtils/Cartesian3D.h" alt="" coords="717,315,883,341"/>
+<area shape="rect" id="node25" href="$d2/dd0/Cartesian2D_8h.html" title="MathUtils/Cartesian2D.h" alt="" coords="907,405,1073,432"/>
+<area shape="rect" id="node34" href="$d0/d9a/MaterialManager_8h.html" title="DetectorsBase/MaterialManager.h" alt="" coords="2011,315,2231,341"/>
+<area shape="rect" id="node45" href="$d6/d31/DetID_8h.html" title="DetectorsCommonDataFormats\l/DetID.h" alt="" coords="3685,307,3893,349"/>
+<area shape="rect" id="node54" href="$d2/de2/MCTrack_8h.html" title="Definition of the MCTrack class. " alt="" coords="3180,217,3332,258"/>
+<area shape="rect" id="node60" href="$db/d14/MCTruthContainer_8h.html" title="Definition of a container to keep Monte Carlo truth external to simulation objects. " alt="" coords="4229,307,4381,349"/>
+<area shape="rect" id="node64" href="$d5/dbe/TrackReference_8h.html" title="SimulationDataFormat\l/TrackReference.h" alt="" coords="3857,217,4009,258"/>
+<area shape="rect" id="node50" href="$d9/d52/Common_2MathUtils_2include_2MathUtils_2Utils_8h.html" title="MathUtils/Utils.h" alt="" coords="3729,405,3849,432"/>
+<area shape="rect" id="node52" href="$d6/d84/MathConstants_8h.html" title="useful math constants " alt="" coords="3501,496,3739,523"/>
+</map>

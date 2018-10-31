@@ -1,0 +1,40 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Framework/TestWorkflows/src/o2_sim_its_ALP3.cxx" name="/home/travis/build/AliceO2Group/AliceO2/Framework/TestWorkflows/src/o2_sim_its_ALP3.cxx">
+<area shape="rect" id="node2" href="$d5/db8/DataRefUtils_8h.html" title="Framework/DataRefUtils.h" alt="" coords="4171,499,4349,525"/>
+<area shape="rect" id="node32" href="$d8/d17/ServiceRegistry_8h.html" title="Framework/ServiceRegistry.h" alt="" coords="3693,424,3888,451"/>
+<area shape="rect" id="node36" href="$df/da1/WorkflowSpec_8h.html" title="Framework/WorkflowSpec.h" alt="" coords="3617,125,3804,152"/>
+<area shape="rect" id="node38" href="$d0/d14/AlgorithmSpec_8h.html" title="Framework/AlgorithmSpec.h" alt="" coords="3684,275,3871,301"/>
+<area shape="rect" id="node58" href="$d9/d6d/Cave_8h.html" title="DetectorsPassive/Cave.h" alt="" coords="3307,424,3479,451"/>
+<area shape="rect" id="node61" href="$db/d4b/MagneticField_8h.html" title="Definition of the MagF class. " alt="" coords="693,424,840,451"/>
+<area shape="rect" id="node76" href="$d6/d8d/ITSMFT_2ITS_2simulation_2include_2ITSSimulation_2Detector_8h.html" title="ITSSimulation/Detector.h" alt="" coords="1681,424,1849,451"/>
+<area shape="rect" id="node3" href="$d5/dfb/DataRef_8h.html" title="Framework/DataRef.h" alt="" coords="4299,581,4449,608"/>
+<area shape="rect" id="node4" href="$d8/d3c/TMessageSerializer_8h.html" title="Framework/TMessageSerializer.h" alt="" coords="4973,581,5189,608"/>
+<area shape="rect" id="node21" href="$d1/d53/SerializationMethods_8h.html" title="Type wrappers for enfording a specific serialization method. " alt="" coords="4575,581,4797,608"/>
+<area shape="rect" id="node22" href="$d0/d95/TypeTraits_8h.html" title="Framework/TypeTraits.h" alt="" coords="3977,664,4140,691"/>
+<area shape="rect" id="node23" href="$dc/dcd/DataHeader_8h.html" title="Headers/DataHeader.h" alt="" coords="5701,581,5856,608"/>
+<area shape="rect" id="node14" href="$dc/d03/MemoryResources_8h.html" title="MemoryResources/MemoryResources.h" alt="" coords="4217,664,4473,691"/>
+<area shape="rect" id="node28" href="$d7/df8/Types_8h.html" title="MemoryResources/Types.h" alt="" coords="5850,664,6032,691"/>
+<area shape="rect" id="node37" href="$d0/df4/DataProcessorSpec_8h.html" title="Framework/DataProcessorSpec.h" alt="" coords="5873,200,6092,227"/>
+<area shape="rect" id="node41" href="$d1/d28/DataAllocator_8h.html" title="Framework/DataAllocator.h" alt="" coords="5343,499,5524,525"/>
+<area shape="rect" id="node46" href="$d0/d1c/ConfigParamSpec_8h.html" title="Framework/ConfigParamSpec.h" alt="" coords="6071,275,6279,301"/>
+<area shape="rect" id="node47" href="$d1/df2/DataProcessorLabel_8h.html" title="Framework/DataProcessorLabel.h" alt="" coords="6303,275,6523,301"/>
+<area shape="rect" id="node48" href="$d5/d3f/InputSpec_8h.html" title="Framework/InputSpec.h" alt="" coords="6362,499,6523,525"/>
+<area shape="rect" id="node49" href="$db/d2d/OutputSpec_8h.html" title="Framework/OutputSpec.h" alt="" coords="5940,349,6111,376"/>
+<area shape="rect" id="node39" href="$de/d6a/ProcessingContext_8h.html" title="Framework/ProcessingContext.h" alt="" coords="4136,349,4349,376"/>
+<area shape="rect" id="node43" href="$d7/dad/ErrorContext_8h.html" title="Framework/ErrorContext.h" alt="" coords="3885,349,4061,376"/>
+<area shape="rect" id="node44" href="$d4/d2b/InitContext_8h.html" title="Framework/InitContext.h" alt="" coords="3694,349,3860,376"/>
+<area shape="rect" id="node40" href="$d6/d5c/InputRecord_8h.html" title="Framework/InputRecord.h" alt="" coords="4424,424,4597,451"/>
+<area shape="rect" id="node45" href="$de/dc6/ConfigParamRegistry_8h.html" title="Framework/ConfigParamRegistry.h" alt="" coords="3667,581,3893,608"/>
+<area shape="rect" id="node63" href="$d3/d91/MagFieldParam_8h.html" title="Definition of the MagFieldParam: container for ALICE mag. field parameters. " alt="" coords="434,499,589,525"/>
+<area shape="rect" id="node66" href="$dd/dfb/MagneticWrapperChebyshev_8h.html" title="Field/MagneticWrapperChebyshev.h" alt="" coords="177,499,409,525"/>
+<area shape="rect" id="node72" href="$da/df4/MagFieldFast_8h.html" title="Definition of the fast magnetic field parametrization MagFieldFast. " alt="" coords="1035,581,1179,608"/>
+<area shape="rect" id="node69" href="$d8/d64/Chebyshev3D_8h.html" title="MathUtils/Chebyshev3D.h" alt="" coords="220,581,396,608"/>
+<area shape="rect" id="node71" href="$d4/d08/Chebyshev3DCalc_8h.html" title="MathUtils/Chebyshev3DCalc.h" alt="" coords="144,664,347,691"/>
+<area shape="rect" id="node73" href="$dd/d76/Cartesian3D_8h.html" title="MathUtils/Cartesian3D.h" alt="" coords="1187,664,1353,691"/>
+<area shape="rect" id="node77" href="$db/dcc/Detectors_2Base_2include_2DetectorsBase_2GeometryManager_8h.html" title="DetectorsBase/GeometryManager.h" alt="" coords="1838,499,2068,525"/>
+<area shape="rect" id="node83" href="$d6/d31/DetID_8h.html" title="DetectorsCommonDataFormats\l/DetID.h" alt="" coords="2897,574,3105,615"/>
+<area shape="rect" id="node88" href="$d1/d3a/Base_2include_2DetectorsBase_2Detector_8h.html" title="DetectorsBase/Detector.h" alt="" coords="2437,581,2611,608"/>
+<area shape="rect" id="node95" href="$d0/dae/ITSMFT_2common_2simulation_2include_2ITSMFTSimulation_2Hit_8h.html" title="ITSMFTSimulation/Hit.h" alt="" coords="1565,499,1728,525"/>
+<area shape="rect" id="node86" href="$d9/d52/Common_2MathUtils_2include_2MathUtils_2Utils_8h.html" title="MathUtils/Utils.h" alt="" coords="2844,664,2964,691"/>
+<area shape="rect" id="node91" href="$d0/d9a/MaterialManager_8h.html" title="DetectorsBase/MaterialManager.h" alt="" coords="2165,664,2384,691"/>
+<area shape="rect" id="node96" href="$d4/d25/BaseHits_8h.html" title="SimulationDataFormat\l/BaseHits.h" alt="" coords="1203,574,1355,615"/>
+</map>

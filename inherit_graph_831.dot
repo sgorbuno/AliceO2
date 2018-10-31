@@ -1,0 +1,9 @@
+digraph "Graphical Class Hierarchy"
+{
+ // INTERACTIVE_SVG=YES
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="o2::utils::check::is\l_boost_serializable\<\l Type, Archive, typename \>",height=0.2,width=0.4,color="black",URL="$d4/dcd/classo2_1_1utils_1_1check_1_1is__boost__serializable.html",tooltip="A set of classes and struct to be sure the serialised object is either trivial or implementing custom..."];
+}

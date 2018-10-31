@@ -1,0 +1,19 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Framework/Core/test/test_InputRecord.cxx" name="/home/travis/build/AliceO2Group/AliceO2/Framework/Core/test/test_InputRecord.cxx">
+<area shape="rect" id="node3" href="$d6/d5c/InputRecord_8h.html" title="Framework/InputRecord.h" alt="" coords="1257,125,1430,152"/>
+<area shape="rect" id="node31" href="$dc/dcd/DataHeader_8h.html" title="Headers/DataHeader.h" alt="" coords="524,365,679,392"/>
+<area shape="rect" id="node51" href="$d6/dc9/DataProcessingHeader_8h.html" title="Framework/DataProcessing\lHeader.h" alt="" coords="25,275,209,317"/>
+<area shape="rect" id="node53" href="$d4/d00/Headers_2include_2Headers_2Stack_8h.html" title="Headers/Stack.h" alt="" coords="993,283,1113,309"/>
+<area shape="rect" id="node4" href="$d5/dfb/DataRef_8h.html" title="Framework/DataRef.h" alt="" coords="1283,283,1433,309"/>
+<area shape="rect" id="node5" href="$d5/db8/DataRefUtils_8h.html" title="Framework/DataRefUtils.h" alt="" coords="1977,200,2155,227"/>
+<area shape="rect" id="node30" href="$d0/d95/TypeTraits_8h.html" title="Framework/TypeTraits.h" alt="" coords="2783,365,2946,392"/>
+<area shape="rect" id="node40" href="$d5/d19/InputRoute_8h.html" title="Framework/InputRoute.h" alt="" coords="564,200,730,227"/>
+<area shape="rect" id="node47" href="$da/d0f/InputSpan_8h.html" title="Framework/InputSpan.h" alt="" coords="1127,200,1287,227"/>
+<area shape="rect" id="node48" href="$dc/d03/TableConsumer_8h.html" title="Framework/TableConsumer.h" alt="" coords="857,200,1051,227"/>
+<area shape="rect" id="node6" href="$d8/d3c/TMessageSerializer_8h.html" title="Framework/TMessageSerializer.h" alt="" coords="1957,283,2174,309"/>
+<area shape="rect" id="node29" href="$d1/d53/SerializationMethods_8h.html" title="Type wrappers for enfording a specific serialization method. " alt="" coords="2515,283,2737,309"/>
+<area shape="rect" id="node16" href="$dc/d03/MemoryResources_8h.html" title="MemoryResources/MemoryResources.h" alt="" coords="1457,365,1714,392"/>
+<area shape="rect" id="node36" href="$d7/df8/Types_8h.html" title="MemoryResources/Types.h" alt="" coords="499,448,681,475"/>
+<area shape="rect" id="node41" href="$d2/dd9/ExpirationHandler_8h.html" title="Framework/ExpirationHandler.h" alt="" coords="233,283,438,309"/>
+<area shape="rect" id="node43" href="$d5/d3f/InputSpec_8h.html" title="Framework/InputSpec.h" alt="" coords="756,283,917,309"/>
+<area shape="rect" id="node44" href="$dc/dca/Lifetime_8h.html" title="Framework/Lifetime.h" alt="" coords="756,365,903,392"/>
+</map>

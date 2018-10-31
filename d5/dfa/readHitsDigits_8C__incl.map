@@ -1,0 +1,11 @@
+<map id="/home/travis/build/AliceO2Group/AliceO2/Detectors/FIT/macros/readHitsDigits.C" name="/home/travis/build/AliceO2Group/AliceO2/Detectors/FIT/macros/readHitsDigits.C">
+<area shape="rect" id="node2" href="$de/d6b/FIT_2simulation_2include_2FITSimulation_2Detector_8h.html" title="FITSimulation/Detector.h" alt="" coords="1779,125,1947,152"/>
+<area shape="rect" id="node35" href="$d1/dde/FIT_2base_2include_2FITBase_2Digit_8h.html" title="FITBase/Digit.h" alt="" coords="2083,208,2198,235"/>
+<area shape="rect" id="node3" href="$d4/d25/BaseHits_8h.html" title="SimulationDataFormat\l/BaseHits.h" alt="" coords="1907,201,2059,242"/>
+<area shape="rect" id="node16" href="$d1/d3a/Base_2include_2DetectorsBase_2Detector_8h.html" title="DetectorsBase/Detector.h" alt="" coords="964,208,1138,235"/>
+<area shape="rect" id="node33" href="$d1/db1/FIT_2base_2include_2FITBase_2Geometry_8h.html" title="FITBase/Geometry.h" alt="" coords="1739,208,1883,235"/>
+<area shape="rect" id="node4" href="$dd/d76/Cartesian3D_8h.html" title="MathUtils/Cartesian3D.h" alt="" coords="2308,291,2474,317"/>
+<area shape="rect" id="node13" href="$d2/dd0/Cartesian2D_8h.html" title="MathUtils/Cartesian2D.h" alt="" coords="2155,373,2321,400"/>
+<area shape="rect" id="node23" href="$d0/d9a/MaterialManager_8h.html" title="DetectorsBase/MaterialManager.h" alt="" coords="433,291,653,317"/>
+<area shape="rect" id="node36" href="$df/d5d/common_2include_2CommonDataFormat_2TimeStamp_8h.html" title="CommonDataFormat/TimeStamp.h" alt="" coords="2015,291,2242,317"/>
+</map>
