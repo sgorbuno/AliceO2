@@ -96,6 +96,8 @@ bool initTPC(const char* fileName, int slice, int row) //not in use
 {
   // open NTuple file
 
+// rows 0-153
+
   TFile file(fileName, "READ");
   if (!file.IsOpen()) {
     cout << "distortion file not found!" << endl;
@@ -182,21 +184,23 @@ int SemiregularSpline2D3DCalibratorTest()
       seed = gRandom->Integer(100);      
     */
     gRandom->SetSeed(seed);
-
-    initF();
-    finder.setRasterSize(101, 101);
-    finder.setMaxNKnots(15, 15);
-    finder.setMaximalDeviation(1.2);
-    finder.startCalibration(F);
+     
     /*
-    bool ok = initTPC( "tpcDistortion.root", 0, 0 );
+    initF();
+    finder.setRasterSize(100, 100);
+    finder.setMaxNKnots(15, 16);
+    finder.setMaximalDeviation(0.08);
+    */
+   
+    
+    bool ok = initTPC( "tpcDistortionNTuple.root", 0, 100 );
     if( !ok ) break;
 
     finder.setRasterSize(101, 101);
     finder.setMaxNKnots(15, 15);
-    finder.setMaximalDeviation(0.01);
-    finder.startCalibration(F);
-    */
+    finder.setMaximalDeviation(0.09);
+
+    finder.startCalibration(F);    
 
     do {
       for (int i=0; i< finder.getSpline().getGridV().getNumberOfKnots() ; i++){
@@ -281,6 +285,14 @@ int SemiregularSpline2D3DCalibratorTest()
 	  ntDiff->Fill(u,v,fx1 - fx0);
 	}
       }
+      for (float x = 0; x <= 1; x += 1.e-2) {
+        gfdiff->SetPoint(nPoints++, x, -0.1, 0.);
+       gfdiff->SetPoint(nPoints++, x, 1.1, 0.);
+        gfdiff->SetPoint(nPoints++, -0.1, x, 0.);
+       gfdiff->SetPoint(nPoints++, 1.1, x, 0.);
+	
+      }
+
 
       if (kDraw) {
         canv->cd(1);
