@@ -11,6 +11,8 @@
 set(MODULE TPCFastTransformation)
 
 set(SRCS
+    CompactSplineIrregular1D.cxx  
+    CompactSplineHelper.cxx
     IrregularSpline1D.cxx
     IrregularSpline2D3D.cxx
     SemiregularSpline2D3D.cxx
@@ -27,7 +29,7 @@ if(${ALIGPU_BUILD_TYPE} STREQUAL "O2")
                  TARGETVARNAME targetName
                  SOURCES ${SRCS}
                  PUBLIC_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}
-                 PUBLIC_LINK_LIBRARIES O2::GPUCommon Vc::Vc ROOT::Core)
+                 PUBLIC_LINK_LIBRARIES O2::GPUCommon Vc::Vc ROOT::Core ROOT::Matrix)
 
   o2_target_root_dictionary(${MODULE}
                             HEADERS ${HDRS_CINT_O2}
