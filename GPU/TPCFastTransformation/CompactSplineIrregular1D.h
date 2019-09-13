@@ -85,8 +85,11 @@ class CompactSplineIrregular1D : public FlatObject
 
   /// _____________  Version control __________________________
 
-  static constexpr int getVersion() { return 1; }
-  size_t getDataSize() const { return 2 * mNumberOfKnots * sizeof(float); }
+  /// Version number
+  GPUd() static constexpr int getVersion() { return 1; }
+
+  /// Size of the data array in elements, must be multiplied by sizeof(float)
+  GPUd() size_t getDataSizeInelements() const { return 2 * mNumberOfKnots; }
 
   /// _____________  Constructors / destructors __________________________
 
