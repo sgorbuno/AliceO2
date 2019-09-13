@@ -21,8 +21,13 @@
 
 #pragma link C++ class o2::fdd::MCLabel + ;
 #pragma link C++ class vector < o2::fdd::MCLabel> + ;
+#include "SimulationDataFormat/MCTruthContainer.h"
+#pragma link C++ class o2::dataformats::MCTruthContainer < o2::fdd::MCLabel > + ;
 
 #pragma link C++ class o2::fdd::Hit + ;
 #pragma link C++ class vector < o2::fdd::Hit> + ;
+
+#pragma link C++ class o2::fdd::RecPoint + ;
+#pragma link C++ class vector < o2::fdd::RecPoint> + ;
 
 #endif

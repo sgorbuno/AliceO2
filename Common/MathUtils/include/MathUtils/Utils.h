@@ -124,7 +124,7 @@ constexpr int bit2Mask(T first, Args... args)
 }
 //--------------------------------------<<<
 
-GPUdi() float FastATan2(float y, float x)
+GPUhdi() float FastATan2(float y, float x)
 {
   // Fast atan2(y,x) for any angle [-Pi,Pi]
   // Average inaccuracy: 0.00048
@@ -144,14 +144,14 @@ GPUdi() float FastATan2(float y, float x)
     return ((kA * a2 + kB) * a2 + kC) * a;
   };
 
-  auto atan2P = [atan](float y, float x) -> float {
-    // fast atan2(y,x) for the angular range [0,+Pi]
+  auto atan2P = [atan](float yy, float xx) -> float {
+    // fast atan2(yy,xx) for the angular range [0,+Pi]
     constexpr float kPi025 = 1 * kPi / 4;
     constexpr float kPi075 = 3 * kPi / 4;
-    float x1 = x + y; //  point p1 (x1,y1) = (x,y) - Pi/4
-    float y1 = y - x;
+    float x1 = xx + yy; //  point p1 (x1,y1) = (xx,yy) - Pi/4
+    float y1 = yy - xx;
     float phi0, tan;
-    if (x < 0) { // p1 is in the range [Pi/4, 3*Pi/4]
+    if (xx < 0) { // p1 is in the range [Pi/4, 3*Pi/4]
       phi0 = kPi075;
       tan = -x1 / y1;
     } else { // p1 is in the range [-Pi/4, Pi/4]
@@ -162,7 +162,7 @@ GPUdi() float FastATan2(float y, float x)
   };
 
   // fast atan2(y,x) for any angle [-Pi,Pi]
-  return copysignf(atan2P(fabsf(y), x), y);
+  return copysignf(atan2P(o2::gpu::CAMath::Abs(y), x), y);
 }
 
 } // namespace utils

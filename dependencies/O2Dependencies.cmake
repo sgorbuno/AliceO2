@@ -11,6 +11,7 @@
 include_guard()
 
 include("${CMAKE_CURRENT_LIST_DIR}/O2RecipeAdapter.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/O2TestsAdapter.cmake")
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_MODULE_PATH})
 
@@ -117,6 +118,9 @@ find_package(OpenMP)
 set_package_properties(OpenMP PROPERTIES TYPE OPTIONAL)
 find_package(GLFW NAMES glfw3 CONFIG)
 set_package_properties(GLFW PROPERTIES TYPE RECOMMENDED)
+find_package(DebugGUI CONFIG)
+set_package_properties(DebugGUI PROPERTIES TYPE RECOMMENDED)
+
 find_package(AliRoot)
 set_package_properties(AliRoot
                        PROPERTIES

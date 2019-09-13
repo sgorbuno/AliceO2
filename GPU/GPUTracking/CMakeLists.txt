@@ -122,10 +122,12 @@ if(ALIGPU_BUILD_TYPE STREQUAL "O2")
 endif()
 
 # Sources for O2 and for Standalone if requested in config file
+if(ALIGPU_BUILD_TYPE STREQUAL "O2" OR ALIGPU_BUILD_TYPE STREQUAL "Standalone")
+  set(SRCS_NO_CINT ${SRCS_NO_CINT} Standalone/display/GPUDisplayBackend.cxx)
+endif()
 if(ALIGPU_BUILD_TYPE STREQUAL "O2" OR CONFIG_ROOT_AND_O2_EXTENSIONS)
     set(SRCS_NO_CINT
         ${SRCS_NO_CINT}
-        Standalone/display/GPUDisplayBackend.cxx
         Global/GPUChainITS.cxx
         ITS/GPUITSFitter.cxx
         ITS/GPUITSFitterKernels.cxx
@@ -203,6 +205,11 @@ string(REPLACE ".cxx" ".h" HDRS_TMP "${SRCS_NO_CINT}")
 set(HDRS_INSTALL ${HDRS_INSTALL} ${HDRS_TMP})
 unset(HDRS_TMP)
 
+if (TARGET AliceO2::DebugGUI)
+  set(DEBUGGUI_TARGET AliceO2::DebugGUI)
+else()
+  set(DEBUGGUI_TARGET O2::DebugGUI)
+endif()
 # Main CMake part for O2
 if(ALIGPU_BUILD_TYPE STREQUAL "O2")
   o2_add_library(${MODULE}
@@ -212,7 +219,7 @@ if(ALIGPU_BUILD_TYPE STREQUAL "O2")
                                        O2::TRDBase
                                        O2::ITStracking
                                        O2::TPCFastTransformation
-                                       O2::DebugGUI
+                                       ${DEBUGGUI_TARGET}
                  PUBLIC_INCLUDE_DIRECTORIES SliceTracker
                                             Base
                                             TPCConvert
@@ -370,7 +377,8 @@ endif()
 if(OpenMP_CXX_FOUND)
   message(STATUS "GPU: Using OpenMP: ${OpenMP_CXX_SPEC_DATE}")
   target_compile_definitions(${targetName} PRIVATE GPUCA_HAVE_OPENMP)
-  target_link_libraries(${targetName} PUBLIC OpenMP::OpenMP_CXX)
+  # Must be private, depending libraries might be compiled by compiler not understanding -fopenmp
+  target_link_libraries(${targetName} PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
 if(CUDA_ENABLED)

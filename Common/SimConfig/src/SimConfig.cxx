@@ -30,6 +30,8 @@ void SimConfig::initOptions(boost::program_options::options_description& options
     "startEvent", bpo::value<unsigned int>()->default_value(0), "index of first event to be used (when applicable)")(
     "extKinFile", bpo::value<std::string>()->default_value("Kinematics.root"),
     "name of kinematics file for event generator from file (when applicable)")(
+    "HepMCFile", bpo::value<std::string>()->default_value("kinematics.hepmc"),
+    "name of HepMC file for event generator from file (when applicable)")(
     "extGenFile", bpo::value<std::string>()->default_value("extgen.C"),
     "name of .C file with definition of external event generator")(
     "extGenFunc", bpo::value<std::string>()->default_value(""),
@@ -47,7 +49,9 @@ void SimConfig::initOptions(boost::program_options::options_description& options
     "chunkSizeI", bpo::value<int>()->default_value(-1), "internalChunkSize")(
     "seed", bpo::value<int>()->default_value(-1), "initial seed (default: -1 random)")(
     "nworkers,j", bpo::value<int>()->default_value(nsimworkersdefault), "number of parallel simulation workers (only for parallel mode)")(
-    "noemptyevents", "only writes events with at least one hit");
+    "noemptyevents", "only writes events with at least one hit")(
+    "CCDBUrl", bpo::value<std::string>()->default_value("ccdb-test.cern.ch:8080"), "URL for CCDB to be used.")(
+    "timestamp", bpo::value<long>()->default_value(-1), "global timestamp value (for anchoring) - default is now");
 }
 
 bool SimConfig::resetFromParsedMap(boost::program_options::variables_map const& vm)
@@ -83,6 +87,7 @@ bool SimConfig::resetFromParsedMap(boost::program_options::variables_map const& 
   mConfigData.mGenerator = vm["generator"].as<std::string>();
   mConfigData.mNEvents = vm["nEvents"].as<unsigned int>();
   mConfigData.mExtKinFileName = vm["extKinFile"].as<std::string>();
+  mConfigData.mHepMCFileName = vm["HepMCFile"].as<std::string>();
   mConfigData.mExtGenFileName = vm["extGenFile"].as<std::string>();
   mConfigData.mExtGenFuncName = vm["extGenFunc"].as<std::string>();
   mConfigData.mEmbedIntoFileName = vm["embedIntoFile"].as<std::string>();
@@ -98,6 +103,8 @@ bool SimConfig::resetFromParsedMap(boost::program_options::variables_map const& 
   mConfigData.mInternalChunkSize = vm["chunkSizeI"].as<int>();
   mConfigData.mStartSeed = vm["seed"].as<int>();
   mConfigData.mSimWorkers = vm["nworkers"].as<int>();
+  mConfigData.mTimestamp = vm["timestamp"].as<long>();
+  mConfigData.mCCDBUrl = vm["CCDBUrl"].as<std::string>();
   if (vm.count("noemptyevents")) {
     mConfigData.mFilterNoHitEvents = true;
   }
