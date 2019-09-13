@@ -29,7 +29,6 @@ namespace GPUCA_NAMESPACE
 {
 namespace gpu
 {
-
 ///
 /// The CompactSplineIrregular1D class represents one-dimensional spline interpolation on nonunifom (irregular) grid.
 ///
@@ -40,43 +39,44 @@ namespace gpu
 /// The spline interpolates a generic function F:[0,1]->R.
 ///
 /// Let's call the function parameter U, the function value F.
-/// The interpolation is performed on n knots {U0==0., U1, .., Un<1.}
-/// with given function values {F0, ..., Fn} and derivatives [Z0,..,Zn] at the knots.
+/// The interpolation is performed on n knots {U0==0., U1, .., Un-1==1.}
+/// with given function values {F0, ..., Fn-1} and derivatives [Z0,..,Zn-1] at the knots.
 ///
-/// An interpolation in each interval between two knots is performed by 3-th degree polynom.
-/// The polynoms cross the Fi values at the knots and have contnious 1-st derivative.
-/// Depending on the initialization of the first derivatives, the second derivative may not be continious.
+/// An interpolation on each segment between two knots is performed by a 3-th degree polynom.
+/// The polynoms and they 1-st derivatives are continuous at the knots.
+/// Depending on the initialization of the first derivative, the second derivative may or may not be continious.
 ///
-/// The knots should belong to half-interval [0,1), the distance between knots is (almost) arbitrary.
+/// The knots should belong to a segment [0,1], the distance between knots is (almost) arbitrary.
 ///
-/// Nothing which depends on F is stored in the class.
-/// Therefore one can use the same class for different F functions.
-/// The function values {F0,..,Fn} and the derivatives {Z0,..,Zn} have to be provided by user for each call.
+/// Nothing which depends on F is stored in the class,
+/// therefore one can use the same class for interpolation of different input functions.
+/// The function values {F0,..,Fn-1} and the derivatives {Z0,..,Zn-1} have to be provided by user for each call.
 ///
-/// The class performs a fast search of a spline interval: (float U ) -> [int iKnot, int iKnot+1 ).
-/// For that purpose, initial U coordinates of the knots are rounded to the closest i*1./nAxisBins values.
-/// Number of knots and they U coordinates may change during initialisation!
+/// An utility for searching of the spline segment: (float U ) -> [int iKnot, int iKnot+1 ] is implemented in a fast way.
+/// For that purpose, initial U coordinates of the knots are rounded to the nearby i*1./nAxisBins values.
+/// Due to this implementation, the number of knots and they U coordinates may change during initialization!
 ///
 /// The minimal number of knots is 2, the minimal number of axis bins is 1
 ///
-/// Knots U0=0. and Un=1. are always present. They are added automatically when they are not set by an user.
+/// Knots U0=0. and Un=1. are always present. They are added automatically when they are not set by the user.
 ///
-/// User should provide function values Fi and the derivatives Zi for all !constructed! knots.
+/// The user should provide function values Fi and the derivatives Zi for all !constructed! knots.
+/// They can be calculated using corresponding utilities in CompactSplineHelper class.
 ///
 /// ------------
 ///
-///
 ///  Example of creating a spline:
 ///
-///  const int nKnots=2;
-///  float knots[nKnots] = {0., 1.};
+///  const int nKnots=3;
+///  float knots[nKnots] = {0., 0.2., 1.}; // original knot positions
+///  const int nAxisBins = 3;
 ///  CompactSplineIrregular1D spline;
-///  spline.construct(nKnots, knots, 1);
-///  float data[2*nKnots] = { 3.5, 0.01, 2.0, -0.01};
+///  spline.construct(nKnots, knots, nAxisBins); // knot positions will be rounded to 1/nAxisBins:  {0, 0.3, 1.}
+///  float data[2*nKnots] = { 3.5, 0.01, 2.0, -0.01, 3.1, 0.02};
 ///  spline.getSpline( f, 0.0 ); // == 3.5
 ///  spline.getSpline( f, 0.1 ); // == some interpolated value
-///  spline.getSpline( f, 0.5 ); // == some interpolated value
-///  spline.getSpline( f, 1.0 ); // == 2.0
+///  spline.getSpline( f, 0.3 ); // == 2.0
+///  spline.getSpline( f, 1.0 ); // == 3.1
 ///
 class CompactSplineIrregular1D : public FlatObject
 {
@@ -119,24 +119,25 @@ class CompactSplineIrregular1D : public FlatObject
   /// Making the data buffer external
 
   using FlatObject::releaseInternalBuffer;
-#ifndef GPUCA_GPUCODE
-  using FlatObject::moveBufferTo;
-#endif
+  void moveBufferTo(char* newBufferPtr);
 
   /// Moving the class with its external buffer to another location
 
-  using FlatObject::setActualBufferAddress;
-  using FlatObject::setFutureBufferAddress;
+  void setActualBufferAddress(char* actualFlatBufferPtr);
+  void setFutureBufferAddress(char* futureFlatBufferPtr);
+
+  /// Get minimal required alignment for the spline data
+  static constexpr size_t getDataAlignmentBytes() { return 8; }
 
   /// _______________  Construction interface  ________________________
 
   /// Constructor
   ///
-  /// Number of knots created and their values may differ from the input values:
+  /// Number of created knots and their positions may differ from the input values:
   /// - Edge knots 0.f and 1.f will be added if they are not present.
-  /// - Knot values are rounded to closest axis bins: k*1./numberOfAxisBins.
-  /// - Knots which are too close to each other will be merged
-  /// - At least 5 knots and at least 4 axis bins will be created for consistency reason
+  /// - Knot positions are rounded to the nearby axis bins: k*1./numberOfAxisBins.
+  /// - Knots rounded to the same axis bin will be merged
+  /// - At least 2 knots and at least 1 axis bin will be created
   ///
   /// \param numberOfKnots     Number of knots in knots[] array
   /// \param knots             Array of knots.
@@ -146,48 +147,39 @@ class CompactSplineIrregular1D : public FlatObject
   ///
   void construct(int numberOfKnots, const float knots[], int numberOfAxisBins);
 
-  /// Constructor for a regular spline
+  /// Constructor for a regular spline. Knots will be placed at positions i/(numberOfKnots-1)
   void constructRegular(int numberOfKnots);
 
   /// _______________  Main functionality   ________________________
 
-  /// Get interpolated value for f(u) using spline at the interval [knot,next knot] with function values f0, f1 and derivatives z0, z1
+  /// Get interpolated value for F(u) using spline at the segment [knot,next knot] with function values f0, f1 and derivatives z0, z1
   template <typename T>
   GPUd() static T getSpline(const CompactSplineIrregular1D::Knot& knot, T f0, T z0, T f1, T z1, float u);
 
-  /// Get interpolated value for f(u) using data array data[2*getNumberOfKnots()]
+  /// Get interpolated value for F(u) using data array data[2*getNumberOfKnots()] == {F0,Z0, .., Fn-1,Zn-1}
   template <typename T>
   GPUd() T getSpline(const T data[], float u) const;
+
+  /// Get interpolated value for F(u) using data array data[2*getNumberOfKnots()] == {F0,Z0, .., Fn-1,Zn-1}, with a border check
+  template <typename T>
+  GPUd() T getSplineSafe(const T data[], float u) const;
 
   /// Get number of knots
   GPUd() int getNumberOfKnots() const { return mNumberOfKnots; }
 
   /// Get index of associated knot for a given U coordinate.
-  ///
-  /// Note: U values from the first interval are mapped to the second inrerval.
-  /// Values from the last interval are mapped to the previous interval.
-  ///
   GPUd() int getKnotIndex(float u) const;
 
   /// Get i-th knot, no border check performed!
   GPUd() const CompactSplineIrregular1D::Knot& getKnot(int i) const { return getKnots()[i]; }
 
-  /// Get array of knots
+  /// Get the array of knots
   GPUd() const CompactSplineIrregular1D::Knot* getKnots() const { return reinterpret_cast<const CompactSplineIrregular1D::Knot*>(mFlatBufferPtr); }
-
-  /// Get minimal required alignment for the class
-  static constexpr size_t getClassAlignmentBytes() { return 8; }
-
-  /// Get minimal required alignment for the flat buffer
-  static constexpr size_t getBufferAlignmentBytes() { return 8; }
-
-  /// Get minimal required alignment for the spline data
-  static constexpr size_t getDataAlignmentBytes() { return 8; }
 
   /// technical stuff
 
   /// Get a map  (U axis bin index) -> (corresponding knot index)
-  GPUd() const int* getBin2KnotMap() const { return reinterpret_cast<const int*>(mFlatBufferPtr + mBin2KnotMapOffset); }
+  GPUd() const int* getBin2KnotMap() const { return mBin2KnotMap; }
 
   /// Get number of axis bins
   int getNumberOfAxisBins() const { return mNumberOfAxisBins; }
@@ -200,15 +192,15 @@ class CompactSplineIrregular1D : public FlatObject
   CompactSplineIrregular1D::Knot* getKnotsNonConst() { return reinterpret_cast<CompactSplineIrregular1D::Knot*>(mFlatBufferPtr); }
 
   /// Non-const accessor to bins->knots map
-  int* getBin2KnotMapNonConst() { return reinterpret_cast<int*>(mFlatBufferPtr + mBin2KnotMapOffset); }
+  int* getBin2KnotMapNonConst() { return mBin2KnotMap; }
 
   ///
   /// ====  Data members   ====
   ///
 
-  int mNumberOfKnots;              ///< n knots on the grid
-  int mNumberOfAxisBins;           ///< number of axis bins
-  unsigned int mBin2KnotMapOffset; ///< pointer to (axis bin) -> (knot) map in mFlatBufferPtr array
+  int mNumberOfKnots;    ///< n knots on the grid
+  int mNumberOfAxisBins; ///< number of axis bins
+  int* mBin2KnotMap;     ///< pointer to (axis bin) -> (knot) map inside the mFlatBufferPtr array
 };
 
 /// ====================================================
@@ -222,9 +214,9 @@ GPUdi() T CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Kn
   /// Get interpolated value for f(u) using spline at knot "knot1" and function values at knots {knot_0,knot_1,knot_2,knot_3}
 
   T x = T((u - knot0.u) * knot0.Li); // scaled u
-  T x2 = x * x;
-  /*
+  /* another way to calculate
   T xm1 = x-1;
+  T x2 = x * x;
   float cf1 = x2*(3-2*x);
   float cf0 = 1-cf1;
   float cz0 = x*xm1*xm1*knot0.L;
@@ -243,21 +235,31 @@ GPUdi() T CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Kn
   // f'(0) = z0
   // f'(1) = z1
   //
-
   // T d = f0;
   // T c = z0;
   T a = -f1 - f1 + z0 + z1;
-  T b = f1 - z0 - a;
-  return a * x * x2 + b * x2 + z0 * x + f0;
+  T b = f1 - z0; // - a;
+  return ((a * (x - T(1.f)) + b) * x + z0) * x + f0;
+}
+
+template <typename T>
+GPUdi() T CompactSplineIrregular1D::getSplineSafe(const T data[], float u) const
+{
+  /// Get interpolated value for f(u) using data array data[2*getNumberOfKnots()]
+  if (u < 0.f)
+    u = 0.f;
+  else if (u > 1.f)
+    u = 1.f;
+  return getSpline(data, u);
 }
 
 template <typename T>
 GPUdi() T CompactSplineIrregular1D::getSpline(const T data[], float u) const
 {
-  /// Get interpolated value for f(u) using data array data[2*getNumberOfKnots()]
+  /// get interpolated value for f(u) using data array data[2*getNumberOfKnots()] = {F0,Z0,..,Fn-1,Zn-1}
   int iknot = getKnotIndex(u);
   const CompactSplineIrregular1D::Knot& knot = getKnot(iknot);
-  const T* d = data + 2 * iknot;
+  const T* d = data + (iknot + iknot);
   return getSpline(knot, d[0], d[1], d[2], d[3], u);
 }
 
@@ -265,12 +267,6 @@ GPUdi() int CompactSplineIrregular1D::getKnotIndex(float u) const
 {
   /// get i: u is in [knot_i, knot_{i+1})
   int ibin = (int)(u * mNumberOfAxisBins);
-  if (ibin < 0) {
-    ibin = 0;
-  }
-  if (ibin > mNumberOfAxisBins - 1) {
-    ibin = mNumberOfAxisBins - 1;
-  }
   return getBin2KnotMap()[ibin];
 }
 
