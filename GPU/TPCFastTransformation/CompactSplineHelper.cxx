@@ -48,13 +48,15 @@ std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregula
   auto addPoint = [&](double u, double f) {
     int i = spline.getKnotIndex(u);
     const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
+    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i + 1);
+    double l = knot1.u - knot0.u;
     double x = (u - knot0.u) * knot0.Li; // scaled u
     double x2 = x * x;
     double xm1 = x - 1.;
     double cf1 = x2 * (3. - 2. * x);
     double cf0 = 1. - cf1;
-    double cz0 = x * xm1 * xm1 * knot0.L;
-    double cz1 = x2 * xm1 * knot0.L;
+    double cz0 = x * xm1 * xm1 * l;
+    double cz1 = x2 * xm1 * l;
 
     i *= 2;
     A(i, i) += cf0 * cf0;
@@ -79,9 +81,10 @@ std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregula
   int nSteps = nAxiliaryPoints + 1;
 
   for (int i = 0; i < nKnots - 1; ++i) {
-    const CompactSplineIrregular1D::Knot& knot = spline.getKnot(i);
-    double u = knot.u;
-    double du = knot.L / nSteps;
+    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
+    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i + 1);
+    double u = knot0.u;
+    double du = (knot1.u - u) / nSteps;
     for (int i = 0; i < nSteps; ++i, u += du) {
       addPoint(u, F(u));
     }

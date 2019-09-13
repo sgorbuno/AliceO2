@@ -80,9 +80,13 @@ class CompactSplineIrregular1D : public FlatObject
   ///
   struct Knot {
     float u;  ///< u coordinate of the knot i
-    float L;  ///< length of the [i, i+1] segment
     float Li; ///< inverse length of the [i, i+1] segment
   };
+
+  /// _____________  Version control __________________________
+
+  static constexpr int getVersion() { return 1; }
+  size_t getDataSize() const { return 2 * mNumberOfKnots * sizeof(float); }
 
   /// _____________  Constructors / destructors __________________________
 
@@ -121,7 +125,7 @@ class CompactSplineIrregular1D : public FlatObject
   void setFutureBufferAddress(char* futureFlatBufferPtr);
 
   /// Get minimal required alignment for the spline data
-  static constexpr size_t getDataAlignmentBytes() { return 8; }
+  static constexpr size_t getDataAlignmentBytes() { return 2 * sizeof(float); }
 
   /// _______________  Construction interface  ________________________
 
@@ -205,9 +209,11 @@ template <typename T>
 GPUdi() T CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Knot& knot0, T f0, T z0, T f1, T z1, float u)
 {
   /// static method
-  /// Get interpolated value for f(u) using spline at knot "knot1" and function values at knots {knot_0,knot_1,knot_2,knot_3}
+  /// Get interpolated value for f(u) using spline at knot "knot0" and function & derivative values at knots {knot_0,knot_1}
 
-  T x = T((u - knot0.u) * knot0.Li); // scaled u
+  T uu = T(u - knot0.u);
+  T x = uu * T(knot0.Li); // scaled u
+
   /* another way to calculate
   T xm1 = x-1;
   T x2 = x * x;
@@ -217,23 +223,10 @@ GPUdi() T CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Kn
   float cz1 = x2*xm1*knot0.L;
   return cf0*f0 + cf1*f1 + cz0*z0 + cz1*z1;
   */
-
-  z0 *= knot0.L; // scaled u derivative at the knot 0
-  z1 *= knot0.L; // scaled u derivative at the knot 1
-  f1 -= f0;
-
-  // f(x) = ax^3 + bx^2 + cx + d
-  //
-  // f(0) = f0
-  // f(1) = f1
-  // f'(0) = z0
-  // f'(1) = z1
-  //
-  // T d = f0;
-  // T c = z0;
+  f1 = (f1 - f0) * knot0.Li;
   T a = -f1 - f1 + z0 + z1;
-  T b = f1 - z0; // - a;
-  return ((a * (x - T(1.f)) + b) * x + z0) * x + f0;
+  T b = f1 - z0 - a;
+  return ((a * x + b) * x + z0) * uu + f0;
 }
 
 template <typename T>

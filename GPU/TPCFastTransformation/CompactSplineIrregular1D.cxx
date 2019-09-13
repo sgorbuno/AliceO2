@@ -129,13 +129,11 @@ void CompactSplineIrregular1D::construct(int numberOfKnots, const float inputKno
   }
 
   for (int i = 0; i < mNumberOfKnots - 1; i++) {
-    s[i].L = s[i + 1].u - s[i].u;
-    s[i].Li = 1. / s[i].L;
+    s[i].Li = 1. / (s[i + 1].u - s[i].u);
   }
 
   { // values will not be used, we define them for consistency
     int i = mNumberOfKnots - 1;
-    s[i].L = 0.f;
     s[i].Li = 0.f;
   }
 
