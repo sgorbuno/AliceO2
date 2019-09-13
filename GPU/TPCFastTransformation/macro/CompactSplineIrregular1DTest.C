@@ -50,6 +50,8 @@ int CompactSplineIrregular1DTest()
 
   cout << "Test interpolation.." << endl;
 
+  TCanvas* canv = new TCanvas("cQA", "CompactSplineIrregular1D  QA", 2000, 1000);
+
   gRandom->SetSeed(0);
 
   for (int seed = 14;; seed++) {
@@ -106,14 +108,15 @@ int CompactSplineIrregular1DTest()
     IrregularSpline1D splineLocal2N;
     std::unique_ptr<float[]> dataLocal2N(nullptr);
     {
-      float knotsUtmp[nKnotsTot * 2];
-      float du = 1. / (nKnotsTot * 2 - 1);
-      for (int i = 0; i < nKnotsTot * 2; i++) {
+      int nKnotsTot2N = 2 * nKnotsTot - 1;
+      float knotsUtmp[nKnotsTot2N];
+      float du = 1. / (nKnotsTot2N - 1);
+      for (int i = 0; i < nKnotsTot2N; i++) {
         knotsUtmp[i] = i * du;
       }
       knotsUtmp[0] = 0.;
-      knotsUtmp[2 * nKnotsTot - 1] = 1.;
-      splineLocal2N.construct(nKnotsTot * 2, knotsUtmp, nAxisBinsU * 2 + 1);
+      knotsUtmp[nKnotsTot2N - 1] = 1.;
+      splineLocal2N.construct(nKnotsTot2N, knotsUtmp, nAxisBinsU * 2 + 1);
 
       int n = splineLocal2N.getNumberOfKnots();
       dataLocal2N.reset(new float[n]); // corrected data
@@ -131,7 +134,6 @@ int CompactSplineIrregular1DTest()
     const CompactSplineIrregular1D& gridU = spline;
     int nu = gridU.getNumberOfKnots();
 
-    TCanvas* canv = new TCanvas("cQA", "CompactSplineIrregular1D  QA", 2000, 1000);
     canv->Draw();
 
     TH1F* qaX = new TH1F("qaX", "qaX [um]", 1000, -1000., 1000.);
@@ -223,11 +225,6 @@ int CompactSplineIrregular1DTest()
     nt->SetMarkerColor(kBlack);
     nt->Draw("fClass:u", "", "P,same");
 
-    /*
-      nt->SetMarkerColor(kCyan);
-      nt->Draw("fLocal:u", "", "P,same");
-    */
-
     nt->SetMarkerColor(kBlue);
     nt->Draw("fLocal2N:u", "", "P,same");
 
@@ -250,18 +247,22 @@ int CompactSplineIrregular1DTest()
     knots->SetMarkerSize(1.);
     knots->Draw("f:u", "type==2", "same");
 
-    auto legend = new TLegend(0.1, 0.85, 0.3, 0.95);
+    auto legend = new TLegend(0.1, 0.82, 0.3, 0.95);
     //legend->SetHeader("Splines of the same size:","C"); // option "C" allows to center the header
-    TLine l1;
-    l1.SetLineWidth(4);
-    l1.SetLineColor(kBlack);
-    legend->AddEntry(&l1, "classical (N knots + N slopes)", "L");
-    TLine l2(l1);
-    l2.SetLineColor(kBlue);
-    legend->AddEntry(&l2, "local (2N knots)", "L");
-    TLine l3(l1);
-    l3.SetLineColor(kRed);
-    legend->AddEntry(&l3, "compact (N knots + N slopes)", "L");
+    TLine* l0 = new TLine();
+    l0->SetLineWidth(10);
+    l0->SetLineColor(kGray);
+    legend->AddEntry(l0, "input function", "L");
+    TLine* l1 = new TLine();
+    l1->SetLineWidth(4);
+    l1->SetLineColor(kBlack);
+    legend->AddEntry(l1, "classical (N knots + N slopes)", "L");
+    TLine* l2 = new TLine(*l1);
+    l2->SetLineColor(kBlue);
+    legend->AddEntry(l2, "local (2N knots)", "L");
+    TLine* l3 = new TLine(*l1);
+    l3->SetLineColor(kRed);
+    legend->AddEntry(l3, "compact (N knots + N slopes)", "L");
     legend->Draw();
 
     canv->Update();

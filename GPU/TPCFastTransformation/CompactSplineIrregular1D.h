@@ -19,12 +19,6 @@
 #include "GPUCommonDef.h"
 #include "FlatObject.h"
 
-#ifndef __OPENCL__
-#include <cstddef>
-#include <memory>
-#include <cstring>
-#endif
-
 namespace GPUCA_NAMESPACE
 {
 namespace gpu
