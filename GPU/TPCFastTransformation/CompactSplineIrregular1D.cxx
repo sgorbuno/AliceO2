@@ -46,7 +46,7 @@ void CompactSplineIrregular1D::cloneFromObject(const CompactSplineIrregular1D& o
   mBin2KnotMap = FlatObject::relocatePointer(obj.mFlatBufferPtr, mFlatBufferPtr, obj.mBin2KnotMap);
 }
 
-void IrregularSpline2D3D::moveBufferTo(char* newFlatBufferPtr)
+void CompactSplineIrregular1D::moveBufferTo(char* newFlatBufferPtr)
 {
 /// See FlatObject for description
 #ifndef GPUCA_GPUCODE
@@ -55,14 +55,14 @@ void IrregularSpline2D3D::moveBufferTo(char* newFlatBufferPtr)
 #endif
 }
 
-void IrregularSpline2D3D::setActualBufferAddress(char* actualFlatBufferPtr)
+void CompactSplineIrregular1D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
   mBin2KnotMap = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mBin2KnotMap);
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
 }
 
-void IrregularSpline2D3D::setFutureBufferAddress(char* futureFlatBufferPtr)
+void CompactSplineIrregular1D::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
   mBin2KnotMap = FlatObject::relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mBin2KnotMap);

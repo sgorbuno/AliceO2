@@ -10,11 +10,6 @@
    .x loadlibs.C
    .x IrregularSpline1DTest.C++
  */
-int CompactSplineIrregular1DTest()
-{
-  return 0;
-}
-#ifdef XXX
 
 #if !defined(__CLING__) || defined(__ROOTCLING__)
 
@@ -280,5 +275,4 @@ int CompactSplineIrregular1DTest()
   return 0;
 }
 
-#endif
 #endif
