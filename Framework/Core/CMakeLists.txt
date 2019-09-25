@@ -166,6 +166,7 @@ foreach(t
         FairMQResizableBuffer
         FrameworkDataFlowToDDS
         Graphviz
+        HistogramRegistry
         InfoLogger
         InputRecord
         Kernels
@@ -228,7 +229,10 @@ foreach(b
         DataRelayer
         DeviceMetricsInfo
         InputRecord
-        TableBuilder)
+        TableBuilder
+        ASoA
+        HistogramRegistry
+        )
   o2_add_test(benchmark_${b} NAME test_Framework_benchmark_${b}
               SOURCES test/benchmark_${b}.cxx
               COMPONENT_NAME Framework
