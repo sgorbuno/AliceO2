@@ -24,7 +24,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 CompactSplineHelper::CompactSplineHelper() : mError() {}
 
-std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregular1D& spline, std::function<float(float)> F, int nAxiliaryPoints)
+std::unique_ptr<float[]> CompactSplineHelper::createCompact(const CompactSplineIrregular1D& spline, std::function<float(float)> F, int nAxiliaryPoints)
 {
   if (!spline.isConstructed()) {
     storeError(-1, "CompactSplineHelper::create: input spline is not constructed");
@@ -90,7 +90,7 @@ std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregula
     }
   }
 
-  addPoint(1., F(1.)); // last knot
+  addPoint(spline.getKnot(nKnots - 1).u, F(spline.getKnot(nKnots - 1).u)); // last knot
 
   // copy symmetric elements
 

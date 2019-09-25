@@ -15,15 +15,16 @@
 
 #include "CompactSplineIrregular1D.h"
 #include <cmath>
-#include <vector>
 
 #if !defined(GPUCA_GPUCODE)
+#include <vector>
+#include <algorithm>
 #include <iostream>
 #endif
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-CompactSplineIrregular1D::CompactSplineIrregular1D() : FlatObject(), mNumberOfKnots(0), mNumberOfAxisBins(0), mBin2KnotMap(0)
+CompactSplineIrregular1D::CompactSplineIrregular1D() : FlatObject(), mNumberOfKnots(0), mUmax(0), mBin2KnotMap(0)
 {
   /// Default constructor. Creates an empty uninitialised object
 }
@@ -32,28 +33,30 @@ void CompactSplineIrregular1D::destroy()
 {
   /// See FlatObject for description
   mNumberOfKnots = 0;
-  mNumberOfAxisBins = 0;
+  mUmax = 0;
   mBin2KnotMap = nullptr;
   FlatObject::destroy();
 }
 
+#if !defined(GPUCA_GPUCODE)
 void CompactSplineIrregular1D::cloneFromObject(const CompactSplineIrregular1D& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
+  const char* oldFlatBufferPtr = obj.mFlatBufferPtr;
   FlatObject::cloneFromObject(obj, newFlatBufferPtr);
   mNumberOfKnots = obj.mNumberOfKnots;
-  mNumberOfAxisBins = obj.mNumberOfAxisBins;
-  mBin2KnotMap = FlatObject::relocatePointer(obj.mFlatBufferPtr, mFlatBufferPtr, obj.mBin2KnotMap);
+  mUmax = obj.mUmax;
+  mBin2KnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mBin2KnotMap);
 }
 
 void CompactSplineIrregular1D::moveBufferTo(char* newFlatBufferPtr)
 {
-/// See FlatObject for description
-#ifndef GPUCA_GPUCODE
+  /// See FlatObject for description
+  const char* oldFlatBufferPtr = mFlatBufferPtr;
   FlatObject::moveBufferTo(newFlatBufferPtr);
-  setActualBufferAddress(mFlatBufferPtr);
-#endif
+  mBin2KnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, mBin2KnotMap);
 }
+#endif
 
 void CompactSplineIrregular1D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
@@ -69,73 +72,61 @@ void CompactSplineIrregular1D::setFutureBufferAddress(char* futureFlatBufferPtr)
   FlatObject::setFutureBufferAddress(futureFlatBufferPtr);
 }
 
-void CompactSplineIrregular1D::construct(int numberOfKnots, const float inputKnots[], int numberOfAxisBins)
+#if !defined(GPUCA_GPUCODE)
+
+void CompactSplineIrregular1D::construct(int numberOfKnots, const int inputKnots[])
 {
-  /// Constructor.
-  /// Initializes the spline with a grid with numberOfKnots knots in the segment [0,1)
-  /// array inputKnots[] has numberOfKnots entries in increase order, started from 0.
-  /// The edge knots u==0. and u==1. are obligatory
+  /// Constructor
   ///
-  /// Number of created knots and their positions may differ from the input values:
-  /// - Edge knots 0.f and 1.f will be added if they are not present.
-  /// - Knot positions are rounded to the nearby axis bins: k*1./numberOfAxisBins.
-  /// - Knots rounded to the same axis bin will be merged
-  /// - At least 2 knots and at least 1 axis bin will be created
+  /// Number of created knots may differ from the input values:
+  /// - Edge knots {0} and {Umax} will be added if they are not present.
+  /// - Duplicated knots, knots with a negative coordinate will be deleted
+  /// - At least 2 knots will be created
   ///
   /// \param numberOfKnots     Number of knots in knots[] array
-  /// \param knots             Array of knots.
-  /// \param numberOfAxisBins Number of axis bins to map U coordinate to
-  ///                          an appropriate [knot(i),knot(i+1)] interval.
-  ///                          The knot positions have a "granularity" of 1./numberOfAxisBins
+  /// \param knots             Array of knot positions (integer values)
   ///
 
   FlatObject::startConstruction();
 
-  if (numberOfAxisBins < 1) {
-    numberOfAxisBins = 1;
-  }
-
-  std::vector<int> vKnotBins;
+  std::vector<int> knotU;
 
   { // reorganize knots
 
-    int lastBin = numberOfAxisBins; // last bin starts with U value 1.f, therefore it is outside of the [0.,1.] interval
+    std::vector<int> tmp;
+    for (int i = 0; i < numberOfKnots; i++)
+      tmp.push_back(inputKnots[i]);
+    std::sort(tmp.begin(), tmp.end());
 
-    vKnotBins.push_back(0); // obligatory knot at 0.0
+    knotU.push_back(0); // obligatory knot at 0.0
 
     for (int i = 0; i < numberOfKnots; ++i) {
-      int bin = (int)roundf(inputKnots[i] * numberOfAxisBins);
-      if (bin <= vKnotBins.back() || bin >= lastBin) {
-        continue; // same knot
-      }
-      vKnotBins.push_back(bin);
+      if (knotU.back() < tmp[i])
+        knotU.push_back(tmp[i]);
     }
-
-    vKnotBins.push_back(lastBin); // obligatory knot at 1.0
+    if (knotU.back() < 1)
+      knotU.push_back(1);
   }
 
-  mNumberOfKnots = vKnotBins.size();
-  mNumberOfAxisBins = numberOfAxisBins;
+  mNumberOfKnots = knotU.size();
+  mUmax = knotU.back();
   int bin2KnotMapOffset = mNumberOfKnots * sizeof(CompactSplineIrregular1D::Knot);
 
-  FlatObject::finishConstruction(bin2KnotMapOffset + (numberOfAxisBins + 1) * sizeof(int));
+  FlatObject::finishConstruction(bin2KnotMapOffset + (mUmax + 1) * sizeof(int));
 
   mBin2KnotMap = reinterpret_cast<int*>(mFlatBufferPtr + bin2KnotMapOffset);
 
   CompactSplineIrregular1D::Knot* s = getKnotsNonConst();
 
   for (int i = 0; i < mNumberOfKnots; i++) {
-    s[i].u = vKnotBins[i] / ((double)mNumberOfAxisBins); // do division in double
+    s[i].u = knotU[i];
   }
 
   for (int i = 0; i < mNumberOfKnots - 1; i++) {
-    s[i].Li = 1. / (s[i + 1].u - s[i].u);
+    s[i].Li = 1. / (s[i + 1].u - s[i].u); // do division in double
   }
 
-  { // values will not be used, we define them for consistency
-    int i = mNumberOfKnots - 1;
-    s[i].Li = 0.f;
-  }
+  s[mNumberOfKnots - 1].Li = 0.f; // the value will not be used, we define it for consistency
 
   // Set up map (U bin) -> (knot index)
 
@@ -144,16 +135,16 @@ void CompactSplineIrregular1D::construct(int numberOfKnots, const float inputKno
   int iKnotMax = mNumberOfKnots - 2;
 
   //
-  // With iKnotMax=nKnots-2 we map the U==1 coordinate to the [nKnots-2, nKnots-1] segment.
-  // This trick allows one to avoid a special condition for the edge case.
-  // Any U from [0,1] is mapped to some knot i such, that the knot i+1 is always exist
+  // With iKnotMax=nKnots-2 we map the U==Umax coordinate to the [nKnots-2, nKnots-1] segment.
+  // This trick allows one to avoid a special condition for this edge case.
+  // Any U from [0,Umax] is mapped to some knot i such, that the knot i+1 is always exist
   //
 
-  for (int iBin = 0, iKnot = 0; iBin <= mNumberOfAxisBins; iBin++) {
-    if ((vKnotBins[iKnot + 1] == iBin) && (iKnot < iKnotMax)) {
+  for (int u = 0, iKnot = 0; u <= mUmax; u++) {
+    if ((knotU[iKnot + 1] == u) && (iKnot < iKnotMax)) {
       iKnot = iKnot + 1;
     }
-    map[iBin] = iKnot;
+    map[u] = iKnot;
   }
 }
 
@@ -166,20 +157,20 @@ void CompactSplineIrregular1D::constructRegular(int numberOfKnots)
   if (numberOfKnots < 2)
     numberOfKnots = 2;
 
-  std::vector<float> knots(numberOfKnots);
-  double du = 1. / (numberOfKnots - 1);
+  std::vector<int> knots(numberOfKnots);
   for (int i = 0; i < numberOfKnots; i++) {
-    knots[i] = i * du;
+    knots[i] = i;
   }
-  construct(numberOfKnots, knots.data(), numberOfKnots);
+  construct(numberOfKnots, knots.data());
 }
+#endif
 
 void CompactSplineIrregular1D::print() const
 {
 #if !defined(GPUCA_GPUCODE)
   std::cout << " Compact Spline 1D: " << std::endl;
   std::cout << "  mNumberOfKnots = " << mNumberOfKnots << std::endl;
-  std::cout << "  mNumberOfAxisBins = " << mNumberOfAxisBins << std::endl;
+  std::cout << "  mUmax = " << mUmax << std::endl;
   std::cout << "  mBin2KnotMap = " << (void*)mBin2KnotMap << std::endl;
   std::cout << "  knots: ";
   for (int i = 0; i < mNumberOfKnots; i++) {

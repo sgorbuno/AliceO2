@@ -53,7 +53,7 @@ class CompactSplineHelper
   /// _______________  Main functionality  ________________________
 
   /// Creates spline data for a given input function
-  std::unique_ptr<float[]> create(const CompactSplineIrregular1D& spline, std::function<float(float)> F, int nAxiliaryPoints = 2);
+  std::unique_ptr<float[]> createCompact(const CompactSplineIrregular1D& spline, std::function<float(float)> F, int nAxiliaryPoints = 2);
   std::unique_ptr<float[]> createClassical(const CompactSplineIrregular1D& spline, std::function<float(float)> F);
 
   /// _______________  Utilities   ________________________

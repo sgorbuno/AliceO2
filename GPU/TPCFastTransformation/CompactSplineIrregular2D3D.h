@@ -31,13 +31,13 @@ namespace gpu
 {
 
 ///
-/// The CompactSplineIrregular2D3D class represents twoo-dimensional spline interpolation on nonunifom (irregular) grid.
+/// The CompactSplineIrregular2D3D class represents spline interpolation on a two-dimensional nonunifom (irregular) grid.
 ///
-/// The class is flat C structure. No virtual methods, no ROOT types are used.
+/// The class is a flat C structure. No virtual methods, no ROOT types are used.
 /// It is designed for spline parameterisation of TPC transformation.
 ///
 /// ---
-/// The spline interpolates a generic function F:[u,v)->(x,y,z),
+/// The spline interpolates a generic function F:[u,v]->[X,Y,Z],
 /// where u,v belong to [0,1]x[0,1]
 ///
 /// It is an extension of CompactSplineIrregular1D class, see CompactSplineIrregular1D.h for more details.
@@ -45,16 +45,25 @@ namespace gpu
 /// Important:
 ///   -- The number of knots and their positions may change during initialisation
 ///
+/// The data array:
+///   The data array is an array with info about the interpolated function at knots:
+///   {
+///     { (X,Y,Z), (X,Y,Z)'_v, (X,Y,Z)'_u, (X,Y,Z)''_vu } at knot 0,
+///     {                      ...                      } at knot 1,
+///                            ...
+///   }
+///   The data array can be created for a given input function using CompactSplineHelper class.
+///
 /// ------------
 ///
 ///  Example of creating a spline:
 ///
-///  const int nKnotsU=5;
-///  const int nKnotsV=6;
-///  float knotsU[nKnotsU] = {0., 0.25, 0.5, 0.7, 1.};
-///  float knotsV[nKnotsV] = {0., 0.2, 0.3, 0.45, 0.8, 1.};
-///  CompactSplineIrregular2D3D spline(nKnotsU, knotsU, 4, nKnotsV, knotsV, 10 );
-///  float f[nKnotsU*nKnotsV*3] = { 3.5, .... };
+///  const int nKnotsU=2;
+///  const int nKnotsV=3;
+///  float knotsU[nKnotsU] = {0., 1.};
+///  float knotsV[nKnotsV] = {0., 0.5, 1.};
+///  CompactSplineIrregular2D3D spline(nKnotsU, knotsU, nKnotsU-1, nKnotsV, knotsV, nKnotsV-1 );
+///  float f[nKnotsU*nKnotsV*12] = { 3.5, .... };
 ///  spline.getSpline( f, 0., 0. ); // == 3.5
 ///  spline.getSpline( f, 0.1, 0.32 ); // == some interpolated value
 ///
@@ -67,7 +76,7 @@ class CompactSplineIrregular2D3D : public FlatObject
   GPUd() static constexpr int getVersion() { return 1; }
 
   /// Size of the data array in elements, must be multiplied by sizeof(float)
-  GPUd() size_t getDataSizeInelements() const { return 4 * getNumberOfKnots(); }
+  GPUd() size_t getDataSizeInElements() const { return 12 * getNumberOfKnots(); }
 
   /// _____________  Constructors / destructors __________________________
 
@@ -89,8 +98,10 @@ class CompactSplineIrregular2D3D : public FlatObject
 
   using FlatObject::getBufferAlignmentBytes;
   using FlatObject::getClassAlignmentBytes;
+
   /// Get minimal required alignment for the spline data
-  static constexpr size_t getDataAlignmentBytes() { return 4 * sizeof(float); }
+  /// give the size of a data element as a requirement for the memory alignment
+  static constexpr size_t getDataAlignmentBytes() { return 12 * sizeof(float); }
 
   /// Construction interface
 
@@ -114,20 +125,20 @@ class CompactSplineIrregular2D3D : public FlatObject
   /// Number of knots created and their values may differ from the input values:
   /// - Edge knots 0.f and 1.f will be added if they are not present.
   /// - Knot values are rounded to closest axis bins: k*1./numberOfAxisBins.
-  /// - Knots which are too close to each other will be merged
+  /// - Knots rounded to the same axis bin will be merged
   /// - At least 2 knots and at least 1 axis bin will be created in both directions
   ///
   /// \param numberOfKnotsU     U axis: Number of knots in knots[] array
   /// \param knotsU             U axis: Array of knots.
-  /// \param numberOfAxisBinsU  U axis: Number of axis bins to map U coordinate to
+  /// \param numberOfAxisBinsU  U axis: Number of axis bins to map arbitrary U coordinate to
   ///                           an appropriate [knot(i),knot(i+1)] interval.
-  ///                           The knot positions have a "granularity" of 1./numberOfAxisBins
+  ///                           The knot positions have "granularity" of 1./numberOfAxisBins
   ///
   /// \param numberOfKnotsV     V axis: Number of knots in knots[] array
   /// \param knotsV             V axis: Array of knots.
   /// \param numberOfAxisBinsV  V axis: Number of axis bins to map U coordinate to
   ///                           an appropriate [knot(i),knot(i+1)] interval.
-  ///                           The knot positions have a "granularity" of 1./numberOfAxisBins
+  ///                           The knot positions have "granularity" of 1./numberOfAxisBins
   ///
   void construct(int numberOfKnotsU, const float knotsU[], int numberOfAxisBinsU, int numberOfKnotsV, const float knotsV[], int numberOfAxisBinsV);
 
@@ -136,12 +147,12 @@ class CompactSplineIrregular2D3D : public FlatObject
 
   /// _______________  Main functionality   ________________________
 
-  /// Get interpolated value for f(u,v) using data array data[4*getNumberOfKnots()] with corrected edges
+  /// Get interpolated value for f(u,v) using the data array data[12*getNumberOfKnots()]
   template <typename T>
   GPUd() void getSpline(GPUgeneric() const T* data, float u, float v, GPUgeneric() T& x, GPUgeneric() T& y, GPUgeneric() T& z) const;
 
   /// Same as getSpline, but using vectorized calculation.
-  /// \param correctedData should be at least 128-bit aligned
+  /// \param data should be at least 128-bit aligned
   GPUd() void getSplineVec(const float* data, float u, float v, float& x, float& y, float& z) const;
 
   /// Get number total of knots: UxV
@@ -196,7 +207,7 @@ GPUdi() void CompactSplineIrregular2D3D::getKnotUV(int iKnot, float& u, float& v
 }
 
 template <typename T>
-GPUdi() void CompactSplineIrregular2D3D::getSpline(GPUgeneric() const T* correctedData, float u, float v, GPUgeneric() T& x, GPUgeneric() T& y, GPUgeneric() T& z) const
+GPUdi() void CompactSplineIrregular2D3D::getSpline(GPUgeneric() const T* data, float u, float v, GPUgeneric() T& x, GPUgeneric() T& y, GPUgeneric() T& z) const
 {
   // Get interpolated value for f(u,v) using data array correctedData[getNumberOfKnots()] with corrected edges
 
@@ -209,75 +220,117 @@ GPUdi() void CompactSplineIrregular2D3D::getSpline(GPUgeneric() const T* correct
   const CompactSplineIrregular1D::Knot& knotU = gridU.getKnot(iu);
   const CompactSplineIrregular1D::Knot& knotV = gridV.getKnot(iv);
 
-  const T* dataV0 = correctedData + (nu * (iv - 1) + iu - 1) * 3;
-  const T* dataV1 = dataV0 + 3 * nu;
-  const T* dataV2 = dataV0 + 6 * nu;
-  const T* dataV3 = dataV0 + 9 * nu;
+  const T* data00 = data + (nu * iv + iu) * 12;
+  const T* data10 = data00 + 12;
+  const T* data01 = data00 + 12 * nu;
+  const T* data11 = data01 + 12;
 
-  T dataV[12];
+  T Fu0[12]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u0
+  T Du0[12]; // derivatives {}'_u  at u0
+  for (int i = 0; i < 6; i++)
+    Fu0[i] = data00[i];
+  for (int i = 0; i < 6; i++)
+    Fu0[6 + i] = data01[i];
+  for (int i = 0; i < 6; i++)
+    Du0[i] = data00[6 + i];
+  for (int i = 0; i < 6; i++)
+    Du0[6 + i] = data01[6 + i];
+
+  T Fu1[12]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u1
+  T Du1[12]; // derivatives {}'_u  at u1
+  for (int i = 0; i < 6; i++)
+    Fu1[i] = data10[i];
+  for (int i = 0; i < 6; i++)
+    Fu1[6 + i] = data11[i];
+  for (int i = 0; i < 6; i++)
+    Du0[i] = data10[6 + i];
+  for (int i = 0; i < 6; i++)
+    Du0[6 + i] = data11[6 + i];
+
+  T dataU[12]; // interpolated values at u
   for (int i = 0; i < 12; i++) {
-    dataV[i] = gridV.getSpline(knotV, dataV0[i], dataV1[i], dataV2[i], dataV3[i], v);
+    dataU[i] = gridU.getSpline(knotU, Fu0[i], Du0[i], Fu1[i], Du1[i], u);
   }
 
-  T* dataU0 = dataV + 0;
-  T* dataU1 = dataV + 3;
-  T* dataU2 = dataV + 6;
-  T* dataU3 = dataV + 9;
+  T* Fv0 = dataU + 0;
+  T* Dv0 = dataU + 3;
+  T* Fv1 = dataU + 6;
+  T* Dv1 = dataU + 9;
 
   T res[3];
   for (int i = 0; i < 3; i++) {
-    res[i] = gridU.getSpline(knotU, dataU0[i], dataU1[i], dataU2[i], dataU3[i], u);
+    res[i] = gridV.getSpline(knotV, Fv0[i], Dv0[i], Fv1[i], Dv1[i], v);
   }
   x = res[0];
   y = res[1];
   z = res[2];
 }
 
-GPUdi() void CompactSplineIrregular2D3D::getSplineVec(const float* correctedData, float u, float v, float& x, float& y, float& z) const
+GPUdi() void CompactSplineIrregular2D3D::getSplineVec(const float* data, float u, float v, float& x, float& y, float& z) const
 {
 // Same as getSpline, but using vectorized calculation.
-// \param correctedData should be at least 128-bit aligned
+// \param data should be at least 128-bit aligned
 
-#if !defined(__CINT__) && !defined(__ROOTCINT__) && !defined(GPUCA_GPUCODE) && !defined(GPUCA_NO_VC) && defined(__cplusplus) && __cplusplus >= 201703L
+#if defined(XXX) && !defined(__CINT__) && !defined(__ROOTCINT__) && !defined(GPUCA_GPUCODE) && !defined(GPUCA_NO_VC) && defined(__cplusplus) && __cplusplus >= 201703L
   const CompactSplineIrregular1D& gridU = getGridU();
   const CompactSplineIrregular1D& gridV = getGridV();
   int nu = gridU.getNumberOfKnots();
   int iu = gridU.getKnotIndex(u);
   int iv = gridV.getKnotIndex(v);
+
   const CompactSplineIrregular1D::Knot& knotU = gridU.getKnot(iu);
   const CompactSplineIrregular1D::Knot& knotV = gridV.getKnot(iv);
 
-  const float* dataV0 = correctedData + (nu * (iv - 1) + iu - 1) * 3;
-  const float* dataV1 = dataV0 + 3 * nu;
-  const float* dataV2 = dataV0 + 6 * nu;
-  const float* dataV3 = dataV0 + 9 * nu;
+  const float* data00 = data + (nu * iv + iu) * 12;
+  const float* data10 = data00 + 12;
+  const float* data01 = data00 + 12 * nu;
+  const float* data11 = data01 + 12;
 
-  // calculate F values at V==v and U == Ui of knots
+  Vc::SimdArray<float, 12> Fu0; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u0
+  Vc::SimdArray<float, 12> Du0; // derivatives {}'_u  at u0
+  for (int i = 0; i < 6; i++)
+    Fu0[i] = data00[i];
+  for (int i = 0; i < 6; i++)
+    Fu0[6 + i] = data01[i];
+  for (int i = 0; i < 6; i++)
+    Du0[i] = data00[6 + i];
+  for (int i = 0; i < 6; i++)
+    Du0[6 + i] = data01[6 + i];
 
-  Vc::SimdArray<float, 12> dataV0vec(dataV0), dataV1vec(dataV1), dataV2vec(dataV2), dataV3vec(dataV3), dataVvec = gridV.getSpline(knotV, dataV0vec, dataV1vec, dataV2vec, dataV3vec, v);
+  Vc::SimdArray<float, 12> Fu1[12]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u1
+  Vc::SimdArray<float, 12> Du1[12]; // derivatives {}'_u  at u1
+  for (int i = 0; i < 6; i++)
+    Fu1[i] = data10[i];
+  for (int i = 0; i < 6; i++)
+    Fu1[6 + i] = data11[i];
+  for (int i = 0; i < 6; i++)
+    Du0[i] = data10[6 + i];
+  for (int i = 0; i < 6; i++)
+    Du0[6 + i] = data11[6 + i];
+
+  Vc::SimdArray<float, 12> dataUvec; // interpolated values at u
+  dataUvec = gridU.getSpline(knotU, Fu0, Du0, Fu1, Du1, u);
 
   using V = std::conditional_t<(Vc::float_v::size() >= 4),
                                Vc::float_v,
                                Vc::SimdArray<float, 3>>;
 
-  float dataV[9 + V::size()];
-  // dataVvec.scatter( dataV, Vc::SimdArray<float,12>::IndexType::IndexesFromZero() );
-  //dataVvec.scatter(dataV, Vc::SimdArray<uint, 12>(Vc::IndexesFromZero));
-  dataVvec.store(dataV, Vc::Unaligned);
+  float dataU[9 + V::size()];
+  dataUvec.store(dataU, Vc::Unaligned);
 
   for (unsigned int i = 12; i < 9 + V::size(); i++) // fill not used part of the vector with 0
-    dataV[i] = 0.f;
+    dataU[i] = 0.f;
 
   // calculate F values at V==v and U == u
-  V dataU0vec(dataV), dataU1vec(dataV + 3), dataU2vec(dataV + 6), dataU3vec(dataV + 9);
+  V Fv0(dataU), Dv0(dataU + 3), Fv1(dataV + 6), Dv1(dataV + 9);
 
-  V dataUVvec = gridU.getSpline(knotU, dataU0vec, dataU1vec, dataU2vec, dataU3vec, u);
+  V Fuv = gridV.getSpline(knotV, Fv0, Dv0, Fv1, Dv1, v);
 
-  x = dataUVvec[0];
-  y = dataUVvec[1];
-  z = dataUVvec[2];
+  x = Fuv[0];
+  y = Fuv[1];
+  z = Fuv[2];
 #else
-  getSpline(correctedData, u, v, x, y, z);
+  getSpline(data, u, v, x, y, z);
 #endif
 }
 } // namespace gpu

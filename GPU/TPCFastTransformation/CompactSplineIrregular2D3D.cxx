@@ -43,39 +43,41 @@ void CompactSplineIrregular2D3D::cloneFromObject(const CompactSplineIrregular2D3
   FlatObject::cloneFromObject(obj, newFlatBufferPtr);
 
   char* bufferU = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGridU.getFlatBufferPtr());
-  mGridU.cloneFromObject(obj.mGridU, bufferU);
-
   char* bufferV = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGridV.getFlatBufferPtr());
+
+  mGridU.cloneFromObject(obj.mGridU, bufferU);
   mGridV.cloneFromObject(obj.mGridV, bufferV);
 }
 
 void CompactSplineIrregular2D3D::moveBufferTo(char* newFlatBufferPtr)
 {
   /// See FlatObject for description
+#ifndef GPUCA_GPUCODE
+  char* oldFlatBufferPtr = mFlatBufferPtr;
   FlatObject::moveBufferTo(newFlatBufferPtr);
-  setActualBufferAddress(mFlatBufferPtr);
+  char* currFlatBufferPtr = mFlatBufferPtr;
+  mFlatBufferPtr = oldFlatBufferPtr;
+  setActualBufferAddress(currFlatBufferPtr);
+#endif
 }
 
 void CompactSplineIrregular2D3D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
+  char* bufferU = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mGridU.getFlatBufferPtr());
+  char* bufferV = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mGridV.getFlatBufferPtr());
+  mGridU.setActualBufferAddress(bufferU);
+  mGridV.setActualBufferAddress(bufferV);
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
-  size_t vOffset = alignSize(mGridU.getFlatBufferSize(), mGridV.getBufferAlignmentBytes());
-  mGridU.setActualBufferAddress(mFlatBufferPtr);
-  mGridV.setActualBufferAddress(mFlatBufferPtr + vOffset);
 }
 
 void CompactSplineIrregular2D3D::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
-  const char* oldFlatBufferPtr = mFlatBufferPtr;
-
-  char* bufferU = relocatePointer(oldFlatBufferPtr, futureFlatBufferPtr, mGridU.getFlatBufferPtr());
+  char* bufferU = relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mGridU.getFlatBufferPtr());
+  char* bufferV = relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mGridV.getFlatBufferPtr());
   mGridU.setFutureBufferAddress(bufferU);
-
-  char* bufferV = relocatePointer(oldFlatBufferPtr, futureFlatBufferPtr, mGridV.getFlatBufferPtr());
   mGridV.setFutureBufferAddress(bufferV);
-
   FlatObject::setFutureBufferAddress(futureFlatBufferPtr);
 }
 
@@ -86,26 +88,26 @@ void CompactSplineIrregular2D3D::construct(int numberOfKnotsU, const float knots
   /// Number of knots created and their values may differ from the input values:
   /// - Edge knots 0.f and 1.f will be added if they are not present.
   /// - Knot values are rounded to closest axis bins: k*1./numberOfAxisBins.
-  /// - Knots which are too close to each other will be merged
+  /// - Knots rounded to the same axis bin will be merged
   /// - At least 2 knots and at least 1 axis bin will be created in both directions
   ///
   /// \param numberOfKnotsU     U axis: Number of knots in knots[] array
   /// \param knotsU             U axis: Array of knots.
-  /// \param numberOfAxisBinsU  U axis: Number of axis bins to map U coordinate to
+  /// \param numberOfAxisBinsU  U axis: Number of axis bins to map arbitrary U coordinate to
   ///                           an appropriate [knot(i),knot(i+1)] interval.
-  ///                           The knot positions have a "granularity" of 1./numberOfAxisBins
+  ///                           The knot positions have "granularity" of 1./numberOfAxisBins
   ///
   /// \param numberOfKnotsV     V axis: Number of knots in knots[] array
   /// \param knotsV             V axis: Array of knots.
   /// \param numberOfAxisBinsV  V axis: Number of axis bins to map U coordinate to
   ///                           an appropriate [knot(i),knot(i+1)] interval.
-  ///                           The knot positions have a "granularity" of 1./numberOfAxisBins
+  ///                           The knot positions have "granularity" of 1./numberOfAxisBins
   ///
 
   FlatObject::startConstruction();
 
-  mGridU.construct(numberOfKnotsU, knotsU, numberOfAxisBinsU);
-  mGridV.construct(numberOfKnotsV, knotsV, numberOfAxisBinsV);
+  //mGridU.construct(numberOfKnotsU, knotsU, numberOfAxisBinsU);
+  //mGridV.construct(numberOfKnotsV, knotsV, numberOfAxisBinsV);
 
   size_t vOffset = alignSize(mGridU.getFlatBufferSize(), mGridV.getBufferAlignmentBytes());
 

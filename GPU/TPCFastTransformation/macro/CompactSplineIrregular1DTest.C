@@ -31,14 +31,21 @@
 const int funcN = 10;
 static double funcC[2 * funcN + 2];
 
+int uMax = 1;
+
 float F(float u)
 {
+  double uu = u * TMath::Pi() / uMax;
   double f = 0; //funcC[0]/2;
-  double uu = u * TMath::Pi();
   for (int i = 1; i <= funcN; i++) {
     f += funcC[2 * i] * TMath::Cos(i * uu) + funcC[2 * i + 1] * TMath::Sin(i * uu);
   }
   return f;
+}
+
+float Fscaled(float u)
+{
+  return F(u * uMax);
 }
 
 int CompactSplineIrregular1DTest()
@@ -65,42 +72,46 @@ int CompactSplineIrregular1DTest()
       funcC[i] = gRandom->Uniform(-1, 1);
     }
 
-    const int initNKnotsU = 5;
-    int nAxisBinsU = 100;
+    const int initNKnots = 5;
+    uMax = 100;
 
-    float knotsU[initNKnotsU];
+    int knotsU[initNKnots];
     {
       knotsU[0] = 0;
-      float du = 1. / (initNKnotsU - 1);
+      double du = 1. * uMax / (initNKnots - 1);
 
-      for (int i = 1; i < initNKnotsU; i++) {
-        knotsU[i] = i * du; // + gRandom->Uniform(-du / 3, du / 3);
+      for (int i = 1; i < initNKnots; i++) {
+        knotsU[i] = (int)(i * du); //+ gRandom->Uniform(-du / 3, du / 3);
       }
-      knotsU[initNKnotsU - 1] = 1;
+      knotsU[initNKnots - 1] = uMax;
     }
 
     CompactSplineHelper helper;
 
     CompactSplineIrregular1D spline;
-    spline.construct(initNKnotsU, knotsU, nAxisBinsU);
-    std::unique_ptr<float[]> data = helper.create(spline, F, nAxiliaryPoints);
+    spline.construct(initNKnots, knotsU);
+    std::unique_ptr<float[]> data = helper.createCompact(spline, F, nAxiliaryPoints);
 
     int nKnotsTot = spline.getNumberOfKnots();
-    cout << "Knots: initial " << initNKnotsU << ", created " << nKnotsTot << endl;
+    cout << "Knots: initial " << initNKnots << ", created " << nKnotsTot << endl;
     for (int i = 0; i < nKnotsTot; i++) {
       cout << "knot " << i << ": " << spline.getKnot(i).u << endl;
     }
 
     CompactSplineIrregular1D splineClassic;
-    splineClassic.construct(initNKnotsU, knotsU, nAxisBinsU);
+    splineClassic.construct(initNKnots, knotsU);
     std::unique_ptr<float[]> dataClassic = helper.createClassical(splineClassic, F);
 
+    float knotsS[initNKnots];
+    for (int i = 0; i < initNKnots; i++) {
+      knotsS[i] = knotsU[i] / uMax;
+    }
     IrregularSpline1D splineLocal;
-    splineLocal.construct(initNKnotsU, knotsU, nAxisBinsU + 1);
+    splineLocal.construct(initNKnots, knotsS, uMax + 1);
     std::unique_ptr<float[]> dataLocal(new float[splineLocal.getNumberOfKnots()]);
     {
       for (int i = 0; i < splineLocal.getNumberOfKnots(); i++) {
-        dataLocal[i] = F(splineLocal.getKnot(i).u);
+        dataLocal[i] = F(splineLocal.getKnot(i).u * uMax);
       }
       splineLocal.correctEdges(dataLocal.get());
     }
@@ -116,13 +127,13 @@ int CompactSplineIrregular1DTest()
       }
       knotsUtmp[0] = 0.;
       knotsUtmp[nKnotsTot2N - 1] = 1.;
-      splineLocal2N.construct(nKnotsTot2N, knotsUtmp, nAxisBinsU * 2 + 1);
+      splineLocal2N.construct(nKnotsTot2N, knotsUtmp, uMax * 2 + 1);
 
       int n = splineLocal2N.getNumberOfKnots();
       dataLocal2N.reset(new float[n]); // corrected data
 
       for (int i = 0; i < n; i++) {
-        dataLocal2N[i] = F(splineLocal2N.getKnot(i).u);
+        dataLocal2N[i] = F(splineLocal2N.getKnot(i).u * uMax);
       }
       splineLocal2N.correctEdges(dataLocal2N.get());
     }
@@ -146,7 +157,7 @@ int CompactSplineIrregular1DTest()
       double f0 = F(u);
       double fs = spline.getSpline((const float*)data.get(), u);
       diff += (fs - f0) * (fs - f0);
-      knots->Fill(1, u, fs);
+      knots->Fill(1, u / uMax, fs);
 
       if (i < nu - 1) {
         double u1 = gridU.getKnot(i + 1).u;
@@ -155,7 +166,7 @@ int CompactSplineIrregular1DTest()
         for (int j = 0; j < nax; j++) {
           double uu = u + du * (j + 1);
           double ff = spline.getSpline((const float*)data.get(), uu);
-          knots->Fill(2, uu, ff);
+          knots->Fill(2, uu / uMax, ff);
         }
       }
     }
@@ -170,20 +181,21 @@ int CompactSplineIrregular1DTest()
 
     TNtuple* nt = new TNtuple("nt", "nt", "u:f0:fComp:fClass:fLocal:fLocal2N");
 
-    float stepu = 1.e-4;
-    int nSteps = (int)(1. / stepu + 1);
+    float stepS = 1.e-4;
+    int nSteps = (int)(1. / stepS + 1);
 
     double statDfLocal = 0;
     double statDfComp = 0;
     double statDfClass = 0;
     double statDfLocal2N = 0;
     int statN = 0;
-    for (float u = 0; u < 1. + stepu; u += stepu) {
+    for (float s = 0; s < 1. + stepS; s += stepS) {
+      double u = s * uMax;
       double f0 = F(u);
       double fComp = spline.getSpline((const float*)data.get(), u);
       double fClass = splineClassic.getSpline((const float*)dataClassic.get(), u);
-      double fLocal = splineLocal.getSpline((const float*)dataLocal.get(), u);
-      double fLocal2N = splineLocal2N.getSpline((const float*)dataLocal2N.get(), u);
+      double fLocal = splineLocal.getSpline((const float*)dataLocal.get(), s);
+      double fLocal2N = splineLocal2N.getSpline((const float*)dataLocal2N.get(), s);
 
       statDfComp += (fComp - f0) * (fComp - f0);
       statDfClass += (fClass - f0) * (fClass - f0);
@@ -191,7 +203,7 @@ int CompactSplineIrregular1DTest()
       statDfLocal2N += (fLocal2N - f0) * (fLocal2N - f0);
       statN++;
       qaX->Fill(1.e4 * (fComp - f0));
-      nt->Fill(u, f0, fComp, fClass, fLocal, fLocal2N);
+      nt->Fill(s, f0, fComp, fClass, fLocal, fLocal2N);
     }
 
     cout << "\n"
