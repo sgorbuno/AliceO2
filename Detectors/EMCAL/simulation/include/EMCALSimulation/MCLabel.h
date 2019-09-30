@@ -8,29 +8,30 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-// Declaration of a transient MC label class for TRD
+// Declaration of a transient MC label class for EMCal
 
-#ifndef ALICEO2_TRD_MCLABEL_H_
-#define ALICEO2_TRD_MCLABEL_H_
+#ifndef ALICEO2_EMCAL_MCLABEL_H_
+#define ALICEO2_EMCAL_MCLABEL_H_
 
 #include "SimulationDataFormat/MCCompLabel.h"
 
 namespace o2
 {
-namespace trd
+namespace emcal
 {
-
 class MCLabel : public o2::MCCompLabel
 {
+ private:
+  Double_t mEnergyFraction;
+
  public:
   MCLabel() = default;
-  MCLabel(int trackID, int eventID, int srcID)
-    : o2::MCCompLabel(trackID, eventID, srcID, false) {}
-
-  ClassDefNV(MCLabel, 1);
+  MCLabel(Int_t trackID, Int_t eventID, Int_t srcID, Bool_t fake, Double_t efraction) : o2::MCCompLabel(trackID, eventID, srcID, fake), mEnergyFraction(efraction) {}
+  MCLabel(Bool_t noise, Double_t efraction) : o2::MCCompLabel(noise), mEnergyFraction(efraction) {}
+  void setEnergyFraction(Double_t efraction) { mEnergyFraction = efraction; }
+  Double_t getEnergyFraction() const { return mEnergyFraction; }
 };
-
-} // namespace trd
-} // namespace o2
+} // namespace emcal
+} //namespace o2
 
 #endif
