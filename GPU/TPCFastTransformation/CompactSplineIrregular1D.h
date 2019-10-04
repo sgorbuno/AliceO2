@@ -195,6 +195,11 @@ class CompactSplineIrregular1D : public FlatObject
   /// Print method
   void print() const;
 
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+  /// Test the class functionality
+  static int test(bool draw = 0);
+#endif
+
  private:
   /// Non-const accessor to knots array
   CompactSplineIrregular1D::Knot* getKnotsNonConst() { return reinterpret_cast<CompactSplineIrregular1D::Knot*>(mFlatBufferPtr); }

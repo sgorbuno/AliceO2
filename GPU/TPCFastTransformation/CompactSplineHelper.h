@@ -22,6 +22,7 @@
 #include "Rtypes.h"
 #include "TString.h"
 #include "CompactSplineIrregular1D.h"
+#include "CompactSplineIrregular2D3D.h"
 #include <functional>
 
 namespace GPUCA_NAMESPACE
@@ -53,8 +54,12 @@ class CompactSplineHelper
   /// _______________  Main functionality  ________________________
 
   /// Creates spline data for a given input function
-  std::unique_ptr<float[]> createCompact(const CompactSplineIrregular1D& spline, std::function<float(float)> F, int nAxiliaryPoints = 2);
   std::unique_ptr<float[]> createClassical(const CompactSplineIrregular1D& spline, std::function<float(float)> F);
+
+  std::unique_ptr<float[]> create(const CompactSplineIrregular1D& spline, const double inputU[], const double inputF[], int inputN);
+  std::unique_ptr<float[]> create(const CompactSplineIrregular1D& spline, std::function<double(double)> F, int nAxiliaryPoints = 2);
+
+  std::unique_ptr<float[]> create(const CompactSplineIrregular2D3D& spline, std::function<void(float, float, float&, float&, float&)> F, int nAxiliaryPoints = 2);
 
   /// _______________  Utilities   ________________________
 

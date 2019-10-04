@@ -30,7 +30,7 @@ if(${ALIGPU_BUILD_TYPE} STREQUAL "O2")
                  TARGETVARNAME targetName
                  SOURCES ${SRCS}
                  PUBLIC_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}
-                 PUBLIC_LINK_LIBRARIES O2::GPUCommon Vc::Vc ROOT::Core ROOT::Matrix)
+                 PUBLIC_LINK_LIBRARIES O2::GPUCommon Vc::Vc ROOT::Core ROOT::Matrix ROOT::Tree ROOT::Gpad)
 
   o2_target_root_dictionary(${MODULE}
                             HEADERS ${HDRS_CINT_O2}
@@ -40,6 +40,7 @@ if(${ALIGPU_BUILD_TYPE} STREQUAL "O2")
   file(COPY ${HDRS_CINT_O2} DESTINATION ${CMAKE_BINARY_DIR}/stage/include/GPU)
 
   foreach(m
+          CompactSplineDemo.C
           IrregularSpline1DTest.C
           IrregularSpline2D3DCalibratorTest.C
           IrregularSpline2D3DTest.C

@@ -18,98 +18,18 @@
 #include "CompactSplineHelper.h"
 #include "TMath.h"
 #include "TMatrixD.h"
-#include <TVectorD.h>
+#include "TVectorD.h"
+#include "TDecompBK.h"
 
 using namespace GPUCA_NAMESPACE::gpu;
 
 CompactSplineHelper::CompactSplineHelper() : mError() {}
 
-std::unique_ptr<float[]> CompactSplineHelper::createCompact(const CompactSplineIrregular1D& spline, std::function<float(float)> F, int nAxiliaryPoints)
-{
-  if (!spline.isConstructed()) {
-    storeError(-1, "CompactSplineHelper::create: input spline is not constructed");
-    return nullptr;
-  }
-
-  if (nAxiliaryPoints < 2) {
-    nAxiliaryPoints = 2;
-  }
-
-  const int nKnots = spline.getNumberOfKnots();
-  const int nPar = 2 * nKnots;
-  std::unique_ptr<float[]> data(new float[nPar]);
-
-  TMatrixDSym A(nPar);
-  TVectorD b(nPar);
-
-  A.Zero();
-  b.Zero();
-
-  auto addPoint = [&](double u, double f) {
-    int i = spline.getKnotIndex(u);
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
-    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i + 1);
-    double l = knot1.u - knot0.u;
-    double x = (u - knot0.u) * knot0.Li; // scaled u
-    double x2 = x * x;
-    double xm1 = x - 1.;
-    double cf1 = x2 * (3. - 2. * x);
-    double cf0 = 1. - cf1;
-    double cz0 = x * xm1 * xm1 * l;
-    double cz1 = x2 * xm1 * l;
-
-    i *= 2;
-    A(i, i) += cf0 * cf0;
-    A(i + 1, i) += cf0 * cz0;
-    A(i + 2, i) += cf0 * cf1;
-    A(i + 3, i) += cf0 * cz1;
-    b[i] += cf0 * f;
-
-    A(i + 1, i + 1) += cz0 * cz0;
-    A(i + 2, i + 1) += cz0 * cf1;
-    A(i + 3, i + 1) += cz0 * cz1;
-    b[i + 1] += cz0 * f;
-
-    A(i + 2, i + 2) += cf1 * cf1;
-    A(i + 3, i + 2) += cf1 * cz1;
-    b[i + 2] += cf1 * f;
-
-    A(i + 3, i + 3) += cz1 * cz1;
-    b[i + 3] += cz1 * f;
-  };
-
-  int nSteps = nAxiliaryPoints + 1;
-
-  for (int i = 0; i < nKnots - 1; ++i) {
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
-    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i + 1);
-    double u = knot0.u;
-    double du = (knot1.u - u) / nSteps;
-    for (int i = 0; i < nSteps; ++i, u += du) {
-      addPoint(u, F(u));
-    }
-  }
-
-  addPoint(spline.getKnot(nKnots - 1).u, F(spline.getKnot(nKnots - 1).u)); // last knot
-
-  // copy symmetric elements
-
-  for (int i = 0; i < nPar; i++) {
-    for (int j = i + 1; j < nPar; j++) {
-      A(i, j) = A(j, i);
-    }
-  }
-
-  TVectorD c = A.Invert() * b;
-  for (int i = 0; i < nPar; i++) {
-    data[i] = c[i];
-  }
-
-  return data;
-}
-
 std::unique_ptr<float[]> CompactSplineHelper::createClassical(const CompactSplineIrregular1D& spline, std::function<float(float)> F)
 {
+  // Create 1D spline in a classical way:
+  // set slopes at the knots such, that the second derivative of the spline stays continious.
+  //
   if (!spline.isConstructed()) {
     storeError(-1, "CompactSplineHelper::create: input spline is not constructed");
     return nullptr;
@@ -194,6 +114,140 @@ std::unique_ptr<float[]> CompactSplineHelper::createClassical(const CompactSplin
     data[2 * i + 1] = c[i];
   }
 
+  return data;
+}
+
+std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregular1D& spline, const double inputU[], const double inputF[], int inputN)
+{
+  // Create 1D irregular spline in a compact way:
+  // fit all the parameters (which are the spline values and the slopes at the knots) to multiple data points.
+  // inputU: array of the input data points
+  // inputF: array of corresponding function values
+  // inputN: number of data points
+  // The should be at least 2 data points on each segnment between two knots and at least 2*nKnots data points in total
+  // If the spline can not be constructed, nullptr is returned
+
+  const int nKnots = spline.getNumberOfKnots();
+  const int nPar = 2 * nKnots;
+
+  if (!spline.isConstructed()) {
+    storeError(-1, "CompactSplineHelper::create: input spline is not constructed");
+    return nullptr;
+  }
+
+  if (inputN < nPar) {
+    storeError(-1, "CompactSplineHelper::create: too few data points to fit");
+    return nullptr;
+  }
+
+  TMatrixDSym A(nPar);
+  TVectorD b(nPar);
+
+  A.Zero();
+  b.Zero();
+
+  auto addPoint = [&](double u, double f) {
+    int i = spline.getKnotIndexSafe(u);
+    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
+    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i + 1);
+    double l = knot1.u - knot0.u;
+    double x = (u - knot0.u) * knot0.Li; // scaled u
+    double x2 = x * x;
+    double xm1 = x - 1.;
+    double cf1 = x2 * (3. - 2. * x);
+    double cf0 = 1. - cf1;
+    double cz0 = x * xm1 * xm1 * l;
+    double cz1 = x2 * xm1 * l;
+
+    i *= 2;
+    A(i, i) += cf0 * cf0;
+    A(i + 1, i) += cf0 * cz0;
+    A(i + 2, i) += cf0 * cf1;
+    A(i + 3, i) += cf0 * cz1;
+    b[i] += cf0 * f;
+
+    A(i + 1, i + 1) += cz0 * cz0;
+    A(i + 2, i + 1) += cz0 * cf1;
+    A(i + 3, i + 1) += cz0 * cz1;
+    b[i + 1] += cz0 * f;
+
+    A(i + 2, i + 2) += cf1 * cf1;
+    A(i + 3, i + 2) += cf1 * cz1;
+    b[i + 2] += cf1 * f;
+
+    A(i + 3, i + 3) += cz1 * cz1;
+    b[i + 3] += cz1 * f;
+  };
+
+  for (int i = 0; i < inputN; ++i) {
+    addPoint(inputU[i], inputF[i]);
+  }
+
+  // copy symmetric matrix elements
+
+  for (int i = 0; i < nPar; i++) {
+    for (int j = i + 1; j < nPar; j++) {
+      A(i, j) = A(j, i);
+    }
+  }
+
+  TDecompBK bk(A, 0);
+  bool ok = bk.Solve(b);
+  if (ok) {
+    std::unique_ptr<float[]> splineData(new float[nPar]);
+    for (int i = 0; i < nPar; i++) {
+      splineData[i] = b[i];
+    }
+    return splineData;
+  }
+  storeError(-1, "CompactSplineHelper::create: not enough data points in some areas betwen the knots");
+  return nullptr;
+}
+
+std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregular1D& spline, std::function<double(double)> F, int nAxiliaryPoints)
+{
+  // Create 1D spline in a compact way for the input function F.
+  // nAxiliaryPoints: number of data points between the spline knots (should be at least 2)
+
+  if (nAxiliaryPoints < 2) {
+    nAxiliaryPoints = 2;
+  }
+  const int nKnots = spline.getNumberOfKnots();
+  std::vector<double> vU;
+  std::vector<double> vF;
+  int nSteps = nAxiliaryPoints + 1;
+  for (int i = 0; i < nKnots - 1; ++i) {
+    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
+    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i + 1);
+    double u = knot0.u;
+    double du = (knot1.u - u) / nSteps;
+    for (int i = 0; i < nSteps; ++i, u += du) {
+      vU.push_back(u);
+      vF.push_back(F(u));
+    }
+  }
+  double u = spline.getKnot(nKnots - 1).u;
+  vU.push_back(u);
+  vF.push_back(F(u));
+  return create(spline, vU.data(), vF.data(), vU.size());
+}
+
+std::unique_ptr<float[]> CompactSplineHelper::create(const CompactSplineIrregular2D3D& spline, std::function<void(float, float, float&, float&, float&)> F, int nAxiliaryPoints)
+{
+  if (!spline.isConstructed()) {
+    storeError(-1, "CompactSplineHelper::create: input spline is not constructed");
+    return nullptr;
+  }
+
+  if (nAxiliaryPoints < 2) {
+    nAxiliaryPoints = 2;
+  }
+
+  const int nKnots = spline.getNumberOfKnots();
+  const int nPar = 4 * nKnots;
+  std::unique_ptr<float[]> data(new float[nPar]);
+  for (int i = 0; i < nPar; i++)
+    data[i] = 0.f;
   return data;
 }
 

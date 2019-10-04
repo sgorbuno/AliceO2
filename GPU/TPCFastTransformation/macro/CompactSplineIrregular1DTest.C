@@ -1,37 +1,24 @@
 /*
-
-   // works only with ROOT >= 6
-
-   alienv load ROOT/latest-root6
-   alienv load Vc/latest
-
-   root -l
-
-   .x loadlibs.C
-   .x IrregularSpline1DTest.C++
+  root -l -q IrregularSpline1DTest.C+
  */
 
 #if !defined(__CLING__) || defined(__ROOTCLING__)
 
-#include "TFile.h"
 #include "TRandom.h"
-#include "TNtuple.h"
 #include "Riostream.h"
-#include "TSystem.h"
-#include "TH1.h"
 #include "TMath.h"
-#include "TCanvas.h"
-#include "TLegend.h"
-#include "TMarker.h"
-#include "TLine.h"
 #include "GPU/CompactSplineIrregular1D.h"
-#include "GPU/IrregularSpline1D.h"
 #include "GPU/CompactSplineHelper.h"
+#include "TCanvas.h"
+#include "TNtuple.h"
+
+const bool kDraw = 0;
 
 const int funcN = 10;
 static double funcC[2 * funcN + 2];
 
-int uMax = 1;
+int nKnots = 4;
+int uMax = nKnots * 3;
 
 float F(float u)
 {
@@ -43,249 +30,159 @@ float F(float u)
   return f;
 }
 
-float Fscaled(float u)
+TCanvas* canv = nullptr;
+
+bool ask()
 {
-  return F(u * uMax);
+  if (!canv)
+    return 0;
+  canv->Update();
+  cout << "type 'q ' to exit" << endl;
+  std::string str;
+  std::getline(std::cin, str);
+  return (str != "q" && str != ".q");
 }
 
 int CompactSplineIrregular1DTest()
 {
-
-  const int nAxiliaryPoints = 10;
+  const int nAxiliaryPoints = 5;
 
   using namespace GPUCA_NAMESPACE::gpu;
 
-  cout << "Test interpolation.." << endl;
+  cout << "Test 1D interpolation with the compact spline" << endl;
 
-  TCanvas* canv = new TCanvas("cQA", "CompactSplineIrregular1D  QA", 2000, 1000);
+  int nTries = 100;
 
-  gRandom->SetSeed(0);
+  if (kDraw) {
+    canv = new TCanvas("cQA", "CompactSplineIrregular1D  QA", 2000, 1000);
+    nTries = 10000;
+  }
 
-  for (int seed = 14;; seed++) {
+  double statDf = 0;
+  double statN = 0;
 
-    //seed = gRandom->Integer(100000); // 605
+  for (int seed = 1; seed < nTries; seed++) {
 
     gRandom->SetSeed(seed);
-    cout << "Random seed: " << seed << " " << gRandom->GetSeed() << endl;
 
     for (int i = 0; i <= funcN; i++) {
       funcC[i] = gRandom->Uniform(-1, 1);
     }
 
-    const int initNKnots = 5;
-    uMax = 100;
+    CompactSplineHelper helper;
+    CompactSplineIrregular1D spline;
 
-    int knotsU[initNKnots];
-    {
+    int knotsU[nKnots];
+    do {
       knotsU[0] = 0;
-      double du = 1. * uMax / (initNKnots - 1);
-
-      for (int i = 1; i < initNKnots; i++) {
+      double du = 1. * uMax / (nKnots - 1);
+      for (int i = 1; i < nKnots; i++) {
         knotsU[i] = (int)(i * du); //+ gRandom->Uniform(-du / 3, du / 3);
       }
-      knotsU[initNKnots - 1] = uMax;
-    }
+      knotsU[nKnots - 1] = uMax;
+      spline.construct(nKnots, knotsU);
 
-    CompactSplineHelper helper;
-
-    CompactSplineIrregular1D spline;
-    spline.construct(initNKnots, knotsU);
-    std::unique_ptr<float[]> data = helper.createCompact(spline, F, nAxiliaryPoints);
-
-    int nKnotsTot = spline.getNumberOfKnots();
-    cout << "Knots: initial " << initNKnots << ", created " << nKnotsTot << endl;
-    for (int i = 0; i < nKnotsTot; i++) {
-      cout << "knot " << i << ": " << spline.getKnot(i).u << endl;
-    }
-
-    CompactSplineIrregular1D splineClassic;
-    splineClassic.construct(initNKnots, knotsU);
-    std::unique_ptr<float[]> dataClassic = helper.createClassical(splineClassic, F);
-
-    float knotsS[initNKnots];
-    for (int i = 0; i < initNKnots; i++) {
-      knotsS[i] = knotsU[i] / uMax;
-    }
-    IrregularSpline1D splineLocal;
-    splineLocal.construct(initNKnots, knotsS, uMax + 1);
-    std::unique_ptr<float[]> dataLocal(new float[splineLocal.getNumberOfKnots()]);
-    {
-      for (int i = 0; i < splineLocal.getNumberOfKnots(); i++) {
-        dataLocal[i] = F(splineLocal.getKnot(i).u * uMax);
+      if (nKnots != spline.getNumberOfKnots()) {
+        cout << "warning: n knots changed during the initialisation " << nKnots << " -> " << spline.getNumberOfKnots() << std::endl;
+        continue;
       }
-      splineLocal.correctEdges(dataLocal.get());
+    } while (0);
+
+    std::string err = FlatObject::stressTest(spline);
+    if (!err.empty()) {
+      cout << "error at FlatObject functionality: " << err << endl;
+      return -1;
+    } else {
+      cout << "flat object functionality is ok" << endl;
     }
 
-    IrregularSpline1D splineLocal2N;
-    std::unique_ptr<float[]> dataLocal2N(nullptr);
-    {
-      int nKnotsTot2N = 2 * nKnotsTot - 1;
-      float knotsUtmp[nKnotsTot2N];
-      float du = 1. / (nKnotsTot2N - 1);
-      for (int i = 0; i < nKnotsTot2N; i++) {
-        knotsUtmp[i] = i * du;
-      }
-      knotsUtmp[0] = 0.;
-      knotsUtmp[nKnotsTot2N - 1] = 1.;
-      splineLocal2N.construct(nKnotsTot2N, knotsUtmp, uMax * 2 + 1);
-
-      int n = splineLocal2N.getNumberOfKnots();
-      dataLocal2N.reset(new float[n]); // corrected data
-
-      for (int i = 0; i < n; i++) {
-        dataLocal2N[i] = F(splineLocal2N.getKnot(i).u * uMax);
-      }
-      splineLocal2N.correctEdges(dataLocal2N.get());
+    nKnots = spline.getNumberOfKnots();
+    cout << "mark 0: nKnots = " << nKnots << endl;
+    std::unique_ptr<float[]> data = helper.create(spline, F, nAxiliaryPoints);
+    cout << "mark 1" << endl;
+    if (data == nullptr) {
+      cout << "can not create data array for the spline" << endl;
+      return -3;
     }
 
-    spline.print();
-    splineLocal.print();
-    splineLocal2N.print();
-
-    const CompactSplineIrregular1D& gridU = spline;
-    int nu = gridU.getNumberOfKnots();
-
-    canv->Draw();
-
-    TH1F* qaX = new TH1F("qaX", "qaX [um]", 1000, -1000., 1000.);
-
-    TNtuple* knots = new TNtuple("knots", "knots", "type:u:f");
-
-    double diff = 0;
-    for (int i = 0; i < nu; i++) {
-      double u = gridU.getKnot(i).u;
+    float stepU = 1.e-2;
+    for (double u = 0; u < uMax + stepU; u += stepU) {
       double f0 = F(u);
-      double fs = spline.getSpline((const float*)data.get(), u);
-      diff += (fs - f0) * (fs - f0);
-      knots->Fill(1, u / uMax, fs);
+      double fSpline = spline.getSpline((const float*)data.get(), u);
+      statDf += (fSpline - f0) * (fSpline - f0);
+      statN++;
+    }
+    cout << "std dev Compact   : " << sqrt(statDf / statN) << std::endl;
 
-      if (i < nu - 1) {
-        double u1 = gridU.getKnot(i + 1).u;
-        int nax = nAxiliaryPoints;
-        double du = (u1 - u) / (nax + 1);
-        for (int j = 0; j < nax; j++) {
-          double uu = u + du * (j + 1);
-          double ff = spline.getSpline((const float*)data.get(), uu);
-          knots->Fill(2, uu / uMax, ff);
+    if (kDraw) {
+      TNtuple* nt = new TNtuple("nt", "nt", "u:f0:fSpline");
+      float stepU = 1.e-4;
+      for (double u = 0; u < uMax + stepU; u += stepU) {
+        double f0 = F(u);
+        double fSpline = spline.getSpline((const float*)data.get(), u);
+        nt->Fill(u, f0, fSpline);
+      }
+
+      nt->SetMarkerStyle(8);
+
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("fSpline:u", "", "P");
+
+      nt->SetMarkerColor(kGray);
+      nt->SetMarkerSize(2.);
+      nt->Draw("f0:u", "", "P,same");
+
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("fSpline:u", "", "P,same");
+
+      TNtuple* knots = new TNtuple("knots", "knots", "type:u:f");
+      for (int i = 0; i < nKnots; i++) {
+        double u = spline.getKnot(i).u;
+        double f = spline.getSpline((const float*)data.get(), u);
+        knots->Fill(1, u, f);
+        if (i < nKnots - 1) {
+          double u1 = spline.getKnot(i + 1).u;
+          int nax = nAxiliaryPoints;
+          double du = (u1 - u) / (nax + 1);
+          for (int j = 0; j < nax; j++) {
+            double uu = u + du * (j + 1);
+            double ff = spline.getSpline((const float*)data.get(), uu);
+            knots->Fill(2, uu, ff);
+          }
         }
       }
+
+      knots->SetMarkerStyle(8);
+      knots->SetMarkerSize(1.5);
+      knots->SetMarkerColor(kRed);
+      knots->SetMarkerSize(1.5);
+      knots->Draw("f:u", "type==1", "same"); // compact
+      knots->SetMarkerColor(kBlack);
+      knots->SetMarkerSize(1.);
+      knots->Draw("f:u", "type==2", "same"); // compact, axiliary points
+
+      if (!ask())
+        break;
     }
-
-    cout << "mean diff at knots: " << sqrt(diff) / nu << endl;
-
-    for (int i = 0; i < splineLocal2N.getNumberOfKnots(); i++) {
-      double u = splineLocal2N.getKnot(i).u;
-      double fs = splineLocal2N.getSpline((const float*)dataLocal2N.get(), u);
-      knots->Fill(3, u, fs);
-    }
-
-    TNtuple* nt = new TNtuple("nt", "nt", "u:f0:fComp:fClass:fLocal:fLocal2N");
-
-    float stepS = 1.e-4;
-    int nSteps = (int)(1. / stepS + 1);
-
-    double statDfLocal = 0;
-    double statDfComp = 0;
-    double statDfClass = 0;
-    double statDfLocal2N = 0;
-    int statN = 0;
-    for (float s = 0; s < 1. + stepS; s += stepS) {
-      double u = s * uMax;
-      double f0 = F(u);
-      double fComp = spline.getSpline((const float*)data.get(), u);
-      double fClass = splineClassic.getSpline((const float*)dataClassic.get(), u);
-      double fLocal = splineLocal.getSpline((const float*)dataLocal.get(), s);
-      double fLocal2N = splineLocal2N.getSpline((const float*)dataLocal2N.get(), s);
-
-      statDfComp += (fComp - f0) * (fComp - f0);
-      statDfClass += (fClass - f0) * (fClass - f0);
-      statDfLocal += (fLocal - f0) * (fLocal - f0);
-      statDfLocal2N += (fLocal2N - f0) * (fLocal2N - f0);
-      statN++;
-      qaX->Fill(1.e4 * (fComp - f0));
-      nt->Fill(s, f0, fComp, fClass, fLocal, fLocal2N);
-    }
-
-    cout << "\n"
-         << std::endl;
-    cout << "std dev Classical : " << sqrt(statDfClass / statN) << std::endl;
-    cout << "std dev Local     : " << sqrt(statDfLocal / statN) << std::endl;
-    cout << "std dev Local 2N  : " << sqrt(statDfLocal2N / statN) << std::endl;
-    cout << "std dev Compact   : " << sqrt(statDfComp / statN) << std::endl;
-
-    /*
-      canv->cd(1);
-      qaX->Draw();
-      canv->cd(2);
-    */
-
-    //nt->SetMarkerColor(kBlack);
-    //nt->Draw("f0:u","","");
-
-    nt->SetMarkerColor(kGray);
-    nt->SetMarkerStyle(8);
-    nt->SetMarkerSize(2.);
-    nt->Draw("f0:u", "", "P");
-
-    TH1* htemp = (TH1*)gPad->GetPrimitive("htemp");
-    htemp->SetTitle("Splines of the same size");
-
-    knots->SetMarkerStyle(8);
-    knots->SetMarkerSize(1.5);
-
-    nt->SetMarkerSize(.5);
-    nt->SetMarkerColor(kBlack);
-    nt->Draw("fClass:u", "", "P,same");
-
-    nt->SetMarkerColor(kBlue);
-    nt->Draw("fLocal2N:u", "", "P,same");
-
-    nt->SetMarkerColor(kRed);
-    nt->Draw("fComp:u", "", "P,same");
-
-    knots->SetMarkerSize(2.);
-    knots->SetMarkerColor(kBlue);
-    knots->Draw("f:u", "type==3", "same");
-
-    knots->SetMarkerColor(kBlack);
-    knots->SetMarkerSize(2.5);
-    knots->Draw("f:u", "type==1", "same");
-
-    knots->SetMarkerColor(kRed);
-    knots->SetMarkerSize(1.5);
-    knots->Draw("f:u", "type==1", "same");
-
-    knots->SetMarkerColor(kBlack);
-    knots->SetMarkerSize(1.);
-    knots->Draw("f:u", "type==2", "same");
-
-    auto legend = new TLegend(0.1, 0.82, 0.3, 0.95);
-    //legend->SetHeader("Splines of the same size:","C"); // option "C" allows to center the header
-    TLine* l0 = new TLine();
-    l0->SetLineWidth(10);
-    l0->SetLineColor(kGray);
-    legend->AddEntry(l0, "input function", "L");
-    TLine* l1 = new TLine();
-    l1->SetLineWidth(4);
-    l1->SetLineColor(kBlack);
-    legend->AddEntry(l1, "classical (N knots + N slopes)", "L");
-    TLine* l2 = new TLine(*l1);
-    l2->SetLineColor(kBlue);
-    legend->AddEntry(l2, "local (2N knots)", "L");
-    TLine* l3 = new TLine(*l1);
-    l3->SetLineColor(kRed);
-    legend->AddEntry(l3, "compact (N knots + N slopes)", "L");
-    legend->Draw();
-
-    canv->Update();
-
-    cout << "\nRandom seed: " << seed << " " << gRandom->GetSeed() << endl;
-    cout << "type 'q' to exit" << endl;
-    if (getchar() == 'q')
-      break;
+  }
+  statDf = sqrt(statDf / statN);
+  cout << "\n std dev for Compact Spline   : " << statDf << std::endl;
+  if (statDf < 0.1)
+    cout << "Everything is fine" << endl;
+  else {
+    cout << "Something is wrong!!" << endl;
+    return -2;
   }
 
   return 0;
 }
-
+#else
+int CompactSplineIrregular1DTest()
+{
+  std::cout << "\nPlease run this macro with precompilation: \"root -l -q IrregularSpline1DTest.C+\"\n"
+            << std::endl;
+  return 0;
+}
 #endif
