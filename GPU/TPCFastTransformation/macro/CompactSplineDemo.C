@@ -17,7 +17,7 @@
 #include "TLine.h"
 #include "GPU/CompactSplineIrregular1D.h"
 #include "GPU/IrregularSpline1D.h"
-#include "GPU/CompactSplineHelper.h"
+#include "GPU/CompactSplineHelper1D.h"
 
 const int funcN = 10;
 static double funcC[2 * funcN + 2];
@@ -39,7 +39,7 @@ float F01(float u)
   return F(u * (nKnots - 1));
 }
 
-TCanvas* canv = new TCanvas("cQA", "Compact Spline Demo", 2000, 1000);
+TCanvas* canv = new TCanvas("cQA", "Compact Spline Demo", 2000, 800);
 
 bool doAskSteps = 1;
 
@@ -88,15 +88,15 @@ int CompactSplineDemo()
       funcC[i] = gRandom->Uniform(-1, 1);
     }
 
-    CompactSplineHelper helper;
+    CompactSplineHelper1D helper;
 
     CompactSplineIrregular1D spline;
     spline.constructRegular(nKnots);
-    std::unique_ptr<float[]> data = helper.create(spline, F, nAxiliaryPoints);
+    std::unique_ptr<float[]> data = helper.constructSpline(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
 
     CompactSplineIrregular1D splineClassic;
     splineClassic.constructRegular(nKnots);
-    std::unique_ptr<float[]> dataClassic = helper.createClassical(splineClassic, F);
+    std::unique_ptr<float[]> dataClassic = helper.constructSplineClassical(splineClassic, F, 0., splineClassic.getUmax());
 
     IrregularSpline1D splineLocal;
     int nKnotsLocal = 2 * nKnots - 1;

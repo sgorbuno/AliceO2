@@ -157,26 +157,40 @@ class CompactSplineIrregular1D : public FlatObject
 
   /// _______________  Main functionality   ________________________
 
-  /// Get interpolated value for F(u) using spline at the segment [knot,next knot] with function values f0, f1 and derivatives d0, d1
-  template <typename T>
-  GPUd() static T getSpline(const CompactSplineIrregular1D::Knot& knot, T f0, T d0, T f1, T d1, float u);
+  /// Get interpolated value for {F(u): float -> T^Ndim} at the segment [knotL, next knotR] with function values Fl, Fr and slopes Dl, Dr
+  template <typename T, int Ndim = 1>
+  GPUd() static void getSpline(const CompactSplineIrregular1D::Knot& knotL,
+                               GPUgeneric() const T Fl[], GPUgeneric() const T Dl[],
+                               GPUgeneric() const T Fr[], GPUgeneric() const T Dr[],
+                               float u, GPUgeneric() T Fu[]);
 
-  /// Get interpolated value for F(u) using data array data[2*getNumberOfKnots()] == {F0,D0, .., Fn-1,Dn-1}
-  template <typename T>
-  GPUd() GPUgeneric() T getSpline(GPUgeneric() const T data[], float u) const;
+  /// Get interpolated value for F(u) using spline data with a border check
+  template <typename T, int Ndim = 1>
+  GPUd() void getSpline(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const;
 
-  /// Get interpolated value for F(u) using data array data[2*getNumberOfKnots()] == {F0,D0, .., Fn-1,Dn-1}, with a border check
+  /// Get interpolated value for F(u) using spline data with no border check
+  template <typename T, int Ndim = 1>
+  GPUd() void getSplineNonsafe(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const;
+
+  /// Simple interface for 1D spline
   template <typename T>
-  GPUd() GPUgeneric() T getSplineSafe(GPUgeneric() const T data[], float u) const;
+  GPUd() static T getSpline(const CompactSplineIrregular1D::Knot& knotL,
+                            const T& Fl, const T& Dl, const T& Fr, const T& Dr, float u);
+
+  /// Simple interface for 1D spline
+  template <typename T>
+  GPUd() T getSpline(GPUgeneric() const T data[], float u) const;
+
+  /// _______________  Getters   ________________________
 
   /// Get number of knots
   GPUd() int getNumberOfKnots() const { return mNumberOfKnots; }
 
-  /// Get index of associated knot for a given U coordinate. No border check.
+  /// Get index of associated knot for a given U coordinate. With a border check.
   GPUd() int getKnotIndex(float u) const;
 
-  /// Get index of associated knot for a given U coordinate. With a border check.
-  GPUd() int getKnotIndexSafe(float u) const;
+  /// Get index of associated knot for a given U coordinate. No border check.
+  GPUd() int getKnotIndexNonsafe(float u) const;
 
   /// Get i-th knot, no border check performed!
   GPUd() const CompactSplineIrregular1D::Knot& getKnot(int i) const { return getKnots()[i]; }
@@ -220,58 +234,14 @@ class CompactSplineIrregular1D : public FlatObject
 ///       Inline implementations of some methods
 /// ====================================================
 
-template <typename T>
-GPUdi() T CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Knot& knot0, T f0, T d0, T f1, T d1, float u)
-{
-  /// A static method.
-  /// Get interpolated value for f(u) using spline at knot "knot0" and function & derivative values at knots {knot_0,knot_1}
-
-  T uu = T(u - knot0.u);
-  T x = uu * T(knot0.Li); // scaled u
-
-  /* another way to calculate
-  T xm1 = x-1;
-  T x2 = x * x;
-  float cf1 = x2*(3-2*x);
-  float cf0 = 1-cf1;
-  float cd0 = x*xm1*xm1*knot0.L;
-  float cd1 = x2*xm1*knot0.L;
-  return cf0*f0 + cf1*f1 + cd0*d0 + cd1*d1;
-  */
-  f1 = (f1 - f0) * knot0.Li;
-  T a = -f1 - f1 + d0 + d1;
-  T b = f1 - d0 - a;
-  return ((a * x + b) * x + d0) * uu + f0;
-}
-
-template <typename T>
-GPUdi() GPUgeneric() T CompactSplineIrregular1D::getSplineSafe(GPUgeneric() const T data[], float u) const
-{
-  /// Get interpolated value for f(u) using data array data[2*getNumberOfKnots()]
-  int iknot = getKnotIndexSafe(u);
-  const CompactSplineIrregular1D::Knot& knot = getKnot(iknot);
-  const T* d = data + (iknot + iknot);
-  return getSpline(knot, d[0], d[1], d[2], d[3], u);
-}
-
-template <typename T>
-GPUdi() GPUgeneric() T CompactSplineIrregular1D::getSpline(GPUgeneric() const T data[], float u) const
-{
-  /// Get interpolated value for f(u) using data array data[2*getNumberOfKnots()] = {F0,D0,..,Fn-1,Dn-1}
-  int iknot = getKnotIndex(u);
-  const CompactSplineIrregular1D::Knot& knot = getKnot(iknot);
-  const T* d = data + (iknot + iknot);
-  return getSpline(knot, d[0], d[1], d[2], d[3], u);
-}
-
-GPUdi() int CompactSplineIrregular1D::getKnotIndex(float u) const
+GPUdi() int CompactSplineIrregular1D::getKnotIndexNonsafe(float u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) interval
   /// no border check! u must be in [0,mUmax]
   return getBin2KnotMap()[(int)u];
 }
 
-GPUdi() int CompactSplineIrregular1D::getKnotIndexSafe(float u) const
+GPUdi() int CompactSplineIrregular1D::getKnotIndex(float u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) interval
   /// when u is otside of [0, mUmax], return the edge intervals
@@ -281,6 +251,93 @@ GPUdi() int CompactSplineIrregular1D::getKnotIndexSafe(float u) const
   if (ibin > mUmax)
     ibin = mUmax;
   return getBin2KnotMap()[ibin];
+}
+
+template <typename T, int Ndim = 1>
+GPUdi() void CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Knot& knotL,
+                                                 GPUgeneric() const T Fl[], GPUgeneric() const T Dl[],
+                                                 GPUgeneric() const T Fr[], GPUgeneric() const T Dr[],
+                                                 float u, GPUgeneric() T Fu[])
+{
+  /// A static method.
+  /// Gives interpolated value of N-dimensional F(u) at u
+  /// input: Fl,Dl,Fr,Dr[Ndim] - N-dim function values and slopes at knots {knotL,knotR}
+  /// output: Fu[Ndim] - N-dim interpolated value for F(u)
+
+  T uu = T(u - knotL.u);
+  T li = T(knotL.Li);
+  T x = uu * li; // scaled u
+  if
+    constexpr(Ndim == 1)
+    { // help an optimizer to not loop over dimensions when N dimensions = 1
+      T df = ((*Fr) - (*Fl)) * li;
+      T a = (*Dl) + (*Dr) - df - df;
+      T b = df - (*Dl) - a;
+      *Fu = ((a * x + b) * x + (*Dl)) * uu + (*Fl);
+    }
+  else {
+    for (int i = 0; i < Ndim; ++i) {
+      T df = (Fr[i] - Fl[i]) * li;
+      T a = Dl[i] + Dr[i] - df - df;
+      T b = df - Dl[i] - a;
+      Fu[i] = ((a * x + b) * x + Dl[i]) * uu + Fl[i];
+    }
+  }
+
+  /* another way to calculate f(u):
+  T uu = T(u - knotL.u);
+  T x = uu * T(knotL.Li); // scaled u
+  T xm1 = x-1;
+  T x2 = x * x;
+  float cFr = x2*(3-2*x);
+  float cFl = 1-cFr;
+  float cDl = x*xm1*xm1*knotL.L;
+  float cDr = x2*xm1*knotL.L;
+  return cFl*Fl + cFr*Fr + cDl*Dl + cDr*Dr;
+  */
+} // namespace gpu
+
+template <typename T, int Ndim = 1>
+GPUdi() void CompactSplineIrregular1D::getSpline(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const
+{
+  /// Get interpolated value for F(u) using data array data[Ndim*2*getNumberOfKnots()].
+  /// data = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
+  /// Safe calculation of the knot index
+  int iknot = getKnotIndex(u);
+  GPUgeneric() const T* d = data + (2 * Ndim) * iknot;
+  getSpline<T, Ndim>(getKnot(iknot), &(d[0]), &(d[Ndim]), &(d[2 * Ndim]), &(d[3 * Ndim]), u, Fu);
+}
+
+template <typename T, int Ndim = 1>
+GPUdi() void CompactSplineIrregular1D::getSplineNonsafe(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const
+{
+  /// Get interpolated value for f(u) using data array data[Ndim*2*getNumberOfKnots()].
+  /// data = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
+  /// Non-safe calculation of the knot index.
+  int iknot = getKnotIndexNonsafe(u);
+  GPUgeneric() const T* d = data + (2 * Ndim) * iknot;
+  return getSpline<T, Ndim>(getKnot(iknot), d[0], d[Ndim], d[2 * Ndim], d[3 * Ndim], u, Fu);
+}
+
+template <typename T>
+GPUdi() T CompactSplineIrregular1D::getSpline(const CompactSplineIrregular1D::Knot& knotL,
+                                              const T& Fl, const T& Dl,
+                                              const T& Fr, const T& Dr,
+                                              float u)
+{
+  /// Simple interface for 1D spline
+  T Fu;
+  getSpline(knotL, &Fl, &Dl, &Fr, &Dr, u, &Fu);
+  return Fu;
+}
+
+template <typename T>
+GPUdi() T CompactSplineIrregular1D::getSpline(GPUgeneric() const T data[], float u) const
+{
+  /// Simple interface for 1D spline
+  T Fu;
+  getSpline<T, 1>(data, u, &Fu);
+  return Fu;
 }
 
 } // namespace gpu

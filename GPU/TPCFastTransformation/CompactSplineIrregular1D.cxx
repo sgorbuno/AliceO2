@@ -26,7 +26,7 @@
 #include "TRandom.h"
 #include "Riostream.h"
 #include "TMath.h"
-#include "CompactSplineHelper.h"
+#include "CompactSplineHelper1D.h"
 #include "TCanvas.h"
 #include "TNtuple.h"
 #endif
@@ -246,7 +246,7 @@ int CompactSplineIrregular1D::test(bool draw)
       funcC[i] = gRandom->Uniform(-1, 1);
     }
 
-    CompactSplineHelper helper;
+    CompactSplineHelper1D helper;
     CompactSplineIrregular1D spline;
 
     int knotsU[nKnots];
@@ -270,13 +270,11 @@ int CompactSplineIrregular1D::test(bool draw)
       cout << "error at FlatObject functionality: " << err << endl;
       return -1;
     } else {
-      cout << "flat object functionality is ok" << endl;
+      //cout << "flat object functionality is ok" << endl;
     }
 
     nKnots = spline.getNumberOfKnots();
-    cout << "mark 0: nKnots = " << nKnots << endl;
-    std::unique_ptr<float[]> data = helper.create(spline, F, nAxiliaryPoints);
-    cout << "mark 1" << endl;
+    std::unique_ptr<float[]> data = helper.constructSpline(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
     if (data == nullptr) {
       cout << "can not create data array for the spline" << endl;
       return -3;
