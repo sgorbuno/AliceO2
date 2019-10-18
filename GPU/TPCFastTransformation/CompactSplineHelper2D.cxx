@@ -84,7 +84,7 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
       for (int ipu = 0; ipu < nPointsU; ipu++) {
         pointsU[ipu] = inFrow[3 * ipu + dim];
       }
-      mHelperU.constructSplineFast(pointsU, dataU);
+      mHelperU.constructSplineGradually(1, pointsU, dataU);
 
       for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
         outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + dim] = dataU[2 * iKnotU + 0];     // store f for all the knots
@@ -102,7 +102,7 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
 
     for (int ipu = 0; ipu < nPointsU; ipu++) {
       float* points = &(mapF[ipu * nPointsV]);
-      mHelperV.constructSplineFast(points, dataV);
+      mHelperV.constructSplineGradually(1, points, dataV);
       for (int iKnotV = 0; iKnotV < nKnotsV; iKnotV++) {
         int ipv = mHelperV.getKnotPoint(iKnotV);
         float dv = dataV[iKnotV * 2 + 1];
@@ -114,7 +114,7 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
 
     for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
       float* points = &(mapFv[iKnotV * nPointsU]);
-      mHelperU.constructSplineFast(pointsU, dataU);
+      mHelperU.constructSplineGradually(1, pointsU, dataU);
       for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
         outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 3 + dim] = dataU[2 * iKnotU + 0]; // store f'v for all the knots
         outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 9 + dim] = dataU[2 * iKnotU + 1]; // store f''vu for all the knots

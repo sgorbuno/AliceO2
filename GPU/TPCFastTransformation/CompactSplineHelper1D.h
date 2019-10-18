@@ -75,11 +75,12 @@ class CompactSplineHelper1D
   int getNdataPoints() const { return mPoints.size(); }
   int getNparameters() const { return mNKnots + mNKnots; }
   void constructSpline(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
-  void constructSplineFast(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
+  void constructSplineGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const;
 
   /// _______________  Utilities   ________________________
 
   int getKnotPoint(int iknot) const { return mKnotPoints[iknot]; }
+
   ///  Gives error string
   const char* getLastError() const { return mError.Data(); }
 

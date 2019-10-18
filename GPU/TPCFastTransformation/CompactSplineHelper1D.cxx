@@ -276,42 +276,58 @@ void CompactSplineHelper1D::constructSpline(const float inF[/*N Data Points*/], 
   }
 }
 
-void CompactSplineHelper1D::constructSplineFast(const float inF[/*N Data Points*/], float outSplineData[/*N Spline Parameters*/]) const
+void CompactSplineHelper1D::constructSplineGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const
 {
   // Create 1D irregular spline in a compact way
 
   for (int i = 0; i < mNKnots; ++i) { // set F values at knots
     int ip = mKnotPoints[i];
-    outSplineData[2 * i] = inF[ip];
+    for (int d = 0; d < Ndim; d++) {
+      outSplineData[2 * i * Ndim + d] = inF[ip * Ndim + d];
+    }
   }
 
-  double b[mNKnots];
-  for (int i = 0; i < mNKnots; i++)
+  double b[mNKnots * Ndim];
+  for (int i = 0; i < mNKnots * Ndim; i++) {
     b[i] = 0.;
+  }
 
   for (int i = 0; i < getNdataPoints(); ++i) {
     const Point& p = mPoints[i];
-    double f = (double)inF[i];
-    b[p.iKnot + 0] += f * p.cz0;
-    b[p.iKnot + 1] += f * p.cz1;
+    for (int d = 0; d < Ndim; d++) {
+      double f = (double)inF[i * Ndim + d];
+      b[(p.iKnot + 0) * Ndim + d] += f * p.cz0;
+      b[(p.iKnot + 1) * Ndim + d] += f * p.cz1;
+    }
   }
 
   const double* row = mMatrixFastF.data();
   for (int i = 0; i < mNKnots; ++i, row += mNKnots) {
-    double s = 0.;
+    double s[Ndim];
+    for (int d = 0; d < Ndim; d++)
+      s[d] = 0.;
     for (int j = 0; j < mNKnots; ++j) {
-      s += row[j] * outSplineData[2 * j];
+      for (int d = 0; d < Ndim; d++)
+        s[d] += row[j] * outSplineData[2 * j * Ndim + d];
     }
-    b[i] -= s;
+    for (int d = 0; d < Ndim; d++)
+      b[i * Ndim + d] -= s[d];
   }
 
   row = mMatrixFastI.data();
   for (int i = 0; i < mNKnots; ++i, row += mNKnots) {
-    double s = 0.;
-    for (int j = 0; j < mNKnots; ++j) {
-      s += row[j] * b[j];
+    double s[Ndim];
+    for (int d = 0; d < Ndim; d++) {
+      s[d] = 0.;
     }
-    outSplineData[2 * i + 1] = (float)s;
+    for (int j = 0; j < mNKnots; ++j) {
+      for (int d = 0; d < Ndim; d++) {
+        s[d] += row[j] * b[j * Ndim + d];
+      }
+    }
+    for (int d = 0; d < Ndim; d++) {
+      outSplineData[2 * (i + 1) * Ndim + d] = (float)s[d];
+    }
   }
 }
 

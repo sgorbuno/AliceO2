@@ -24,54 +24,74 @@ namespace GPUCA_NAMESPACE
 namespace gpu
 {
 ///
-/// The CompactSplineIrregular1D class represents one-dimensional spline interpolation on nonunifom (irregular) grid.
+/// The CompactSplineIrregular1D class represents spline interpolation on an one-dimensional irregular (nonunifom) grid.
 ///
-/// The class is flat C structure. No virtual methods, no ROOT types are used.
-/// It is designed for spline parameterisation of TPC transformation.
+/// The class is a flat C structure. No virtual methods, no ROOT types are used.
 ///
 /// ---
-/// The spline interpolates a generic function F:[0,Umax]->R.
+/// The spline interpolates a generic function F:[0,Umax]->R^m.
 ///
-/// The function parameter is called U, the function value is F.
+/// The function parameter is called U, the function value is called F (may be multi-dimensional).
 /// The interpolation is performed on n knots {U0==0., U1, .., Un-1==Umax}
-/// using given function values {F0, ..., Fn-1} and derivatives [D0,..,Dn-1] at the knots.
+/// using the function values Fi and the derivatives Di at the knots.
+///
+/// --- Knots ---
 ///
 /// Umax is an integer number.
-/// The knots must have integer coordinates on the segment [0,Umax].
-/// It is done this way for a fast indexing of the segments between knots.
+/// The knots have integer coordinates on the segment [0,Umax].
+/// It is done this way for fast indexing of the segments between knots.
 ///
-/// To interpolate on any segment other than [0,Umax], one should scale the U coordinate and the derivatives.
+/// To interpolate on an interval other than [0,Umax], one should scale the U coordinate and the derivatives Di.
 ///
-/// An interpolation on each segment between two knots is performed by a 3-th degree polynom.
-/// The polynoms and they 1-st derivatives are continuous at the knots.
-/// Depending on the initialization of the first derivative, the second derivative may or may not be continious.
-///
+/// --- Function values at knots---
 ///
 /// Nothing which depends on F is stored in the class,
-/// therefore one can use the same class for interpolation of different input functions.
-/// The function values {F0,..,Fn-1} and the derivatives {D0,..,Dn-1} have to be provided by the user for each call.
+/// therefore one can use the same class for interpolation of different input functions on the same knots.
+/// The function values F_i and the derivatives D_i = {F'_u}_i have to be provided by the user for each call.
+/// The format of the spline input data: { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ..., {Fx,Fy,Fz,Dx,Dy,Dz}_n-1 } for 3-dimensional F
 ///
+/// --- Interpolation ---
+/// An interpolation of F values between the knots is performed by 3-th degree polynoms.
+/// The polynoms and they 1-st derivatives are continuous at the knots.
+/// Depending on the initialization of the derivatives, the second derivative may or may not be continious.
+///
+/// ---- Initialisation ---
 /// The minimal number of knots is 2, the minimal Umax is 1
 ///
 /// Knot U0=0. is always present. It will be added automatically when it is not set by the user.
 /// Attention! The number of knots may change during the initialization.
 ///
 /// The user should provide function values Fi and the derivatives Di for all constructed(!) knots.
-/// They can be calculated using the utilities from CompactSplineHelper class.
+/// They can be calculated using utilities from the CompactSplineHelper1D class.
 ///
 /// ------------
 ///
 ///  Example of creating a spline:
 ///
 ///  const int nKnots=3;
-///  int knots[nKnots] = {0, 1, 5}; // original knot positions
+///  int knots[nKnots] = {0, 1, 5};
 ///  CompactSplineIrregular1D spline;
 ///  spline.construct(nKnots, knots );
-///  float data[2*nKnots] = { 3.5, 0.01, 2.0, -0.01, 3.1, 0.02};
-///  spline.getSpline( f, 0.0 ); // == 3.5
-///  spline.getSpline( f, 0.2 ); // == some interpolated value
-///  spline.getSpline( f, 1.0 ); // == 2.0
-///  spline.getSpline( f, 5.0 ); // == 3.1
+///  {// manual
+///    float data[2*nKnots] = { 3.5, 0.01, 2.0, -0.01, 3.1, 0.02};
+///    spline.getSpline( data, 0.0 ); // == 3.5
+///    spline.getSpline( data, 0.2 ); // == some interpolated value
+///    spline.getSpline( data, 1.0 ); // == 2.0
+///    spline.getSpline( data, 5.0 ); // == 3.1
+///  }
+///  { // using helper
+///    auto F = [&](float u) -> float {
+///     return ...; // F(u)
+///    };
+///    CompactSplineHelper1D helper;
+///    std::unique_ptr<float[]> data = helper.constructSpline(spline, F, 0.f, 5.f, 2);
+///    spline.getSpline( data.get(), 0.0 ); // == F(0.0)
+///    spline.getSpline( data.get(), 0.2 ); // some interpolated value
+///    spline.getSpline( data.get(), 1.0 ); // == F(1.0)
+///    spline.getSpline( data.get(), 5.0 ); // == F(5.0)
+///   }
+///
+///  --- See also CompactSplineIrregular1D::test();
 ///
 class CompactSplineIrregular1D : public FlatObject
 {
@@ -90,7 +110,15 @@ class CompactSplineIrregular1D : public FlatObject
   GPUd() static constexpr int getVersion() { return 1; }
 
   /// Size of the data array in elements, must be multiplied by sizeof(float)
-  GPUd() size_t getDataSizeInelements() const { return 2 * mNumberOfKnots; }
+  template <typename T>
+  GPUd() size_t getDataSize(int Ndim = 1) const
+  {
+    return (2 * Ndim * sizeof(T)) * mNumberOfKnots;
+  }
+
+  /// Size of the data array in elements, must be multiplied by sizeof(float)
+
+  GPUd() size_t getDataSizeInElements(int Ndim = 1) const { return (2 * Ndim) * mNumberOfKnots; }
 
   /// _____________  Constructors / destructors __________________________
 
@@ -136,7 +164,7 @@ class CompactSplineIrregular1D : public FlatObject
   /// Get minimal required alignment for the spline data
   static constexpr size_t getDataAlignmentBytes() { return 2 * sizeof(float); }
 
-  /// _______________  Construction interface  ________________________
+/// _______________  Construction interface  ________________________
 
 #if !defined(GPUCA_GPUCODE)
   /// Constructor
