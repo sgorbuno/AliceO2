@@ -65,7 +65,7 @@ class CompactSplineHelper2D
   int getNdataPoints() const { return getNdataPointsU() * getNdataPointsV(); }
   int getNparameters() const { return mSpline.getDataSizeInElements<1>(); }
 
-  void constructSpline(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
+  void constructData(int Ndim, const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
 
   /// _______________  Utilities   ________________________
 

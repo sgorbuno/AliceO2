@@ -50,9 +50,13 @@ int CompactSplineHelper2D::setSpline(const CompactSpline2D& spline, int nAxiliar
   return ret;
 }
 
-void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const
+void CompactSplineHelper2D::constructData(int Ndim, const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const
 {
   // Create 2D irregular spline in a compact way
+
+  const int Ndim2= 2*Ndim;
+   const int Ndim3= 3*Ndim;
+ const int Ndim4= 4*Ndim;
 
   int nPointsU = getNdataPointsU();
   int nPointsV = getNdataPointsV();
@@ -68,27 +72,27 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
   float dataU[mHelperU.getNparameters()];
   float dataV[mHelperV.getNparameters()];
 
-  for (int dim = 0; dim < 3; dim++) { // loop over dimensions
+  for (int dim = 0; dim < Ndim; dim++) { // loop over dimensions
 
     // get the function values and U derivatives at knots from the U splines
 
     for (int ipu = 0; ipu < nPointsU; ipu++) {
       for (int ipv = 0; ipv < nPointsV; ipv++) {
-        mapF[ipu * nPointsV + ipv] = inF[3 * (ipv * nPointsU + ipu) + dim];
+        mapF[ipu * nPointsV + ipv] = inF[Ndim * (ipv * nPointsU + ipu) + dim];
       }
     }
 
     for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
       int ipv = mHelperV.getKnotPoint(iKnotV);
-      const float* inFrow = &(inF[ipv * 3 * nPointsU]);
+      const float* inFrow = &(inF[ipv * Ndim * nPointsU]);
       for (int ipu = 0; ipu < nPointsU; ipu++) {
-        pointsU[ipu] = inFrow[3 * ipu + dim];
+        pointsU[ipu] = inFrow[Ndim * ipu + dim];
       }
       mHelperU.constructDataGradually(1, pointsU, dataU);
 
       for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
-        outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + dim] = dataU[2 * iKnotU + 0];     // store f for all the knots
-        outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 6 + dim] = dataU[2 * iKnotU + 1]; // store f'u for all the knots
+        outSplineData[iKnotV * Ndim4 * nKnotsU + iKnotU * Ndim4 + dim] = dataU[2 * iKnotU + 0];     // store f for all the knots
+        outSplineData[iKnotV * Ndim4 * nKnotsU + iKnotU * Ndim4 + Ndim2 + dim] = dataU[2 * iKnotU + 1]; // store f'u for all the knots
       }
 
       // recalculate F values for all ipu points at V = ipv
@@ -116,8 +120,8 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
       float* points = &(mapFv[iKnotV * nPointsU]);
       mHelperU.constructDataGradually(1, pointsU, dataU);
       for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
-        outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 3 + dim] = dataU[2 * iKnotU + 0]; // store f'v for all the knots
-        outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 9 + dim] = dataU[2 * iKnotU + 1]; // store f''vu for all the knots
+        outSplineData[iKnotV * Ndim4 * nKnotsU + iKnotU * Ndim4 + Ndim  + dim] = dataU[2 * iKnotU + 0]; // store f'v for all the knots
+        outSplineData[iKnotV * Ndim4 * nKnotsU + iKnotU * Ndim4 + Ndim3 + dim] = dataU[2 * iKnotU + 1]; // store f''vu for all the knots
       }
     }
 
