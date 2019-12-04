@@ -22,7 +22,7 @@
 #include "GPUCommonDef.h"
 #include "Rtypes.h"
 #include "TString.h"
-#include "CompactSplineIrregular1D.h"
+#include "CompactSpline1D.h"
 #include <functional>
 
 namespace GPUCA_NAMESPACE
@@ -65,18 +65,27 @@ class CompactSplineHelper1D
   /// _______________  Main functionality  ________________________
 
   /// Creates classical spline data for a given input function
-  std::unique_ptr<float[]> constructSplineClassical(const CompactSplineIrregular1D& spline, std::function<float(float)> F, float uMin, float uMax);
+  std::unique_ptr<float[]> constructDataClassical1D(const CompactSpline1D& spline, std::function<float(float)> F, float uMin, float uMax);
 
   /// Creates compact spline data for a given input function
-  std::unique_ptr<float[]> constructSpline(const CompactSplineIrregular1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
+  std::unique_ptr<float[]> constructData1D(const CompactSpline1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
 
-  /// Tools for a manual construction of compact splines
-  int setSpline(const CompactSplineIrregular1D& spline, int nAxiliaryPoints);
+  /// _______________   Tools for a manual construction of compact splines   ________________________
+
+  int setSpline(const CompactSpline1D& spline, int nAxiliaryPoints);
   int getNdataPoints() const { return mPoints.size(); }
-  int getNparameters() const { return mNKnots + mNKnots; }
-  void constructSpline(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
-  void constructSplineGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const;
 
+  /// N parameters in the data array per output dimension
+  int getNparameters() const { return 2 * mNKnots; }
+
+  void constructData1D(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
+  void constructDataGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const;
+
+  template <int Ndim>
+  void constructDataGradually(const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const
+  {
+    constructDataGradually(Ndim, inF, outSplineData);
+  }
   /// _______________  Utilities   ________________________
 
   int getKnotPoint(int iknot) const { return mKnotPoints[iknot]; }

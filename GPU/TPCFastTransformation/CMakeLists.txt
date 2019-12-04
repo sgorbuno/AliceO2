@@ -11,8 +11,8 @@
 set(MODULE TPCFastTransformation)
 
 set(SRCS
-    CompactSplineIrregular1D.cxx  
-    CompactSplineIrregular2D3D.cxx  
+    CompactSpline1D.cxx  
+    CompactSpline2D.cxx  
     CompactSplineHelper1D.cxx
     CompactSplineHelper2D.cxx
     IrregularSpline1D.cxx

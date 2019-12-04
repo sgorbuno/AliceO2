@@ -8,12 +8,12 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSplineIrregular1D.cxx
-/// \brief Implementation of CompactSplineIrregular1D class
+/// \file  CompactSpline1D.cxx
+/// \brief Implementation of CompactSpline1D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#include "CompactSplineIrregular1D.h"
+#include "CompactSpline1D.h"
 #include <cmath>
 
 #if !defined(GPUCA_GPUCODE) // code invisible on GPU
@@ -33,57 +33,57 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-CompactSplineIrregular1D::CompactSplineIrregular1D() : FlatObject(), mNumberOfKnots(0), mUmax(0), mBin2KnotMap(0)
+CompactSpline1D::CompactSpline1D() : FlatObject(), mNumberOfKnots(0), mUmax(0), mUtoKnotMap(0)
 {
   /// Default constructor. Creates an empty uninitialised object
 }
 
-void CompactSplineIrregular1D::destroy()
+void CompactSpline1D::destroy()
 {
   /// See FlatObject for description
   mNumberOfKnots = 0;
   mUmax = 0;
-  mBin2KnotMap = nullptr;
+  mUtoKnotMap = nullptr;
   FlatObject::destroy();
 }
 
 #if !defined(GPUCA_GPUCODE)
-void CompactSplineIrregular1D::cloneFromObject(const CompactSplineIrregular1D& obj, char* newFlatBufferPtr)
+void CompactSpline1D::cloneFromObject(const CompactSpline1D& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
   const char* oldFlatBufferPtr = obj.mFlatBufferPtr;
   FlatObject::cloneFromObject(obj, newFlatBufferPtr);
   mNumberOfKnots = obj.mNumberOfKnots;
   mUmax = obj.mUmax;
-  mBin2KnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mBin2KnotMap);
+  mUtoKnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mUtoKnotMap);
 }
 
-void CompactSplineIrregular1D::moveBufferTo(char* newFlatBufferPtr)
+void CompactSpline1D::moveBufferTo(char* newFlatBufferPtr)
 {
   /// See FlatObject for description
   const char* oldFlatBufferPtr = mFlatBufferPtr;
   FlatObject::moveBufferTo(newFlatBufferPtr);
-  mBin2KnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, mBin2KnotMap);
+  mUtoKnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, mUtoKnotMap);
 }
 #endif
 
-void CompactSplineIrregular1D::setActualBufferAddress(char* actualFlatBufferPtr)
+void CompactSpline1D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
-  mBin2KnotMap = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mBin2KnotMap);
+  mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mUtoKnotMap);
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
 }
 
-void CompactSplineIrregular1D::setFutureBufferAddress(char* futureFlatBufferPtr)
+void CompactSpline1D::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
-  mBin2KnotMap = FlatObject::relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mBin2KnotMap);
+  mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mUtoKnotMap);
   FlatObject::setFutureBufferAddress(futureFlatBufferPtr);
 }
 
 #if !defined(GPUCA_GPUCODE)
 
-void CompactSplineIrregular1D::construct(int numberOfKnots, const int inputKnots[])
+void CompactSpline1D::construct(int numberOfKnots, const int inputKnots[])
 {
   /// Constructor
   ///
@@ -119,13 +119,13 @@ void CompactSplineIrregular1D::construct(int numberOfKnots, const int inputKnots
 
   mNumberOfKnots = knotU.size();
   mUmax = knotU.back();
-  int bin2KnotMapOffset = mNumberOfKnots * sizeof(CompactSplineIrregular1D::Knot);
+  int uToKnotMapOffset = mNumberOfKnots * sizeof(CompactSpline1D::Knot);
 
-  FlatObject::finishConstruction(bin2KnotMapOffset + (mUmax + 1) * sizeof(int));
+  FlatObject::finishConstruction(uToKnotMapOffset + (mUmax + 1) * sizeof(int));
 
-  mBin2KnotMap = reinterpret_cast<int*>(mFlatBufferPtr + bin2KnotMapOffset);
+  mUtoKnotMap = reinterpret_cast<int*>(mFlatBufferPtr + uToKnotMapOffset);
 
-  CompactSplineIrregular1D::Knot* s = getKnotsNonConst();
+  CompactSpline1D::Knot* s = getKnotsNonConst();
 
   for (int i = 0; i < mNumberOfKnots; i++) {
     s[i].u = knotU[i];
@@ -137,16 +137,16 @@ void CompactSplineIrregular1D::construct(int numberOfKnots, const int inputKnots
 
   s[mNumberOfKnots - 1].Li = 0.f; // the value will not be used, we define it for consistency
 
-  // Set up map (U bin) -> (knot index)
+  // Set up the map (integer U) -> (knot index)
 
-  int* map = getBin2KnotMapNonConst();
+  int* map = getUtoKnotMapNonConst();
 
   int iKnotMax = mNumberOfKnots - 2;
 
   //
-  // With iKnotMax=nKnots-2 we map the U==Umax coordinate to the [nKnots-2, nKnots-1] segment.
+  // With iKnotMax=nKnots-2 we map the U==Umax coordinate to the last [nKnots-2, nKnots-1] segment.
   // This trick allows one to avoid a special condition for this edge case.
-  // Any U from [0,Umax] is mapped to some knot i such, that the knot i+1 is always exist
+  // Any U from [0,Umax] is mapped to some knot_i such, that the next knot_i+1 always exist
   //
 
   for (int u = 0, iKnot = 0; u <= mUmax; u++) {
@@ -157,7 +157,7 @@ void CompactSplineIrregular1D::construct(int numberOfKnots, const int inputKnots
   }
 }
 
-void CompactSplineIrregular1D::constructRegular(int numberOfKnots)
+void CompactSpline1D::constructRegular(int numberOfKnots)
 {
   /// Constructor for a regular spline
   /// \param numberOfKnots     Number of knots
@@ -174,13 +174,13 @@ void CompactSplineIrregular1D::constructRegular(int numberOfKnots)
 }
 #endif
 
-void CompactSplineIrregular1D::print() const
+void CompactSpline1D::print() const
 {
 #if !defined(GPUCA_GPUCODE)
   std::cout << " Compact Spline 1D: " << std::endl;
   std::cout << "  mNumberOfKnots = " << mNumberOfKnots << std::endl;
   std::cout << "  mUmax = " << mUmax << std::endl;
-  std::cout << "  mBin2KnotMap = " << (void*)mBin2KnotMap << std::endl;
+  std::cout << "  mUtoKnotMap = " << (void*)mUtoKnotMap << std::endl;
   std::cout << "  knots: ";
   for (int i = 0; i < mNumberOfKnots; i++) {
     std::cout << getKnot(i).u << " ";
@@ -191,7 +191,7 @@ void CompactSplineIrregular1D::print() const
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 
-int CompactSplineIrregular1D::test(bool draw)
+int CompactSpline1D::test(bool draw)
 {
   using namespace std;
 
@@ -231,7 +231,7 @@ int CompactSplineIrregular1D::test(bool draw)
   int nTries = 100;
 
   if (draw) {
-    canv = new TCanvas("cQA", "CompactSplineIrregular1D  QA", 2000, 1000);
+    canv = new TCanvas("cQA", "CompactSpline1D  QA", 2000, 1000);
     nTries = 10000;
   }
 
@@ -247,7 +247,7 @@ int CompactSplineIrregular1D::test(bool draw)
     }
 
     CompactSplineHelper1D helper;
-    CompactSplineIrregular1D spline;
+    CompactSpline1D spline;
 
     int knotsU[nKnots];
     do {
@@ -274,7 +274,7 @@ int CompactSplineIrregular1D::test(bool draw)
     }
 
     nKnots = spline.getNumberOfKnots();
-    std::unique_ptr<float[]> data = helper.constructSpline(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
+    std::unique_ptr<float[]> data = helper.constructData1D(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
     if (data == nullptr) {
       cout << "can not create data array for the spline" << endl;
       return -3;

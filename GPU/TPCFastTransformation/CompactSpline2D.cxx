@@ -8,12 +8,12 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSplineIrregular2D3D.cxx
-/// \brief Implementation of CompactSplineIrregular2D3D class
+/// \file  CompactSpline2D.cxx
+/// \brief Implementation of CompactSpline2D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#include "CompactSplineIrregular2D3D.h"
+#include "CompactSpline2D.h"
 
 #if !defined(GPUCA_GPUCODE)
 #include <iostream>
@@ -21,12 +21,12 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-CompactSplineIrregular2D3D::CompactSplineIrregular2D3D() : FlatObject(), mGridU(), mGridV()
+CompactSpline2D::CompactSpline2D() : FlatObject(), mGridU(), mGridV()
 {
   /// Default constructor. Creates an empty uninitialised object
 }
 
-void CompactSplineIrregular2D3D::destroy()
+void CompactSpline2D::destroy()
 {
   /// See FlatObject for description
   mGridU.destroy();
@@ -34,7 +34,7 @@ void CompactSplineIrregular2D3D::destroy()
   FlatObject::destroy();
 }
 
-void CompactSplineIrregular2D3D::cloneFromObject(const CompactSplineIrregular2D3D& obj, char* newFlatBufferPtr)
+void CompactSpline2D::cloneFromObject(const CompactSpline2D& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
 
@@ -49,9 +49,9 @@ void CompactSplineIrregular2D3D::cloneFromObject(const CompactSplineIrregular2D3
   mGridV.cloneFromObject(obj.mGridV, bufferV);
 }
 
-void CompactSplineIrregular2D3D::moveBufferTo(char* newFlatBufferPtr)
+void CompactSpline2D::moveBufferTo(char* newFlatBufferPtr)
 {
-  /// See FlatObject for description
+/// See FlatObject for description
 #ifndef GPUCA_GPUCODE
   char* oldFlatBufferPtr = mFlatBufferPtr;
   FlatObject::moveBufferTo(newFlatBufferPtr);
@@ -61,7 +61,7 @@ void CompactSplineIrregular2D3D::moveBufferTo(char* newFlatBufferPtr)
 #endif
 }
 
-void CompactSplineIrregular2D3D::setActualBufferAddress(char* actualFlatBufferPtr)
+void CompactSpline2D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
   char* bufferU = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mGridU.getFlatBufferPtr());
@@ -71,7 +71,7 @@ void CompactSplineIrregular2D3D::setActualBufferAddress(char* actualFlatBufferPt
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
 }
 
-void CompactSplineIrregular2D3D::setFutureBufferAddress(char* futureFlatBufferPtr)
+void CompactSpline2D::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
   char* bufferU = relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mGridU.getFlatBufferPtr());
@@ -81,33 +81,26 @@ void CompactSplineIrregular2D3D::setFutureBufferAddress(char* futureFlatBufferPt
   FlatObject::setFutureBufferAddress(futureFlatBufferPtr);
 }
 
-void CompactSplineIrregular2D3D::construct(int numberOfKnotsU, const float knotsU[], int numberOfAxisBinsU, int numberOfKnotsV, const float knotsV[], int numberOfAxisBinsV)
+void CompactSpline2D::construct(int numberOfKnotsU, const int knotsU[], int numberOfKnotsV, const int knotsV[])
 {
   /// Constructor
   ///
-  /// Number of knots created and their values may differ from the input values:
-  /// - Edge knots 0.f and 1.f will be added if they are not present.
-  /// - Knot values are rounded to closest axis bins: k*1./numberOfAxisBins.
-  /// - Knots rounded to the same axis bin will be merged
-  /// - At least 2 knots and at least 1 axis bin will be created in both directions
+  /// Number of created knots may differ from the input values:
+  /// - Edge knots {0} and {Umax/Vmax} will be added if they are not present.
+  /// - Duplicated knots, knots with a negative coordinate will be deleted
+  /// - At least 2 knots for each axis will be created
   ///
-  /// \param numberOfKnotsU     U axis: Number of knots in knots[] array
-  /// \param knotsU             U axis: Array of knots.
-  /// \param numberOfAxisBinsU  U axis: Number of axis bins to map arbitrary U coordinate to
-  ///                           an appropriate [knot(i),knot(i+1)] interval.
-  ///                           The knot positions have "granularity" of 1./numberOfAxisBins
+  /// \param numberOfKnotsU     Number of knots in knotsU[] array
+  /// \param knotsU             Array of knot positions (integer values)
   ///
-  /// \param numberOfKnotsV     V axis: Number of knots in knots[] array
-  /// \param knotsV             V axis: Array of knots.
-  /// \param numberOfAxisBinsV  V axis: Number of axis bins to map U coordinate to
-  ///                           an appropriate [knot(i),knot(i+1)] interval.
-  ///                           The knot positions have "granularity" of 1./numberOfAxisBins
+  /// \param numberOfKnotsV     Number of knots in knotsV[] array
+  /// \param knotsV             Array of knot positions (integer values)
   ///
 
   FlatObject::startConstruction();
 
-  //mGridU.construct(numberOfKnotsU, knotsU, numberOfAxisBinsU);
-  //mGridV.construct(numberOfKnotsV, knotsV, numberOfAxisBinsV);
+  mGridU.construct(numberOfKnotsU, knotsU);
+  mGridV.construct(numberOfKnotsV, knotsV);
 
   size_t vOffset = alignSize(mGridU.getFlatBufferSize(), mGridV.getBufferAlignmentBytes());
 
@@ -117,7 +110,7 @@ void CompactSplineIrregular2D3D::construct(int numberOfKnotsU, const float knots
   mGridV.moveBufferTo(mFlatBufferPtr + vOffset);
 }
 
-void CompactSplineIrregular2D3D::constructRegular(int numberOfKnotsU, int numberOfKnotsV)
+void CompactSpline2D::constructRegular(int numberOfKnotsU, int numberOfKnotsV)
 {
   /// Constructor for a regular spline
   /// \param numberOfKnotsU     U axis: Number of knots in knots[] array
@@ -137,10 +130,10 @@ void CompactSplineIrregular2D3D::constructRegular(int numberOfKnotsU, int number
   mGridV.moveBufferTo(mFlatBufferPtr + vOffset);
 }
 
-void CompactSplineIrregular2D3D::print() const
+void CompactSpline2D::print() const
 {
 #if !defined(GPUCA_GPUCODE)
-  std::cout << " Irregular Spline 2D3D: " << std::endl;
+  std::cout << " Irregular Spline 2D: " << std::endl;
   std::cout << " grid U: " << std::endl;
   mGridU.print();
   std::cout << " grid V: " << std::endl;

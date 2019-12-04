@@ -25,9 +25,9 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 CompactSplineHelper1D::CompactSplineHelper1D() : mError() {}
 
-std::unique_ptr<float[]> CompactSplineHelper1D::constructSplineClassical(const CompactSplineIrregular1D& spline, std::function<float(float)> F, float uMin, float uMax)
+std::unique_ptr<float[]> CompactSplineHelper1D::constructDataClassical1D(const CompactSpline1D& spline, std::function<float(float)> F, float uMin, float uMax)
 {
-  // Create 1D spline in a classical way:
+  // Create 1D->1D spline in a classical way:
   // set slopes at the knots such, that the second derivative of the spline stays continious.
   //
   if (!spline.isConstructed()) {
@@ -45,13 +45,13 @@ std::unique_ptr<float[]> CompactSplineHelper1D::constructSplineClassical(const C
   b.Zero();
   double scale = (uMax - uMin) / ((double)nKnots - 1.);
   for (int i = 0; i < nKnots; ++i) {
-    const CompactSplineIrregular1D::Knot& knot = spline.getKnot(i);
+    const CompactSpline1D::Knot& knot = spline.getKnot(i);
     double u = knot.u;
     data[2 * i] = F(uMin + u * scale);
   }
 
   /*
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i);
+    const CompactSpline1D::Knot& knot0 = spline.getKnot(i);
     double x = (u - knot0.u) * knot0.Li; // scaled u    
     double cf1 = (6 - 12*x)*knot0.Li*knot0.Li;
     double cz0 = (6*x-4)*knot0.Li;
@@ -63,7 +63,7 @@ std::unique_ptr<float[]> CompactSplineHelper1D::constructSplineClassical(const C
   {
     double f0 = data[2 * 0];
     double f1 = data[2 * 1];
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(0);
+    const CompactSpline1D::Knot& knot0 = spline.getKnot(0);
     double cf1 = (6) * knot0.Li * knot0.Li;
     double cz0 = (-4) * knot0.Li;
     double cz1 = (-2) * knot0.Li;
@@ -77,7 +77,7 @@ std::unique_ptr<float[]> CompactSplineHelper1D::constructSplineClassical(const C
   {
     double f0 = data[2 * (nKnots - 2)];
     double f1 = data[2 * (nKnots - 1)];
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(nKnots - 2);
+    const CompactSpline1D::Knot& knot0 = spline.getKnot(nKnots - 2);
     double cf1 = (6 - 12) * knot0.Li * knot0.Li;
     double cz0 = (6 - 4) * knot0.Li;
     double cz1 = (6 - 2) * knot0.Li;
@@ -92,13 +92,13 @@ std::unique_ptr<float[]> CompactSplineHelper1D::constructSplineClassical(const C
     double f0 = data[2 * (i - 1)];
     double f1 = data[2 * (i)];
     double f2 = data[2 * (i + 1)];
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(i - 1);
+    const CompactSpline1D::Knot& knot0 = spline.getKnot(i - 1);
     double cf1 = (6 - 12) * knot0.Li * knot0.Li;
     double cz0 = (6 - 4) * knot0.Li;
     double cz1_0 = (6 - 2) * knot0.Li;
     // f''(u) = cf1*(f1-f0) + cz0*z0 + cz1*z1;
 
-    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(i);
+    const CompactSpline1D::Knot& knot1 = spline.getKnot(i);
     double cf2 = (6) * knot1.Li * knot1.Li;
     double cz1_1 = (-4) * knot1.Li;
     double cz2 = (-2) * knot1.Li;
@@ -117,7 +117,7 @@ std::unique_ptr<float[]> CompactSplineHelper1D::constructSplineClassical(const C
   return data;
 }
 
-int CompactSplineHelper1D::setSpline(const CompactSplineIrregular1D& spline, int nAxiliaryPoints)
+int CompactSplineHelper1D::setSpline(const CompactSpline1D& spline, int nAxiliaryPoints)
 {
   // Prepare creation of 1D irregular spline in a compact way:
   // fit all the spline parameters (which are the spline values and the slopes at the knots) to multiple data points.
@@ -153,7 +153,7 @@ int CompactSplineHelper1D::setSpline(const CompactSplineIrregular1D& spline, int
   mPoints.resize(nPoints);
   mKnotPoints.resize(mNKnots);
   for (int i = 0; i < mNKnots; ++i) {
-    const CompactSplineIrregular1D::Knot& knot = spline.getKnot(i);
+    const CompactSpline1D::Knot& knot = spline.getKnot(i);
     int iu = (int)(knot.u + 0.1f);
     mKnotPoints[i] = iu * (1 + nAxiliaryPoints);
   }
@@ -166,8 +166,8 @@ int CompactSplineHelper1D::setSpline(const CompactSplineIrregular1D& spline, int
     Point& p = mPoints[i];
     double u = i * scalePoints2Knots;
     int iKnot = spline.getKnotIndex(u);
-    const CompactSplineIrregular1D::Knot& knot0 = spline.getKnot(iKnot);
-    const CompactSplineIrregular1D::Knot& knot1 = spline.getKnot(iKnot + 1);
+    const CompactSpline1D::Knot& knot0 = spline.getKnot(iKnot);
+    const CompactSpline1D::Knot& knot1 = spline.getKnot(iKnot + 1);
     double l = knot1.u - knot0.u;
     double x = (u - knot0.u) * knot0.Li; // scaled u
     double x2 = x * x;
@@ -245,7 +245,7 @@ int CompactSplineHelper1D::setSpline(const CompactSplineIrregular1D& spline, int
   return ret;
 }
 
-void CompactSplineHelper1D::constructSpline(const float inF[/*N Data Points*/], float outSplineData[/*N Spline Parameters*/]) const
+void CompactSplineHelper1D::constructData1D( const float inF[/*N Data Points*/], float outSplineData[/*N Spline Parameters*/]) const
 {
   // Create 1D irregular spline in a compact way
 
@@ -276,7 +276,35 @@ void CompactSplineHelper1D::constructSpline(const float inF[/*N Data Points*/], 
   }
 }
 
-void CompactSplineHelper1D::constructSplineGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const
+std::unique_ptr<float[]> CompactSplineHelper1D::constructData1D(const CompactSpline1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints)
+{
+  // Create 1D spline in a compact way for the input function F.
+  // nAxiliaryPoints: number of data points between the spline knots (should be at least 2)
+
+  if (!spline.isConstructed()) {
+    storeError(-1, "CompactSplineHelper1D::constructData: input spline is not constructed");
+    return nullptr;
+  }
+  if (nAxiliaryPoints < 2) {
+    nAxiliaryPoints = 2;
+  }
+  int err = setSpline(spline, nAxiliaryPoints);
+  if (err != 0)
+    return nullptr;
+
+  std::vector<float> vF(getNdataPoints());
+
+  double scale = (uMax - uMin) / ((double)getNdataPoints() - 1.);
+  for (int i = 0; i < getNdataPoints(); i++) {
+    vF[i] = F(uMin + i * scale);
+  }
+
+  std::unique_ptr<float[]> splineData(new float[getNparameters()]);
+  constructData1D(vF.data(), splineData.get());
+  return splineData;
+}
+
+void CompactSplineHelper1D::constructDataGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters * Ndim*/]) const
 {
   // Create 1D irregular spline in a compact way
 
@@ -331,32 +359,5 @@ void CompactSplineHelper1D::constructSplineGradually(int Ndim, const float inF[/
   }
 }
 
-std::unique_ptr<float[]> CompactSplineHelper1D::constructSpline(const CompactSplineIrregular1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints)
-{
-  // Create 1D spline in a compact way for the input function F.
-  // nAxiliaryPoints: number of data points between the spline knots (should be at least 2)
-
-  if (!spline.isConstructed()) {
-    storeError(-1, "CompactSplineHelper1D::constructSpline: input spline is not constructed");
-    return nullptr;
-  }
-  if (nAxiliaryPoints < 2) {
-    nAxiliaryPoints = 2;
-  }
-  int err = setSpline(spline, nAxiliaryPoints);
-  if (err != 0)
-    return nullptr;
-
-  std::vector<float> vF(getNdataPoints());
-
-  double scale = (uMax - uMin) / ((double)getNdataPoints() - 1.);
-  for (int i = 0; i < getNdataPoints(); i++) {
-    vF[i] = F(uMin + i * scale);
-  }
-
-  std::unique_ptr<float[]> splineData(new float[getNparameters()]);
-  constructSpline(vF.data(), splineData.get());
-  return splineData;
-}
 
 #endif

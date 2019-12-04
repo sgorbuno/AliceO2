@@ -17,8 +17,8 @@
 #pragma link off all classes;
 #pragma link off all functions;
 
-#pragma link C++ class o2::gpu::CompactSplineIrregular1D + ;
-#pragma link C++ class o2::gpu::CompactSplineIrregular2D3D + ;
+#pragma link C++ class o2::gpu::CompactSpline1D + ;
+#pragma link C++ class o2::gpu::CompactSpline2D + ;
 #pragma link C++ class o2::gpu::CompactSplineHelper1D + ;
 #pragma link C++ class o2::gpu::CompactSplineHelper2D + ;
 #pragma link C++ class o2::gpu::RegularSpline1D + ;

@@ -25,7 +25,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 CompactSplineHelper2D::CompactSplineHelper2D() : mError() {}
 
-int CompactSplineHelper2D::setSpline(const CompactSplineIrregular2D3D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV)
+int CompactSplineHelper2D::setSpline(const CompactSpline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV)
 {
   // Prepare creation of 2D irregular spline
   // The should be at least one (better, two) axiliary data point on each segnment between two knots and at least 2*nKnots data points in total
@@ -34,17 +34,17 @@ int CompactSplineHelper2D::setSpline(const CompactSplineIrregular2D3D& spline, i
   int ret = 0;
 
   if (!spline.isConstructed()) {
-    ret = storeError(-1, "CompactSplineHelper2D::setSpline2D3D: input spline is not constructed");
+    ret = storeError(-1, "CompactSplineHelper2D::setSpline2D: input spline is not constructed");
   }
 
   mSpline.cloneFromObject(spline, nullptr);
 
   if (mHelperU.setSpline(spline.getGridU(), nAxiliaryPointsU) != 0) {
-    ret = storeError(-2, "CompactSplineHelper2D::setSpline2D3D: error by setting U axis");
+    ret = storeError(-2, "CompactSplineHelper2D::setSpline2D: error by setting U axis");
   }
 
   if (mHelperV.setSpline(spline.getGridV(), nAxiliaryPointsV) != 0) {
-    ret = storeError(-3, "CompactSplineHelper2D::setSpline2D3D: error by setting V axis");
+    ret = storeError(-3, "CompactSplineHelper2D::setSpline2D: error by setting V axis");
   }
 
   return ret;
@@ -52,7 +52,7 @@ int CompactSplineHelper2D::setSpline(const CompactSplineIrregular2D3D& spline, i
 
 void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const
 {
-  // Create 2D3D irregular spline in a compact way
+  // Create 2D irregular spline in a compact way
 
   int nPointsU = getNdataPointsU();
   int nPointsV = getNdataPointsV();
@@ -84,7 +84,7 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
       for (int ipu = 0; ipu < nPointsU; ipu++) {
         pointsU[ipu] = inFrow[3 * ipu + dim];
       }
-      mHelperU.constructSplineGradually(1, pointsU, dataU);
+      mHelperU.constructDataGradually(1, pointsU, dataU);
 
       for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
         outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + dim] = dataU[2 * iKnotU + 0];     // store f for all the knots
@@ -95,14 +95,14 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
       for (int ipu = 0; ipu < nPointsU; ipu++) {
         float splineF;
         float u = ipu * nKnotsU / nPointsU;
-        mSpline.getGridU().getSpline(dataU, u, &splineF);
+        mSpline.getGridU().getSpline<1>(dataU, u, &splineF);
         mapF[ipu * nPointsV + ipv] = splineF;
       }
     }
 
     for (int ipu = 0; ipu < nPointsU; ipu++) {
       float* points = &(mapF[ipu * nPointsV]);
-      mHelperV.constructSplineGradually(1, points, dataV);
+      mHelperV.constructDataGradually(1, points, dataV);
       for (int iKnotV = 0; iKnotV < nKnotsV; iKnotV++) {
         int ipv = mHelperV.getKnotPoint(iKnotV);
         float dv = dataV[iKnotV * 2 + 1];
@@ -114,7 +114,7 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
 
     for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
       float* points = &(mapFv[iKnotV * nPointsU]);
-      mHelperU.constructSplineGradually(1, pointsU, dataU);
+      mHelperU.constructDataGradually(1, pointsU, dataU);
       for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
         outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 3 + dim] = dataU[2 * iKnotU + 0]; // store f'v for all the knots
         outSplineData[iKnotV * 12 * nKnotsU + iKnotU * 12 + 9 + dim] = dataU[2 * iKnotU + 1]; // store f''vu for all the knots
@@ -126,7 +126,7 @@ void CompactSplineHelper2D::constructSpline(const float inF[/*getNdataPoints()*/
 
 /*
 
-    std::unique_ptr<float[]> CompactSplineHelper2D::create(const CompactSplineIrregular2D3D& spline, std::function<void(float, float, float&, float&, float&)> F, int nAxiliaryPoints)
+    std::unique_ptr<float[]> CompactSplineHelper2D::create(const CompactSpline2D& spline, std::function<void(float, float, float&, float&, float&)> F, int nAxiliaryPoints)
     {
       if (!spline.isConstructed()) {
         storeError(-1, "CompactSplineHelper2D::create: input spline is not constructed");

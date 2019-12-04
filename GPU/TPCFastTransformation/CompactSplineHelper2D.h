@@ -22,8 +22,8 @@
 #include "GPUCommonDef.h"
 #include "Rtypes.h"
 #include "TString.h"
-#include "CompactSplineIrregular1D.h"
-#include "CompactSplineIrregular2D3D.h"
+#include "CompactSpline1D.h"
+#include "CompactSpline2D.h"
 #include "CompactSplineHelper1D.h"
 #include <functional>
 
@@ -56,14 +56,14 @@ class CompactSplineHelper2D
   /// _______________  Main functionality  ________________________
 
   /// Creates compact spline data for a given input function
-  //std::unique_ptr<float[]> constructSpline2D(const CompactSplineIrregular2D3DD& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
+  //std::unique_ptr<float[]> constructSpline2D(const CompactSpline2DD& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
 
   /// Tools for a manual construction of compact splines
-  int setSpline(const CompactSplineIrregular2D3D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV);
+  int setSpline(const CompactSpline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV);
   int getNdataPointsU() const { return mHelperU.getNdataPoints(); }
   int getNdataPointsV() const { return mHelperV.getNdataPoints(); }
   int getNdataPoints() const { return getNdataPointsU() * getNdataPointsV(); }
-  int getNparameters() const { return mSpline.getDataSizeInElements(); }
+  int getNparameters() const { return mSpline.getDataSizeInElements<1>(); }
 
   void constructSpline(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
 
@@ -78,7 +78,7 @@ class CompactSplineHelper2D
 
   TString mError = ""; ///< error string
 
-  CompactSplineIrregular2D3D mSpline;
+  CompactSpline2D mSpline;
   CompactSplineHelper1D mHelperU;
   CompactSplineHelper1D mHelperV;
 };
