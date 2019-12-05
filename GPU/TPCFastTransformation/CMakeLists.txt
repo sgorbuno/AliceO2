@@ -11,10 +11,10 @@
 set(MODULE TPCFastTransformation)
 
 set(SRCS
-    CompactSpline1D.cxx  
-    CompactSpline2D.cxx  
-    CompactSplineHelper1D.cxx
-    CompactSplineHelper2D.cxx
+    Spline1D.cxx  
+    Spline2D.cxx  
+    SplineHelper1D.cxx
+    SplineHelper2D.cxx
     IrregularSpline1D.cxx
     IrregularSpline2D3D.cxx
     SemiregularSpline2D3D.cxx

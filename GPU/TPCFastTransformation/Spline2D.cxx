@@ -8,12 +8,12 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSpline2D.cxx
-/// \brief Implementation of CompactSpline2D class
+/// \file  Spline2D.cxx
+/// \brief Implementation of Spline2D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#include "CompactSpline2D.h"
+#include "Spline2D.h"
 
 #if !defined(GPUCA_GPUCODE)
 #include <iostream>
@@ -21,12 +21,12 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-CompactSpline2D::CompactSpline2D() : FlatObject(), mGridU(), mGridV()
+Spline2D::Spline2D() : FlatObject(), mGridU(), mGridV()
 {
   /// Default constructor. Creates an empty uninitialised object
 }
 
-void CompactSpline2D::destroy()
+void Spline2D::destroy()
 {
   /// See FlatObject for description
   mGridU.destroy();
@@ -34,7 +34,7 @@ void CompactSpline2D::destroy()
   FlatObject::destroy();
 }
 
-void CompactSpline2D::cloneFromObject(const CompactSpline2D& obj, char* newFlatBufferPtr)
+void Spline2D::cloneFromObject(const Spline2D& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
 
@@ -49,7 +49,7 @@ void CompactSpline2D::cloneFromObject(const CompactSpline2D& obj, char* newFlatB
   mGridV.cloneFromObject(obj.mGridV, bufferV);
 }
 
-void CompactSpline2D::moveBufferTo(char* newFlatBufferPtr)
+void Spline2D::moveBufferTo(char* newFlatBufferPtr)
 {
 /// See FlatObject for description
 #ifndef GPUCA_GPUCODE
@@ -61,7 +61,7 @@ void CompactSpline2D::moveBufferTo(char* newFlatBufferPtr)
 #endif
 }
 
-void CompactSpline2D::setActualBufferAddress(char* actualFlatBufferPtr)
+void Spline2D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
   char* bufferU = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mGridU.getFlatBufferPtr());
@@ -71,7 +71,7 @@ void CompactSpline2D::setActualBufferAddress(char* actualFlatBufferPtr)
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
 }
 
-void CompactSpline2D::setFutureBufferAddress(char* futureFlatBufferPtr)
+void Spline2D::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
   char* bufferU = relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mGridU.getFlatBufferPtr());
@@ -81,7 +81,7 @@ void CompactSpline2D::setFutureBufferAddress(char* futureFlatBufferPtr)
   FlatObject::setFutureBufferAddress(futureFlatBufferPtr);
 }
 
-void CompactSpline2D::construct(int numberOfKnotsU, const int knotsU[], int numberOfKnotsV, const int knotsV[])
+void Spline2D::construct(int numberOfKnotsU, const int knotsU[], int numberOfKnotsV, const int knotsV[])
 {
   /// Constructor
   ///
@@ -110,7 +110,7 @@ void CompactSpline2D::construct(int numberOfKnotsU, const int knotsU[], int numb
   mGridV.moveBufferTo(mFlatBufferPtr + vOffset);
 }
 
-void CompactSpline2D::constructRegular(int numberOfKnotsU, int numberOfKnotsV)
+void Spline2D::constructRegular(int numberOfKnotsU, int numberOfKnotsV)
 {
   /// Constructor for a regular spline
   /// \param numberOfKnotsU     U axis: Number of knots in knots[] array
@@ -130,7 +130,7 @@ void CompactSpline2D::constructRegular(int numberOfKnotsU, int numberOfKnotsV)
   mGridV.moveBufferTo(mFlatBufferPtr + vOffset);
 }
 
-void CompactSpline2D::print() const
+void Spline2D::print() const
 {
 #if !defined(GPUCA_GPUCODE)
   std::cout << " Irregular Spline 2D: " << std::endl;

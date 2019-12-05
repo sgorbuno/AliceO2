@@ -8,13 +8,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSplineHelper2D.h
-/// \brief Definition of CompactSplineHelper2D class
+/// \file  SplineHelper2D.h
+/// \brief Definition of SplineHelper2D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_COMPACTSPLINEHELPER2D_H
-#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_COMPACTSPLINEHELPER2D_H
+#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER2D_H
+#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER2D_H
 
 #include <cmath>
 #include <vector>
@@ -22,9 +22,9 @@
 #include "GPUCommonDef.h"
 #include "Rtypes.h"
 #include "TString.h"
-#include "CompactSpline1D.h"
-#include "CompactSpline2D.h"
-#include "CompactSplineHelper1D.h"
+#include "Spline1D.h"
+#include "Spline2D.h"
+#include "SplineHelper1D.h"
 #include <functional>
 
 namespace GPUCA_NAMESPACE
@@ -33,33 +33,33 @@ namespace gpu
 {
 
 ///
-/// The CompactSplineHelper2D class is to initialize CompactSpline* objects
+/// The SplineHelper2D class is to initialize Spline* objects
 ///
 
-class CompactSplineHelper2D
+class SplineHelper2D
 {
  public:
   /// _____________  Constructors / destructors __________________________
 
   /// Default constructor
-  CompactSplineHelper2D();
+  SplineHelper2D();
 
   /// Copy constructor: disabled
-  CompactSplineHelper2D(const CompactSplineHelper2D&) CON_DELETE;
+  SplineHelper2D(const SplineHelper2D&) CON_DELETE;
 
   /// Assignment operator: disabled
-  CompactSplineHelper2D& operator=(const CompactSplineHelper2D&) CON_DELETE;
+  SplineHelper2D& operator=(const SplineHelper2D&) CON_DELETE;
 
   /// Destructor
-  ~CompactSplineHelper2D() CON_DEFAULT;
+  ~SplineHelper2D() CON_DEFAULT;
 
   /// _______________  Main functionality  ________________________
 
   /// Creates compact spline data for a given input function
-  //std::unique_ptr<float[]> constructSpline2D(const CompactSpline2DD& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
+  //std::unique_ptr<float[]> constructSpline2D(const Spline2DD& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
 
   /// Tools for a manual construction of compact splines
-  int setSpline(const CompactSpline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV);
+  int setSpline(const Spline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV);
   int getNdataPointsU() const { return mHelperU.getNdataPoints(); }
   int getNdataPointsV() const { return mHelperV.getNdataPoints(); }
   int getNdataPoints() const { return getNdataPointsU() * getNdataPointsV(); }
@@ -78,12 +78,12 @@ class CompactSplineHelper2D
 
   TString mError = ""; ///< error string
 
-  CompactSpline2D mSpline;
-  CompactSplineHelper1D mHelperU;
-  CompactSplineHelper1D mHelperV;
+  Spline2D mSpline;
+  SplineHelper1D mHelperU;
+  SplineHelper1D mHelperV;
 };
 
-inline int CompactSplineHelper2D::storeError(int code, const char* msg)
+inline int SplineHelper2D::storeError(int code, const char* msg)
 {
   mError = msg;
   return code;

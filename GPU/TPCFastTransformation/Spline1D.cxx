@@ -8,12 +8,12 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSpline1D.cxx
-/// \brief Implementation of CompactSpline1D class
+/// \file  Spline1D.cxx
+/// \brief Implementation of Spline1D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#include "CompactSpline1D.h"
+#include "Spline1D.h"
 #include <cmath>
 
 #if !defined(GPUCA_GPUCODE) // code invisible on GPU
@@ -26,19 +26,19 @@
 #include "TRandom.h"
 #include "Riostream.h"
 #include "TMath.h"
-#include "CompactSplineHelper1D.h"
+#include "SplineHelper1D.h"
 #include "TCanvas.h"
 #include "TNtuple.h"
 #endif
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-CompactSpline1D::CompactSpline1D() : FlatObject(), mNumberOfKnots(0), mUmax(0), mUtoKnotMap(0)
+Spline1D::Spline1D() : FlatObject(), mNumberOfKnots(0), mUmax(0), mUtoKnotMap(0)
 {
   /// Default constructor. Creates an empty uninitialised object
 }
 
-void CompactSpline1D::destroy()
+void Spline1D::destroy()
 {
   /// See FlatObject for description
   mNumberOfKnots = 0;
@@ -48,7 +48,7 @@ void CompactSpline1D::destroy()
 }
 
 #if !defined(GPUCA_GPUCODE)
-void CompactSpline1D::cloneFromObject(const CompactSpline1D& obj, char* newFlatBufferPtr)
+void Spline1D::cloneFromObject(const Spline1D& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
   const char* oldFlatBufferPtr = obj.mFlatBufferPtr;
@@ -58,7 +58,7 @@ void CompactSpline1D::cloneFromObject(const CompactSpline1D& obj, char* newFlatB
   mUtoKnotMap = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mUtoKnotMap);
 }
 
-void CompactSpline1D::moveBufferTo(char* newFlatBufferPtr)
+void Spline1D::moveBufferTo(char* newFlatBufferPtr)
 {
   /// See FlatObject for description
   const char* oldFlatBufferPtr = mFlatBufferPtr;
@@ -67,14 +67,14 @@ void CompactSpline1D::moveBufferTo(char* newFlatBufferPtr)
 }
 #endif
 
-void CompactSpline1D::setActualBufferAddress(char* actualFlatBufferPtr)
+void Spline1D::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
   mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mUtoKnotMap);
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
 }
 
-void CompactSpline1D::setFutureBufferAddress(char* futureFlatBufferPtr)
+void Spline1D::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
   mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mUtoKnotMap);
@@ -83,7 +83,7 @@ void CompactSpline1D::setFutureBufferAddress(char* futureFlatBufferPtr)
 
 #if !defined(GPUCA_GPUCODE)
 
-void CompactSpline1D::construct(int numberOfKnots, const int inputKnots[])
+void Spline1D::construct(int numberOfKnots, const int inputKnots[])
 {
   /// Constructor
   ///
@@ -119,13 +119,13 @@ void CompactSpline1D::construct(int numberOfKnots, const int inputKnots[])
 
   mNumberOfKnots = knotU.size();
   mUmax = knotU.back();
-  int uToKnotMapOffset = mNumberOfKnots * sizeof(CompactSpline1D::Knot);
+  int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
 
   FlatObject::finishConstruction(uToKnotMapOffset + (mUmax + 1) * sizeof(int));
 
   mUtoKnotMap = reinterpret_cast<int*>(mFlatBufferPtr + uToKnotMapOffset);
 
-  CompactSpline1D::Knot* s = getKnotsNonConst();
+  Spline1D::Knot* s = getKnotsNonConst();
 
   for (int i = 0; i < mNumberOfKnots; i++) {
     s[i].u = knotU[i];
@@ -157,7 +157,7 @@ void CompactSpline1D::construct(int numberOfKnots, const int inputKnots[])
   }
 }
 
-void CompactSpline1D::constructRegular(int numberOfKnots)
+void Spline1D::constructRegular(int numberOfKnots)
 {
   /// Constructor for a regular spline
   /// \param numberOfKnots     Number of knots
@@ -174,7 +174,7 @@ void CompactSpline1D::constructRegular(int numberOfKnots)
 }
 #endif
 
-void CompactSpline1D::print() const
+void Spline1D::print() const
 {
 #if !defined(GPUCA_GPUCODE)
   std::cout << " Compact Spline 1D: " << std::endl;
@@ -191,7 +191,7 @@ void CompactSpline1D::print() const
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 
-int CompactSpline1D::test(bool draw)
+int Spline1D::test(bool draw)
 {
   using namespace std;
 
@@ -231,7 +231,7 @@ int CompactSpline1D::test(bool draw)
   int nTries = 100;
 
   if (draw) {
-    canv = new TCanvas("cQA", "CompactSpline1D  QA", 2000, 1000);
+    canv = new TCanvas("cQA", "Spline1D  QA", 2000, 1000);
     nTries = 10000;
   }
 
@@ -246,8 +246,8 @@ int CompactSpline1D::test(bool draw)
       funcC[i] = gRandom->Uniform(-1, 1);
     }
 
-    CompactSplineHelper1D helper;
-    CompactSpline1D spline;
+    SplineHelper1D helper;
+    Spline1D spline;
 
     int knotsU[nKnots];
     do {

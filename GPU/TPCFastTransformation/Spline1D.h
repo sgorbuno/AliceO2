@@ -8,13 +8,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSpline1D.h
-/// \brief Definition of CompactSpline1D class
+/// \file  Spline1D.h
+/// \brief Definition of Spline1D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_COMPACTSPLINE1D_H
-#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_COMPACTSPLINE1D_H
+#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINE1D_H
+#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINE1D_H
 
 #include "GPUCommonDef.h"
 #include "FlatObject.h"
@@ -24,7 +24,7 @@ namespace GPUCA_NAMESPACE
 namespace gpu
 {
 ///
-/// The CompactSpline1D class represents spline interpolation on an one-dimensional irregular (nonunifom) grid.
+/// The Spline1D class represents spline interpolation on an one-dimensional irregular (nonunifom) grid.
 ///
 /// The class is a flat C structure. No virtual methods, no ROOT types are used.
 ///
@@ -67,7 +67,7 @@ namespace gpu
 /// ---- Initialisation of the spline data for a given F ---
 ///
 /// The user should create an array of the function values Fi and the derivatives Di at all (initialised!) knots.
-/// This data array can be created using utilities from the CompactSplineHelper1D class.
+/// This data array can be created using utilities from the SplineHelper1D class.
 ///
 /// ---- Flat Object implementation ----
 ///
@@ -82,7 +82,7 @@ namespace gpu
 ///  auto F = [&](float u) -> float {
 ///   return ...; // F(u)
 ///  };
-///  CompactSpline1D spline;
+///  Spline1D spline;
 ///  spline.construct(nKnots, knots );
 ///  {// manual construction
 ///    float data[2*nKnots] = { F(0.), 0.01, F(2.), -0.01, F(3.), 0.02};
@@ -92,7 +92,7 @@ namespace gpu
 ///    spline.getSpline<1>( data, 5.0 ); // == F(3.)
 ///  }
 ///  { // using the helper
-///    CompactSplineHelper1D helper;
+///    SplineHelper1D helper;
 ///    std::unique_ptr<float[]> data = helper.constructData(spline, F, 0.f, 1.f, 2);
 ///    spline.getSpline<1>( data.get(), 0.0 ); // == F(0.)
 ///    spline.getSpline<1>( data.get(), 0.2 ); // some interpolated value
@@ -100,9 +100,9 @@ namespace gpu
 ///    spline.getSpline<1>( data.get(), 5.0 ); // == F(1.)
 ///   }
 ///
-///  --- See also CompactSpline1D::test();
+///  --- See also Spline1D::test();
 ///
-class CompactSpline1D : public FlatObject
+class Spline1D : public FlatObject
 {
  public:
   ///
@@ -121,16 +121,16 @@ class CompactSpline1D : public FlatObject
   /// _____________  Constructors / destructors __________________________
 
   /// Default constructor. Creates an empty uninitialised object
-  CompactSpline1D();
+  Spline1D();
 
   /// Copy constructor: disabled to avoid ambiguity. Use cloneFromObject instead
-  CompactSpline1D(const CompactSpline1D&) CON_DELETE;
+  Spline1D(const Spline1D&) CON_DELETE;
 
   /// Assignment operator: disabled to avoid ambiguity. Use cloneFromObject instead
-  CompactSpline1D& operator=(const CompactSpline1D&) CON_DELETE;
+  Spline1D& operator=(const Spline1D&) CON_DELETE;
 
   /// Destructor
-  ~CompactSpline1D() CON_DEFAULT;
+  ~Spline1D() CON_DEFAULT;
 
   /// _____________  FlatObject functionality, see FlatObject class for description  ____________
 
@@ -142,7 +142,7 @@ class CompactSpline1D : public FlatObject
   /// Construction interface
 
 #if !defined(GPUCA_GPUCODE)
-  void cloneFromObject(const CompactSpline1D& obj, char* newFlatBufferPtr);
+  void cloneFromObject(const Spline1D& obj, char* newFlatBufferPtr);
 #endif
   void destroy();
 
@@ -182,7 +182,7 @@ class CompactSpline1D : public FlatObject
 
   /// Get interpolated value for {F(u): float -> T^Ndim} at the segment [knotL, next knotR] with function values Fl, Fr and slopes Dl, Dr
   template <int Ndim, typename T>
-  GPUd() static void getSpline(const CompactSpline1D::Knot& knotL,
+  GPUd() static void getSpline(const Spline1D::Knot& knotL,
                                GPUgeneric() const T Fl[Ndim], GPUgeneric() const T Dl[Ndim],
                                GPUgeneric() const T Fr[Ndim], GPUgeneric() const T Dr[Ndim],
                                float u, GPUgeneric() T Fu[Ndim]);
@@ -197,7 +197,7 @@ class CompactSpline1D : public FlatObject
 
   /// Simple interface for 1D spline
   template <typename T>
-  GPUd() static T getSpline(GPUgeneric() const CompactSpline1D::Knot& knotL,
+  GPUd() static T getSpline(GPUgeneric() const Spline1D::Knot& knotL,
                             GPUgeneric() const T& Fl, GPUgeneric() const T& Dl, GPUgeneric() const T& Fr, GPUgeneric() const T& Dr, float u);
 
   /// Simple interface for 1D spline
@@ -237,10 +237,10 @@ class CompactSpline1D : public FlatObject
   GPUd() int getKnotIndexNonSafe(float u) const;
 
   /// Get i-th knot, no border check performed!
-  GPUd() const CompactSpline1D::Knot& getKnot(int i) const { return getKnots()[i]; }
+  GPUd() const Spline1D::Knot& getKnot(int i) const { return getKnots()[i]; }
 
   /// Get the array of knots
-  GPUd() const CompactSpline1D::Knot* getKnots() const { return reinterpret_cast<const CompactSpline1D::Knot*>(mFlatBufferPtr); }
+  GPUd() const Spline1D::Knot* getKnots() const { return reinterpret_cast<const Spline1D::Knot*>(mFlatBufferPtr); }
 
   /// technical stuff
 
@@ -260,7 +260,7 @@ class CompactSpline1D : public FlatObject
 
  private:
   /// Non-const accessor to knots array
-  CompactSpline1D::Knot* getKnotsNonConst() { return reinterpret_cast<CompactSpline1D::Knot*>(mFlatBufferPtr); }
+  Spline1D::Knot* getKnotsNonConst() { return reinterpret_cast<Spline1D::Knot*>(mFlatBufferPtr); }
 
   /// Non-const accessor to U->knots map
   int* getUtoKnotMapNonConst() { return mUtoKnotMap; }
@@ -278,14 +278,14 @@ class CompactSpline1D : public FlatObject
 ///       Inline implementations of some methods
 /// ====================================================
 
-GPUdi() int CompactSpline1D::getKnotIndexNonSafe(float u) const
+GPUdi() int Spline1D::getKnotIndexNonSafe(float u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) interval
   /// no border check! u must be in [0,mUmax]
   return getUtoKnotMap()[(int)u];
 }
 
-GPUdi() int CompactSpline1D::getKnotIndex(float u) const
+GPUdi() int Spline1D::getKnotIndex(float u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) interval
   /// when u is otside of [0, mUmax], return the edge intervals
@@ -298,7 +298,7 @@ GPUdi() int CompactSpline1D::getKnotIndex(float u) const
 }
 
 template <int Ndim, typename T>
-GPUdi() void CompactSpline1D::getSpline(const CompactSpline1D::Knot& knotL,
+GPUdi() void Spline1D::getSpline(const Spline1D::Knot& knotL,
                                         GPUgeneric() const T Fl[Ndim], GPUgeneric() const T Dl[Ndim],
                                         GPUgeneric() const T Fr[Ndim], GPUgeneric() const T Dr[Ndim],
                                         float u, GPUgeneric() T Fu[Ndim])
@@ -339,7 +339,7 @@ GPUdi() void CompactSpline1D::getSpline(const CompactSpline1D::Knot& knotL,
 } // namespace gpu
 
 template <int Ndim, typename T>
-GPUdi() void CompactSpline1D::getSpline(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[Ndim]) const
+GPUdi() void Spline1D::getSpline(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[Ndim]) const
 {
   /// Get interpolated value for F(u) using data array data[Ndim*2*getNumberOfKnots()].
   /// data = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
@@ -350,7 +350,7 @@ GPUdi() void CompactSpline1D::getSpline(GPUgeneric() const T data[], float u, GP
 }
 
 template <int Ndim, typename T>
-GPUdi() void CompactSpline1D::getSplineNonSafe(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const
+GPUdi() void Spline1D::getSplineNonSafe(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const
 {
   /// Get interpolated value for f(u) using data array data[Ndim*2*getNumberOfKnots()].
   /// data = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
@@ -361,7 +361,7 @@ GPUdi() void CompactSpline1D::getSplineNonSafe(GPUgeneric() const T data[], floa
 }
 
 template <typename T>
-GPUdi() T CompactSpline1D::getSpline(GPUgeneric() const CompactSpline1D::Knot& knotL,
+GPUdi() T Spline1D::getSpline(GPUgeneric() const Spline1D::Knot& knotL,
                                      GPUgeneric() const T& Fl, GPUgeneric() const T& Dl,
                                      GPUgeneric() const T& Fr, GPUgeneric() const T& Dr,
                                      float u)
@@ -373,7 +373,7 @@ GPUdi() T CompactSpline1D::getSpline(GPUgeneric() const CompactSpline1D::Knot& k
 }
 
 template <typename T>
-GPUdi() T CompactSpline1D::getSpline(GPUgeneric() const T data[], float u) const
+GPUdi() T Spline1D::getSpline(GPUgeneric() const T data[], float u) const
 {
   /// Simple interface for 1D spline
   T Fu;

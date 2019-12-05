@@ -8,14 +8,14 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSpline182.cxx
-/// \brief Implementation of CompactSplineHelper2D class
+/// \file  Spline182.cxx
+/// \brief Implementation of SplineHelper2D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) && !defined(GPUCA_ALIROOT_LIB)
 
-#include "CompactSplineHelper2D.h"
+#include "SplineHelper2D.h"
 #include "TMath.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
@@ -23,9 +23,9 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-CompactSplineHelper2D::CompactSplineHelper2D() : mError() {}
+SplineHelper2D::SplineHelper2D() : mError() {}
 
-int CompactSplineHelper2D::setSpline(const CompactSpline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV)
+int SplineHelper2D::setSpline(const Spline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV)
 {
   // Prepare creation of 2D irregular spline
   // The should be at least one (better, two) axiliary data point on each segnment between two knots and at least 2*nKnots data points in total
@@ -34,23 +34,23 @@ int CompactSplineHelper2D::setSpline(const CompactSpline2D& spline, int nAxiliar
   int ret = 0;
 
   if (!spline.isConstructed()) {
-    ret = storeError(-1, "CompactSplineHelper2D::setSpline2D: input spline is not constructed");
+    ret = storeError(-1, "SplineHelper2D::setSpline2D: input spline is not constructed");
   }
 
   mSpline.cloneFromObject(spline, nullptr);
 
   if (mHelperU.setSpline(spline.getGridU(), nAxiliaryPointsU) != 0) {
-    ret = storeError(-2, "CompactSplineHelper2D::setSpline2D: error by setting U axis");
+    ret = storeError(-2, "SplineHelper2D::setSpline2D: error by setting U axis");
   }
 
   if (mHelperV.setSpline(spline.getGridV(), nAxiliaryPointsV) != 0) {
-    ret = storeError(-3, "CompactSplineHelper2D::setSpline2D: error by setting V axis");
+    ret = storeError(-3, "SplineHelper2D::setSpline2D: error by setting V axis");
   }
 
   return ret;
 }
 
-void CompactSplineHelper2D::constructData(int Ndim, const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const
+void SplineHelper2D::constructData(int Ndim, const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const
 {
   // Create 2D irregular spline in a compact way
 
@@ -130,10 +130,10 @@ void CompactSplineHelper2D::constructData(int Ndim, const float inF[/*getNdataPo
 
 /*
 
-    std::unique_ptr<float[]> CompactSplineHelper2D::create(const CompactSpline2D& spline, std::function<void(float, float, float&, float&, float&)> F, int nAxiliaryPoints)
+    std::unique_ptr<float[]> SplineHelper2D::create(const Spline2D& spline, std::function<void(float, float, float&, float&, float&)> F, int nAxiliaryPoints)
     {
       if (!spline.isConstructed()) {
-        storeError(-1, "CompactSplineHelper2D::create: input spline is not constructed");
+        storeError(-1, "SplineHelper2D::create: input spline is not constructed");
         return nullptr;
       }
 

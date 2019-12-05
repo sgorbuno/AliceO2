@@ -15,9 +15,9 @@
 #include "TLegend.h"
 #include "TMarker.h"
 #include "TLine.h"
-#include "GPU/CompactSpline1D.h"
+#include "GPU/Spline1D.h"
 #include "GPU/IrregularSpline1D.h"
-#include "GPU/CompactSplineHelper1D.h"
+#include "GPU/SplineHelper1D.h"
 
 const int funcN = 10;
 static double funcC[2 * funcN + 2];
@@ -73,7 +73,7 @@ int CompactSplineDemo()
 
   cout << "Test interpolation.." << endl;
 
-  //TCanvas* canv = new TCanvas("cQA", "CompactSpline1D  QA", 2000, 1000);
+  //TCanvas* canv = new TCanvas("cQA", "Spline1D  QA", 2000, 1000);
 
   gRandom->SetSeed(0);
 
@@ -88,13 +88,13 @@ int CompactSplineDemo()
       funcC[i] = gRandom->Uniform(-1, 1);
     }
 
-    CompactSplineHelper1D helper;
+    SplineHelper1D helper;
 
-    CompactSpline1D spline;
+    Spline1D spline;
     spline.constructRegular(nKnots);
     std::unique_ptr<float[]> data = helper.constructData1D(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
 
-    CompactSpline1D splineClassic;
+    Spline1D splineClassic;
     splineClassic.constructRegular(nKnots);
     std::unique_ptr<float[]> dataClassic = helper.constructDataClassical1D(splineClassic, F, 0., splineClassic.getUmax());
 

@@ -8,13 +8,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  CompactSplineHelper1D.h
-/// \brief Definition of CompactSplineHelper1D class
+/// \file  SplineHelper1D.h
+/// \brief Definition of SplineHelper1D class
 
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_COMPACTSPLINEHELPER1D_H
-#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_COMPACTSPLINEHELPER1D_H
+#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER1D_H
+#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER1D_H
 
 #include <cmath>
 #include <vector>
@@ -22,7 +22,7 @@
 #include "GPUCommonDef.h"
 #include "Rtypes.h"
 #include "TString.h"
-#include "CompactSpline1D.h"
+#include "Spline1D.h"
 #include <functional>
 
 namespace GPUCA_NAMESPACE
@@ -31,10 +31,10 @@ namespace gpu
 {
 
 ///
-/// The CompactSplineHelper1D class is to initialize CompactSpline* objects
+/// The SplineHelper1D class is to initialize Spline* objects
 ///
 
-class CompactSplineHelper1D
+class SplineHelper1D
 {
  public:
   ///
@@ -51,28 +51,28 @@ class CompactSplineHelper1D
   /// _____________  Constructors / destructors __________________________
 
   /// Default constructor
-  CompactSplineHelper1D();
+  SplineHelper1D();
 
   /// Copy constructor: disabled
-  CompactSplineHelper1D(const CompactSplineHelper1D&) CON_DELETE;
+  SplineHelper1D(const SplineHelper1D&) CON_DELETE;
 
   /// Assignment operator: disabled
-  CompactSplineHelper1D& operator=(const CompactSplineHelper1D&) CON_DELETE;
+  SplineHelper1D& operator=(const SplineHelper1D&) CON_DELETE;
 
   /// Destructor
-  ~CompactSplineHelper1D() CON_DEFAULT;
+  ~SplineHelper1D() CON_DEFAULT;
 
   /// _______________  Main functionality  ________________________
 
   /// Creates classical spline data for a given input function
-  std::unique_ptr<float[]> constructDataClassical1D(const CompactSpline1D& spline, std::function<float(float)> F, float uMin, float uMax);
+  std::unique_ptr<float[]> constructDataClassical1D(const Spline1D& spline, std::function<float(float)> F, float uMin, float uMax);
 
   /// Creates compact spline data for a given input function
-  std::unique_ptr<float[]> constructData1D(const CompactSpline1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
+  std::unique_ptr<float[]> constructData1D(const Spline1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
 
   /// _______________   Tools for a manual construction of compact splines   ________________________
 
-  int setSpline(const CompactSpline1D& spline, int nAxiliaryPoints);
+  int setSpline(const Spline1D& spline, int nAxiliaryPoints);
   int getNdataPoints() const { return mPoints.size(); }
 
   /// N parameters in the data array per output dimension
@@ -108,7 +108,7 @@ class CompactSplineHelper1D
   std::vector<double> mMatrixFastF;
 };
 
-inline int CompactSplineHelper1D::storeError(int code, const char* msg)
+inline int SplineHelper1D::storeError(int code, const char* msg)
 {
   mError = msg;
   return code;
