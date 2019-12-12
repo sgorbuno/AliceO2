@@ -32,6 +32,37 @@ namespace o2::framework
 namespace raw_parser
 {
 
+/// specifier for printout
+enum struct FormatSpec {
+  Info,          // basic info: version
+  TableHeader,   // table header
+  Entry,         // table entry, i.e. RDH at current position
+  FullTable,     // full table with header and all entiries
+  FullTableInfo, // info and full table with header and all entries
+};
+
+template <typename T>
+struct RDHFormatter {
+  using type = T;
+  static void apply(std::ostream&, type const&, FormatSpec, const char* = "")
+  {
+  }
+};
+
+template <>
+struct RDHFormatter<header::RAWDataHeaderV5> {
+  using type = header::RAWDataHeaderV5;
+  static const char* sFormatString;
+  static void apply(std::ostream&, type const&, FormatSpec, const char* = "");
+};
+
+template <>
+struct RDHFormatter<header::RAWDataHeaderV4> {
+  using type = header::RAWDataHeaderV4;
+  static const char* sFormatString;
+  static void apply(std::ostream&, type const&, FormatSpec, const char* = "");
+};
+
 /// @class ConcreteRawParser
 /// Raw parser implementation for a particular version of RAWDataHeader.
 /// Parses a contiguous sequence of raw pages in a raw buffer.
@@ -79,8 +110,8 @@ class ConcreteRawParser
     return *reinterpret_cast<header_type const*>(mPosition);
   }
 
-  /// Get length of payload at current position
-  size_t length() const
+  /// Get size of payload at current position
+  size_t size() const
   {
     if (mPosition == mRawBuffer + mSize) {
       return 0;
@@ -93,15 +124,34 @@ class ConcreteRawParser
   /// Get pointer to payload data at current position
   buffer_type const* data() const
   {
-    size_t len = length();
-    if (len == 0) {
+    size_t size = this->size();
+    if (size == 0) {
       return nullptr;
     }
     header_type const& h = header();
-    if (mPosition + len + h.headerSize > mRawBuffer + mSize) {
+    if (mPosition + size + h.headerSize > mRawBuffer + mSize) {
       throw std::runtime_error("not enough data at position " + std::to_string(mPosition - mRawBuffer));
     }
     return mPosition + h.headerSize;
+  }
+
+  /// Get pointer to raw buffer at current position
+  buffer_type const* raw() const
+  {
+    if (mPosition < mRawBuffer + mSize) {
+      return mPosition;
+    }
+    return nullptr;
+  }
+
+  /// Get offset of payload in the raw buffer at current position
+  size_t offset() const
+  {
+    if (mPosition < mRawBuffer + mSize) {
+      header_type const& h = header();
+      return h.headerSize;
+    }
+    return 0;
   }
 
   /// Parse the complete buffer
@@ -114,7 +164,7 @@ class ConcreteRawParser
     reset();
     //auto deleter = [](buffer_type*) {};
     do {
-      processor(data(), length());
+      processor(data(), size());
       //processor(std::unique_ptr<buffer_type, decltype(deleter)>(data(), deleter), size());
     } while (next());
   }
@@ -170,6 +220,11 @@ class ConcreteRawParser
     }
   }
 
+  void format(std::ostream& os, FormatSpec choice = FormatSpec::Entry, const char* delimiter = "\n") const
+  {
+    RDHFormatter<header_type>::apply(os, header(), choice, delimiter);
+  }
+
  private:
   buffer_type const* mRawBuffer;
   buffer_type const* mPosition = nullptr;
@@ -214,6 +269,40 @@ ConcreteParserVariants<PageSize> create(T const* buffer, size_t size)
   throw std::runtime_error("can not create RawParser: invalid version " + std::to_string(v5->version));
 }
 
+/// iteratively walk through the available instances and parse with instance
+/// specified by index
+template <size_t N, typename T, typename P>
+void walk_parse(T& instances, P&& processor, size_t index)
+{
+  if constexpr (N > 0) {
+    if (index == N - 1) {
+      std::get<N - 1>(instances).parse(processor);
+    }
+
+    walk_parse<N - 1>(instances, processor, index);
+  }
+}
+
+template <typename U, typename T, size_t N = std::variant_size_v<T>>
+U const* get_if(T& instances)
+{
+  if constexpr (N > 0) {
+    auto* parser = std::get_if<N - 1>(&instances);
+    if (parser) {
+      // we are in the active instance, return header if type matches
+      using parser_type = typename std::variant_alternative<N - 1, T>::type;
+      using header_type = typename parser_type::header_type;
+      if constexpr (std::is_same<U, header_type>::value == true) {
+        return &(parser->header());
+      }
+    } else {
+      // continue walking through instances until active one is found
+      return get_if<U, T, N - 1>(instances);
+    }
+  }
+  return nullptr;
+}
+
 } // namespace raw_parser
 
 /// @class RawParser parser for the O2 raw data
@@ -229,23 +318,28 @@ ConcreteParserVariants<PageSize> create(T const* buffer, size_t size)
 ///
 ///     // option 1: parse method
 ///     RawParser parser(buffer, size);
-///     auto processor = [&count](auto data, size_t length) {
-///       std::cout << "Processing block of length " << length << std::endl;
+///     auto processor = [&count](auto data, size_t size) {
+///       std::cout << "Processing block of size " << size << std::endl;
 ///     };
 ///     parser.parse(processor);
 ///
 ///     // option 2: iterator
 ///     RawParser parser(buffer, size);
 ///     for (auto it = parser.begin(), end = parser.end(); it != end; ++it, ++count) {
-///       std::cout << "Iterating block of length " << it.length() << std::endl;
+///       std::cout << "Iterating block of size " << it.size() << std::endl;
 ///       auto dataptr = it.data();
 ///     }
+///
+/// TODO:
+/// - iterators are not independent at the moment and this can cause conflicts, this must be
+///   improved
 template <size_t MAX_SIZE = 8192>
 class RawParser
 {
  public:
   using buffer_type = unsigned char;
   size_t max_size = MAX_SIZE;
+  using self_type = RawParser<MAX_SIZE>;
 
   RawParser() = delete;
 
@@ -262,7 +356,11 @@ class RawParser
   template <typename Processor>
   void parse(Processor&& processor)
   {
-    return std::visit([&processor](auto& parser) { return parser.parse(processor); }, mParser);
+    constexpr size_t NofAlternatives = std::variant_size_v<decltype(mParser)>;
+    static_assert(NofAlternatives == 2);
+    raw_parser::walk_parse<NofAlternatives>(mParser, processor, mParser.index());
+    // it turned out that using a iterative function is faster than using std::visit
+    //std::visit([&processor](auto& parser) { return parser.parse(processor); }, mParser);
   }
 
   /// Reset parser and set position to beginning of buffer
@@ -287,7 +385,7 @@ class RawParser
   /// - increment (there is no decrement, its not a bidirectional parser)
   /// - dereference operator returns @a RawDataHeaderInfo as common header
   /// - member function data() returns pointer to payload at current position
-  /// - member function length() return size of payload at current position
+  /// - member function size() return size of payload at current position
   template <typename T, typename ParentType>
   class Iterator : public IteratorBase<T>
   {
@@ -338,35 +436,42 @@ class RawParser
       return not operator==(rh);
     }
 
+    /// get pointer to raw block at current position, rdh starts here
+    buffer_type const* raw() const
+    {
+      return std::visit([](auto& parser) { return parser.raw(); }, mParser);
+    }
+
     /// get pointer to payload at current position
     buffer_type const* data() const
     {
       return std::visit([](auto& parser) { return parser.data(); }, mParser);
     }
 
-    /// get length of payload at current position
-    size_t length() const
+    /// offset of payload at current position
+    size_t offset() const
     {
-      return std::visit([](auto& parser) { return parser.length(); }, mParser);
+      return std::visit([](auto& parser) { return parser.offset(); }, mParser);
+    }
+
+    /// get size of payload at current position
+    size_t size() const
+    {
+      return std::visit([](auto& parser) { return parser.size(); }, mParser);
     }
 
     /// get header as specific type
     /// @return pointer to header of the specified type, or nullptr if type does not match to actual type
     template <typename U>
-    U const* as() const
+    U const* get_if() const
     {
-      return std::visit([](auto& parser) {
-        using header_type = typename std::remove_reference<decltype(parser)>::type::header_type;
-        if constexpr (std::is_same<U, header_type>::value == true) {
-          U const* h = &parser.header();
-          // FIXME: does not want to compile when return ing the pointer
-          throw std::runtime_error("code path not yet implemented");
-          return nullptr;
-        } else {
-          return nullptr;
-        }
-      },
-                        mParser);
+      return raw_parser::get_if<U>(mParser);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, self_type const& it)
+    {
+      std::visit([&os](auto& parser) { return parser.format(os, raw_parser::FormatSpec::Entry, ""); }, it.mParser);
+      return os;
     }
 
    private:
@@ -384,6 +489,20 @@ class RawParser
   const_iterator end()
   {
     return const_iterator(mParser, -1);
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, self_type const& parser)
+  {
+    std::visit([&os](auto& parser) { return parser.format(os, raw_parser::FormatSpec::Info, "\n"); }, parser.mParser);
+    std::visit([&os](auto& parser) { return parser.format(os, raw_parser::FormatSpec::TableHeader); }, parser.mParser);
+    // FIXME: need to decide what kind of information we want to have in the printout
+    // for the moment its problematic, because the parser has only one variable determining the position and all
+    // iterators work with the same instance which is asking for conflicts
+    // this needs to be changed in order to have fully independent iterators over the same constant buffer
+    //for (auto it = parser.begin(), end = parser.end(); it != end; ++it) {
+    //  os << "\n" << it;
+    //}
+    return os;
   }
 
  private:

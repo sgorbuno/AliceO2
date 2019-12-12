@@ -26,6 +26,7 @@ endif()
 
 o2_add_library(Framework
                SOURCES src/AODReaderHelpers.cxx
+                       src/ASoA.cxx
                        ${GUI_SOURCES}
                        src/AnalysisHelpers.cxx
                        src/BoostOptionsRetriever.cxx
@@ -67,6 +68,7 @@ o2_add_library(Framework
                        src/Dispatcher.cxx
                        src/DriverControl.cxx
                        src/DriverInfo.cxx
+                       src/Expressions.cxx
                        src/FairMQDeviceProxy.cxx
                        src/FairMQResizableBuffer.cxx
                        src/FairOptionsRetriever.cxx
@@ -119,7 +121,9 @@ o2_add_library(Framework
                                      ROOT::ROOTDataFrame
                                      ${DEBUGGUI_TARGET}
                                      O2::FrameworkLogger
-                                     Boost::serialization)
+                                     Boost::serialization
+                                     arrow::gandiva_shared
+                                     )
 
 o2_target_root_dictionary(Framework
                           HEADERS test/TestClasses.h
@@ -166,6 +170,7 @@ foreach(t
         DeviceMetricsInfo
         DeviceSpec
         DeviceSpecHelpers
+        Expressions
         ExternalFairMQDeviceProxy
         FairMQOptionsRetriever
         FairMQResizableBuffer
@@ -235,6 +240,7 @@ foreach(b
         DeviceMetricsInfo
         InputRecord
         TableBuilder
+        WorkflowHelpers
         ASoA
         HistogramRegistry
         )
