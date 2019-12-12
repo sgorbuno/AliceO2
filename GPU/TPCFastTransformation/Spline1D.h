@@ -39,7 +39,7 @@ namespace gpu
 ///
 /// Umax is an integer number.
 /// The knots belong to [0, Umax] and have integer coordinates.
-/// It is implemented this way for fast matching of an U coordinate to the corresponding segment between the knots.
+/// It is implemented this way for fast matching of the U coordinate to a corresponding segment between the knots.
 ///
 /// To interpolate a function on an interval other than [0,Umax], one should scale the U coordinate and the derivatives Di.
 ///
@@ -48,7 +48,7 @@ namespace gpu
 /// Nothing which depends on F is stored in the class,
 /// therefore one can use the same class for interpolation of different input functions on the same knots.
 /// The function values F_i and the derivatives D_i == {F'_u}_i have to be provided by the user for each call.
-/// The format of the spline data: { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ..., {Fx,Fy,Fz,Dx,Dy,Dz}_n-1 } for 3-dimensional F
+/// The format of the spline parameters: { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ..., {Fx,Fy,Fz,Dx,Dy,Dz}_n-1 } for a 3-dimensional F
 ///
 /// --- Interpolation ---
 ///
@@ -56,18 +56,18 @@ namespace gpu
 /// The polynoms and they 1-st derivatives are continuous at the knots.
 /// Depending on the initialization of the derivatives, the second derivative may or may not be continious.
 ///
-/// ---- Initialisation of the spline knots ---
+/// ---- Construction of a spline ---
 ///
 /// The minimal number of knots is 2, the minimal Umax is 1
 ///
 /// The knot U0=0.0 must always be present. It will be added automatically when it is not set by the user.
 /// Duplicated knots are not allowed and will be removed.
-/// Therefore: Attention! The number of knots may change during the initialization.
+/// Therefore: Attention! The number of knots may change during the construction.
 ///
-/// ---- Initialisation of the spline data for a given F ---
+/// ---- Construction of spline parameters for a given F ---
 ///
-/// The user should create an array of the function values Fi and the derivatives Di at all (initialised!) knots.
-/// This data array can be created using utilities from the SplineHelper1D class.
+/// The user should create an array of the function values Fi and the derivatives Di at all knots.
+/// This parameter array can be created using utilities from the SplineHelper1D class.
 ///
 /// ---- Flat Object implementation ----
 ///
@@ -85,19 +85,19 @@ namespace gpu
 ///  Spline1D spline;
 ///  spline.construct(nKnots, knots );
 ///  {// manual construction
-///    float data[2*nKnots] = { F(0.), 0.01, F(2.), -0.01, F(3.), 0.02};
-///    spline.getSpline<1>( data, 0.0 ); // == F(0.)
-///    spline.getSpline<1>( data, 0.2 ); // == some interpolated value
-///    spline.getSpline<1>( data, 1.0 ); // == F(2.)
-///    spline.getSpline<1>( data, 5.0 ); // == F(3.)
+///    float parameters[2*nKnots] = { F(0.), 0.01, F(2.), -0.01, F(3.), 0.02};
+///    spline.interpolate(1, parameters, 0.0 ); // == F(0.)
+///    spline.interpolate(1, parameters, 0.2 ); // == some interpolated value
+///    spline.interpolate(1, parameters, 1.0 ); // == F(2.)
+///    spline.interpolate(1, parameters, 5.0 ); // == F(3.)
 ///  }
 ///  { // using the helper
 ///    SplineHelper1D helper;
-///    std::unique_ptr<float[]> data = helper.constructData(spline, F, 0.f, 1.f, 2);
-///    spline.getSpline<1>( data.get(), 0.0 ); // == F(0.)
-///    spline.getSpline<1>( data.get(), 0.2 ); // some interpolated value
-///    spline.getSpline<1>( data.get(), 1.0 ); // == F(0.2)
-///    spline.getSpline<1>( data.get(), 5.0 ); // == F(1.)
+///    std::unique_ptr<float[]> parameters = helper.constructParameters(spline, F, 0.f, 1.f, 2);
+///    spline.interpolate(1, parameters.get(), 0.0 ); // == F(0.)
+///    spline.interpolate(1, parameters.get(), 0.2 ); // some interpolated value
+///    spline.interpolate(1, parameters.get(), 1.0 ); // == F(0.2)
+///    spline.interpolate(1, parameters.get(), 5.0 ); // == F(1.)
 ///   }
 ///
 ///  --- See also Spline1D::test();
@@ -118,10 +118,21 @@ class Spline1D : public FlatObject
   /// Version number
   GPUd() static constexpr int getVersion() { return 1; }
 
-  /// _____________  Constructors / destructors __________________________
+    /// _____________  Constructors / destructors __________________________
 
-  /// Default constructor. Creates an empty uninitialised object
-  Spline1D();
+#if !defined(GPUCA_GPUCODE)
+  /// Default constructor. Creates a spline with 2 knots.
+  Spline1D() : FlatObject() { constructRegular(2); }
+
+  /// Constructor for an irregular spline.
+  Spline1D(int numberOfKnots, const int knots[]) : FlatObject() { construct(numberOfKnots, knots); }
+
+  /// Constructor for a regular spline.
+  Spline1D(int numberOfKnots) : FlatObject() { constructRegular(numberOfKnots); }
+#else
+  /// Disable the constructor for the GPU implementation
+  Spline1D() CON_DELETE;
+#endif
 
   /// Copy constructor: disabled to avoid ambiguity. Use cloneFromObject instead
   Spline1D(const Spline1D&) CON_DELETE;
@@ -131,33 +142,6 @@ class Spline1D : public FlatObject
 
   /// Destructor
   ~Spline1D() CON_DEFAULT;
-
-  /// _____________  FlatObject functionality, see FlatObject class for description  ____________
-
-  /// Memory alignment
-
-  using FlatObject::getBufferAlignmentBytes;
-  using FlatObject::getClassAlignmentBytes;
-
-  /// Construction interface
-
-#if !defined(GPUCA_GPUCODE)
-  void cloneFromObject(const Spline1D& obj, char* newFlatBufferPtr);
-#endif
-  void destroy();
-
-  /// Making the data buffer external
-
-  using FlatObject::releaseInternalBuffer;
-
-#if !defined(GPUCA_GPUCODE)
-  void moveBufferTo(char* newBufferPtr);
-#endif
-
-  /// Moving the class with its external buffer to another location
-
-  void setActualBufferAddress(char* actualFlatBufferPtr);
-  void setFutureBufferAddress(char* futureFlatBufferPtr);
 
   /// _______________  Construction interface  ________________________
 
@@ -181,48 +165,50 @@ class Spline1D : public FlatObject
   /// _______________  Main functionality   ________________________
 
   /// Get interpolated value for {F(u): float -> T^Ndim} at the segment [knotL, next knotR] with function values Fl, Fr and slopes Dl, Dr
-  template <int Ndim, typename T>
-  GPUd() static void getSpline(const Spline1D::Knot& knotL,
-                               GPUgeneric() const T Fl[Ndim], GPUgeneric() const T Dl[Ndim],
-                               GPUgeneric() const T Fr[Ndim], GPUgeneric() const T Dr[Ndim],
-                               float u, GPUgeneric() T Fu[Ndim]);
-
-  /// Get interpolated value for F(u) using spline data with a border check
-  template <int Ndim, typename T>
-  GPUd() void getSpline(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[Ndim]) const;
-
-  /// Get interpolated value for F(u) using spline data with no border check
-  template <int Ndim, typename T>
-  GPUd() void getSplineNonSafe(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[Ndim]) const;
-
-  /// Simple interface for 1D spline
   template <typename T>
-  GPUd() static T getSpline(GPUgeneric() const Spline1D::Knot& knotL,
-                            GPUgeneric() const T& Fl, GPUgeneric() const T& Dl, GPUgeneric() const T& Fr, GPUgeneric() const T& Dr, float u);
+  GPUd() static void interpolate(int Ndim, const Spline1D::Knot& knotL,
+                                 GPUgeneric() const T Fl[/*Ndim*/], GPUgeneric() const T Dl[/*Ndim*/],
+                                 GPUgeneric() const T Fr[/*Ndim*/], GPUgeneric() const T Dr[/*Ndim*/],
+                                 float u, GPUgeneric() T Fu[/*Ndim*/]);
 
-  /// Simple interface for 1D spline
+  /// Get interpolated value for F(u) using spline parameters with a border check
   template <typename T>
-  GPUd() T getSpline(GPUgeneric() const T data[], float u) const;
+  GPUd() void interpolate(int Ndim, GPUgeneric() const T parameters[], float u, GPUgeneric() T Fu[/*Ndim*/]) const;
+
+  /// Get interpolated value for F(u) using spline parameters with no border check
+  template <typename T>
+  GPUd() void interpolateNonSafe(int Ndim, GPUgeneric() const T parameters[], float u, GPUgeneric() T Fu[/*Ndim*/]) const;
+
+  /// Simplified interface for 1D spline
+  template <typename T>
+  GPUd() static T interpolate1D(GPUgeneric() const Spline1D::Knot& knotL,
+                                GPUgeneric() const T& Fl, GPUgeneric() const T& Dl, GPUgeneric() const T& Fr, GPUgeneric() const T& Dr, float u);
+
+  /// Simplified interface for 1D spline
+  template <typename T>
+  GPUd() T interpolate1D(GPUgeneric() const T parameters[], float u) const;
 
   /// _______________  Getters   ________________________
 
-  /// Get minimal required alignment for the spline data
-  template <int Ndim, typename T>
-  static constexpr size_t getDataAlignmentBytes()
+  /// Get U coordinate of the last knot
+  int getUmax() const { return mUmax; }
+
+  /// Get minimal required alignment for the spline parameters
+  template <typename T>
+  static constexpr size_t getParameterAlignmentBytes(int Ndim)
   {
     return std::min<2 * sizeof(T) * Ndim, 16>;
   }
 
-  /// Size of the data array in bytes
-  template <int Ndim, typename T>
-  GPUd() size_t getDataSize() const
+  /// Size of the parameter array in bytes
+  template <typename T>
+  GPUd() size_t getSizeOfParameters(int Ndim) const
   {
-    return (2 * Ndim * sizeof(T)) * mNumberOfKnots;
+    return sizeof(T) * getNumberOfParameters(Ndim);
   }
 
-  /// Size of the data array in elements
-  template <int Ndim>
-  GPUd() size_t getDataSizeInElements() const
+  /// Number of parameters
+  GPUd() size_t getNumberOfParameters(int Ndim) const
   {
     return (2 * Ndim) * mNumberOfKnots;
   }
@@ -230,25 +216,27 @@ class Spline1D : public FlatObject
   /// Get number of knots
   GPUd() int getNumberOfKnots() const { return mNumberOfKnots; }
 
-  /// Get index of associated knot for a given U coordinate. With a border check.
-  GPUd() int getKnotIndex(float u) const;
-
-  /// Get index of associated knot for a given U coordinate. No border check.
-  GPUd() int getKnotIndexNonSafe(float u) const;
-
-  /// Get i-th knot, no border check performed!
-  GPUd() const Spline1D::Knot& getKnot(int i) const { return getKnots()[i]; }
-
   /// Get the array of knots
   GPUd() const Spline1D::Knot* getKnots() const { return reinterpret_cast<const Spline1D::Knot*>(mFlatBufferPtr); }
 
-  /// technical stuff
+  /// Get i-th knot
+  GPUd() const Spline1D::Knot& getKnot(int i) const { return getKnots()[i < 0 ? 0 : (i >= mNumberOfKnots ? mNumberOfKnots - 1 : i)]; }
+
+  /// Get index of an associated knot for a given U coordinate. Performs a border check.
+  GPUd() int getKnotIndex(float u) const;
+
+  /// _______________  Getters with no border check   ________________________
+
+  /// Get index of an associated knot for a given U coordinate. No border check preformed!
+  GPUd() int getKnotIndexNonSafe(float u) const;
+
+  /// Get i-th knot. No border check performed!
+  GPUd() const Spline1D::Knot& getKnotNonSafe(int i) const { return getKnots()[i]; }
+
+  /// _______________  Technical stuff   ________________________
 
   /// Get a map (integer U -> corresponding knot index)
   GPUd() const int* getUtoKnotMap() const { return mUtoKnotMap; }
-
-  /// Get number of axis bins
-  int getUmax() const { return mUmax; }
 
   /// Print method
   void print() const;
@@ -258,6 +246,33 @@ class Spline1D : public FlatObject
   static int test(bool draw = 0);
 #endif
 
+  /// _____________  FlatObject functionality, see FlatObject class for description  ____________
+
+  /// Memory alignment
+
+  using FlatObject::getBufferAlignmentBytes;
+  using FlatObject::getClassAlignmentBytes;
+
+  /// Construction interface
+
+#if !defined(GPUCA_GPUCODE)
+  void cloneFromObject(const Spline1D& obj, char* newFlatBufferPtr);
+#endif
+  void destroy();
+
+  /// Making the parameter buffer external
+
+  using FlatObject::releaseInternalBuffer;
+
+#if !defined(GPUCA_GPUCODE)
+  void moveBufferTo(char* newBufferPtr);
+#endif
+
+  /// Moving the class with its external buffer to another location
+
+  void setActualBufferAddress(char* actualFlatBufferPtr);
+  void setFutureBufferAddress(char* futureFlatBufferPtr);
+
  private:
   /// Non-const accessor to knots array
   Spline1D::Knot* getKnotsNonConst() { return reinterpret_cast<Spline1D::Knot*>(mFlatBufferPtr); }
@@ -265,18 +280,18 @@ class Spline1D : public FlatObject
   /// Non-const accessor to U->knots map
   int* getUtoKnotMapNonConst() { return mUtoKnotMap; }
 
-  ///
-  /// ====  Data members   ====
-  ///
+  /// _____________  Data members  ____________
 
   int mNumberOfKnots; ///< n knots on the grid
-  int mUmax;          ///< number of axis bins
+  int mUmax;          ///< U of the last knot
   int* mUtoKnotMap;   ///< pointer to (integer U -> knot index) map inside the mFlatBufferPtr array
 };
 
-/// ====================================================
+///
+/// ========================================================================================================
 ///       Inline implementations of some methods
-/// ====================================================
+/// ========================================================================================================
+///
 
 GPUdi() int Spline1D::getKnotIndexNonSafe(float u) const
 {
@@ -297,11 +312,11 @@ GPUdi() int Spline1D::getKnotIndex(float u) const
   return getUtoKnotMap()[iu];
 }
 
-template <int Ndim, typename T>
-GPUdi() void Spline1D::getSpline(const Spline1D::Knot& knotL,
-                                        GPUgeneric() const T Fl[Ndim], GPUgeneric() const T Dl[Ndim],
-                                        GPUgeneric() const T Fr[Ndim], GPUgeneric() const T Dr[Ndim],
-                                        float u, GPUgeneric() T Fu[Ndim])
+template <typename T>
+GPUdi() void Spline1D::interpolate(int Ndim, const Spline1D::Knot& knotL,
+                                   GPUgeneric() const T Fl[/*Ndim*/], GPUgeneric() const T Dl[/*Ndim*/],
+                                   GPUgeneric() const T Fr[/*Ndim*/], GPUgeneric() const T Dr[/*Ndim*/],
+                                   float u, GPUgeneric() T Fu[/*Ndim*/])
 {
   /// A static method.
   /// Gives interpolated value of N-dimensional F(u) at u
@@ -310,19 +325,12 @@ GPUdi() void Spline1D::getSpline(const Spline1D::Knot& knotL,
 
   T uu = T(u - knotL.u);
   T li = T(knotL.Li);
-  T x = uu * li;             // scaled u
-  if constexpr (Ndim == 1) { // help the optimizer to not loop over dimensions when Ndim == 1
-    T df = ((*Fr) - (*Fl)) * li;
-    T a = (*Dl) + (*Dr) - df - df;
-    T b = df - (*Dl) - a;
-    *Fu = ((a * x + b) * x + (*Dl)) * uu + (*Fl);
-  } else {
-    for (int i = 0; i < Ndim; ++i) {
-      T df = (Fr[i] - Fl[i]) * li;
-      T a = Dl[i] + Dr[i] - df - df;
-      T b = df - Dl[i] - a;
-      Fu[i] = ((a * x + b) * x + Dl[i]) * uu + Fl[i];
-    }
+  T x = uu * li; // scaled u
+  for (int dim = 0; dim < Ndim; ++dim) {
+    T df = (Fr[dim] - Fl[dim]) * li;
+    T a = Dl[dim] + Dr[dim] - df - df;
+    T b = df - Dl[dim] - a;
+    Fu[dim] = ((a * x + b) * x + Dl[dim]) * uu + Fl[dim];
   }
 
   /* another way to calculate f(u):
@@ -336,48 +344,48 @@ GPUdi() void Spline1D::getSpline(const Spline1D::Knot& knotL,
   float cDr = x2*xm1*knotL.L;
   return cFl*Fl + cFr*Fr + cDl*Dl + cDr*Dr;
   */
-} // namespace gpu
-
-template <int Ndim, typename T>
-GPUdi() void Spline1D::getSpline(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[Ndim]) const
-{
-  /// Get interpolated value for F(u) using data array data[Ndim*2*getNumberOfKnots()].
-  /// data = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
-  /// Safe calculation of the knot index
-  int iknot = getKnotIndex(u);
-  const T* d = data + (2 * Ndim) * iknot;
-  getSpline<Ndim, T>(getKnot(iknot), &(d[0]), &(d[Ndim]), &(d[2 * Ndim]), &(d[3 * Ndim]), u, Fu);
-}
-
-template <int Ndim, typename T>
-GPUdi() void Spline1D::getSplineNonSafe(GPUgeneric() const T data[], float u, GPUgeneric() T Fu[]) const
-{
-  /// Get interpolated value for f(u) using data array data[Ndim*2*getNumberOfKnots()].
-  /// data = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
-  /// Non-safe calculation of the knot index.
-  int iknot = getKnotIndexNonSafe(u);
-  GPUgeneric() const T* d = data + (2 * Ndim) * iknot;
-  return getSpline<Ndim, T>(getKnot(iknot), d[0], d[Ndim], d[2 * Ndim], d[3 * Ndim], u, Fu);
 }
 
 template <typename T>
-GPUdi() T Spline1D::getSpline(GPUgeneric() const Spline1D::Knot& knotL,
-                                     GPUgeneric() const T& Fl, GPUgeneric() const T& Dl,
-                                     GPUgeneric() const T& Fr, GPUgeneric() const T& Dr,
-                                     float u)
+GPUdi() void Spline1D::interpolate(int Ndim, GPUgeneric() const T parameters[], float u, GPUgeneric() T Fu[/*Ndim*/]) const
 {
-  /// Simple interface for 1D spline
+  /// Get interpolated value for F(u) using parameters[Ndim*2*getNumberOfKnots()].
+  /// parameters = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
+  /// Safe calculation of the knot index
+  int iknot = getKnotIndex(u);
+  const T* d = parameters + (2 * iknot)*Ndim;
+  interpolate<T>(Ndim, getKnotNonSafe(iknot), &(d[0]), &(d[Ndim]), &(d[2 * Ndim]), &(d[3 * Ndim]), u, Fu);
+}
+
+template <typename T>
+GPUdi() void Spline1D::interpolateNonSafe(int Ndim, GPUgeneric() const T parameters[], float u, GPUgeneric() T Fu[/*Ndim*/]) const
+{
+  /// Get interpolated value for f(u) using parameters[Ndim*2*getNumberOfKnots()].
+  /// parameters = { {Fx,Fy,Fz,Dx,Dy,Dz}_0, ... ,{Fx,Fy,Fz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
+  /// Non-safe calculation of the knot index.
+  int iknot = getKnotIndexNonSafe(u);
+  GPUgeneric() const T* d = parameters + (2 * Ndim) * iknot;
+  return interpolate<T>(Ndim, getKnotNonSafe(iknot), d[0], d[Ndim], d[2 * Ndim], d[3 * Ndim], u, Fu);
+}
+
+template <typename T>
+GPUdi() T Spline1D::interpolate1D(GPUgeneric() const Spline1D::Knot& knotL,
+                                  GPUgeneric() const T& Fl, GPUgeneric() const T& Dl,
+                                  GPUgeneric() const T& Fr, GPUgeneric() const T& Dr,
+                                  float u)
+{
+  /// Simplified interface for 1D spline
   T Fu;
-  getSpline<1>(knotL, &Fl, &Dl, &Fr, &Dr, u, &Fu);
+  interpolate<T>(1, knotL, &Fl, &Dl, &Fr, &Dr, u, &Fu);
   return Fu;
 }
 
 template <typename T>
-GPUdi() T Spline1D::getSpline(GPUgeneric() const T data[], float u) const
+GPUdi() T Spline1D::interpolate1D(GPUgeneric() const T parameters[], float u) const
 {
-  /// Simple interface for 1D spline
+  /// Simplified interface for 1D spline
   T Fu;
-  getSpline<1>(data, u, &Fu);
+  interpolate<T>(1, parameters, u, &Fu);
   return Fu;
 }
 

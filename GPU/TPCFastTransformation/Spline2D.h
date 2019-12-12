@@ -54,7 +54,7 @@ namespace gpu
 /// The knots belong to [0, Umax][0,Vmax] and have integer coordinates.
 /// It is implemented this way for fast matching of UV coordinates to the corresponding U&V segments between the knots.
 ///
-/// To interpolate a function on an interval other than [0,Umax]x[0,Vmax], one should scale the U/V coordinates and the F derivatives in the data array.
+/// To interpolate a function on an interval other than [0,Umax]x[0,Vmax], one should scale the U/V coordinates and the F derivatives in the parameter array.
 ///
 /// The minimal number of knots is 2, the minimal Umax & Vmax is 1
 ///
@@ -62,21 +62,21 @@ namespace gpu
 /// Duplicated knots are not allowed and will be removed.
 /// Therefore: Attention! The number of knots may change during the initialization.
 ///
-/// ---- The data array ---
+/// ---- The parameter array ---
 ///
 /// Nothing which depends on F is stored in the class,
 /// therefore one can use the same class for interpolation of different input functions on the same knots.
 ///
 /// The user should create an array of the function values Fi and all the derivatives at all (initialised!) knots.
-/// This data array can be created using utilities from the SplineHelper2D class.
+/// This parameter array can be created using utilities from the SplineHelper2D class.
 ///
-///  The data array is an array with info about the interpolated function F:[u,v]->[Fx,Fy,Fz] at knots:
+///  The parameter array is an array with info about the interpolated function F:[u,v]->[Fx,Fy,Fz] at knots:
 ///   {
 ///     { (Fx,Fy,Fz), (Fx,Fy,Fz)'_v, (Fx,Fy,Fz)'_u, (Fx,Fy,Fz)''_vu } at knot 0,
 ///     {                      ...                      } at knot 1,
 ///                            ...
 ///   }
-///   The data array has to be provided by the user for each call of the interpolation.
+///   The parameter array has to be provided by the user for each call of the interpolation.
 ///   It can be created for a given input function using SplineHelper2D class.
 ///
 /// ---- Flat Object implementation ----
@@ -95,11 +95,11 @@ namespace gpu
 ///  Spline2D spline;
 ///  spline.construct(nKnotsU, knotsU, nKnotsV, knotsV );
 ///  SplineHelper2D helper;
-///  std::unique_ptr<float[]> data = helper.constructData<1>(spline, F, 0.f, 1.f, 0.f, 1.f, 2);
-///  spline.getSpline<1>( data.get(), 0.0, 0.0 ); // == F(0.,0.)
-///  spline.getSpline<1>( data.get(), 1.0, 1.1); // some interpolated value
-///  spline.getSpline<1>( data.get(), 2.0, 3.0 ); // == F(1., 0.5 )
-///  spline.getSpline<1>( data.get(), 2.0, 6.0 ); // == F(1., 1.)
+///  std::unique_ptr<float[]> parameters = helper.constructParameters(1,spline, F, 0.f, 1.f, 0.f, 1.f, 2);
+///  spline.interpolate(1, parameters.get(), 0.0, 0.0 ); // == F(0.,0.)
+///  spline.interpolate(1, parameters.get(), 1.0, 1.1); // some interpolated value
+///  spline.interpolate(1, parameters.get(), 2.0, 3.0 ); // == F(1., 0.5 )
+///  spline.interpolate(1, parameters.get(), 2.0, 6.0 ); // == F(1., 1.)
 ///
 ///  --- See also Spline2D::test();
 ///
@@ -171,35 +171,34 @@ class Spline2D : public FlatObject
 
   /// _______________  Main functionality   ________________________
 
-  /// Get interpolated value for f(u,v) using the data array data[12*getNumberOfKnots()]
-  template <int Ndim, typename T>
-  GPUd() void getSpline(GPUgeneric() const T* data, float u, float v, GPUgeneric() T Fuv[Ndim]) const;
+  /// Get interpolated value for f(u,v)
+  template <typename T>
+  GPUd() void interpolate(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const;
 
-  /// Same as getSpline, but using vectorized calculation.
-  /// \param data should be at least 128-bit aligned
-  template <int Ndim, typename T>
-  GPUd() void getSplineVec(GPUgeneric() const T* data, float u, float v, GPUgeneric() T Fuv[Ndim]) const;
+  /// Same as interpolate, but using vectorized calculation.
+  /// \param parameters should be at least 128-bit aligned
+  template <typename T>
+  GPUd() void interpolateVec(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const;
 
   /// _______________  Getters   ________________________
 
-  /// Get minimal required alignment for the spline data
+  /// Get minimal required alignment for the spline parameters
 
-  template <int Ndim, typename T>
-  static constexpr size_t getDataAlignmentBytes()
+  template <typename T>
+  static constexpr size_t getParameterAlignmentBytes(int Ndim)
   {
     return std::min<4 * sizeof(T) * Ndim, 16>;
   }
 
-  /// Size of the data array in bytes
-  template <int Ndim, typename T>
-  GPUd() size_t getDataSize() const
+  /// Size of the parameter array in bytes
+  template <typename T>
+  GPUd() size_t getSizeOfParameters(int Ndim) const
   {
-    return (4 * Ndim * sizeof(T)) * getNumberOfKnots();
+    return sizeof(T) * getNumberOfParameters(Ndim);
   }
 
-  /// Size of the data array in elements
-  template <int Ndim>
-  GPUd() size_t getDataSizeInElements() const
+  /// Number of parameters
+  GPUd() size_t getNumberOfParameters(int Ndim) const
   {
     return (4 * Ndim) * getNumberOfKnots();
   }
@@ -230,6 +229,11 @@ class Spline2D : public FlatObject
   /// Print method
   void print() const;
 
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+  /// Test the class functionality
+  static int test(bool draw = 0);
+#endif
+
  private:
   ///
   /// ====  Data members   ====
@@ -255,10 +259,10 @@ GPUdi() void Spline2D::getKnotUV(int iKnot, float& u, float& v) const
   v = gridV.getKnot(iv).u;
 }
 
-template <int Ndim, typename T>
-GPUdi() void Spline2D::getSpline(GPUgeneric() const T* data, float u, float v, GPUgeneric() T Fuv[Ndim]) const
+template <typename T>
+GPUdi() void Spline2D::interpolate(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const
 {
-  // Get interpolated value for f(u,v) using data array data[getDataSizeInElements()]
+  // Get interpolated value for f(u,v) using parameters[getNumberOfParameters()]
 
   const Spline1D& gridU = getGridU();
   const Spline1D& gridV = getGridV();
@@ -269,55 +273,55 @@ GPUdi() void Spline2D::getSpline(GPUgeneric() const T* data, float u, float v, G
   const Spline1D::Knot& knotU = gridU.getKnot(iu);
   const Spline1D::Knot& knotV = gridV.getKnot(iv);
 
-  constexpr int Ndim2 = Ndim * 2;
-  constexpr int Ndim4 = Ndim * 4;
+  const int Ndim2 = Ndim * 2;
+  const int Ndim4 = Ndim * 4;
 
-  const T* data00 = data + (nu * iv + iu) * Ndim4; // values { {X,Y,Z}, {X,Y,Z}'v, {X,Y,Z}'u, {X,Y,Z}''vu } at {u0, v0}
-  const T* data10 = data00 + Ndim4;                // values { ... } at {u1, v0}
-  const T* data01 = data00 + Ndim4 * nu;           // values { ... } at {u0, v1}
-  const T* data11 = data01 + Ndim4;                // values { ... } at {u1, v1}
+  const T* parameters00 = parameters + (nu * iv + iu) * Ndim4; // values { {X,Y,Z}, {X,Y,Z}'v, {X,Y,Z}'u, {X,Y,Z}''vu } at {u0, v0}
+  const T* parameters10 = parameters00 + Ndim4;                // values { ... } at {u1, v0}
+  const T* parameters01 = parameters00 + Ndim4 * nu;           // values { ... } at {u0, v1}
+  const T* parameters11 = parameters01 + Ndim4;                // values { ... } at {u1, v1}
 
   T Fu0[Ndim4]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u0
   T Du0[Ndim4]; // derivatives {}'_u  at u0
   for (int i = 0; i < Ndim2; i++)
-    Fu0[i] = data00[i];
+    Fu0[i] = parameters00[i];
   for (int i = 0; i < Ndim2; i++)
-    Fu0[Ndim2 + i] = data01[i];
+    Fu0[Ndim2 + i] = parameters01[i];
   for (int i = 0; i < Ndim2; i++)
-    Du0[i] = data00[Ndim2 + i];
+    Du0[i] = parameters00[Ndim2 + i];
   for (int i = 0; i < Ndim2; i++)
-    Du0[Ndim2 + i] = data01[Ndim2 + i];
+    Du0[Ndim2 + i] = parameters01[Ndim2 + i];
 
   T Fu1[Ndim4]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u1
   T Du1[Ndim4]; // derivatives {}'_u  at u1
   for (int i = 0; i < Ndim2; i++)
-    Fu1[i] = data10[i];
+    Fu1[i] = parameters10[i];
   for (int i = 0; i < Ndim2; i++)
-    Fu1[Ndim2 + i] = data11[i];
+    Fu1[Ndim2 + i] = parameters11[i];
   for (int i = 0; i < Ndim2; i++)
-    Du0[i] = data10[Ndim2 + i];
+    Du0[i] = parameters10[Ndim2 + i];
   for (int i = 0; i < Ndim2; i++)
-    Du0[Ndim2 + i] = data11[Ndim2 + i];
+    Du0[Ndim2 + i] = parameters11[Ndim2 + i];
 
-  T dataU[Ndim4]; // interpolated values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) } at u
-  gridU.getSpline<Ndim4, T>(knotU, Fu0, Du0, Fu1, Du1, u, dataU);
+  T parametersU[Ndim4]; // interpolated values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) } at u
+  gridU.interpolate<T>(Ndim4, knotU, Fu0, Du0, Fu1, Du1, u, parametersU);
 
-  T* Fv0 = dataU + 0;
-  T* Dv0 = dataU + Ndim;
-  T* Fv1 = dataU + Ndim2;
-  T* Dv1 = dataU + Ndim2 + Ndim;
+  T* Fv0 = parametersU + 0;
+  T* Dv0 = parametersU + Ndim;
+  T* Fv1 = parametersU + Ndim2;
+  T* Dv1 = parametersU + Ndim2 + Ndim;
 
-  gridV.getSpline<Ndim, T>(knotV, Fv0, Dv0, Fv1, Dv1, v, Fuv);
+  gridV.interpolate<T>(Ndim, knotV, Fv0, Dv0, Fv1, Dv1, v, Fuv);
 }
 
-template <int Ndim, typename T>
-GPUdi() void Spline2D::getSplineVec(GPUgeneric() const T* data, float u, float v, GPUgeneric() T Fuv[Ndim]) const
+template <typename T>
+GPUdi() void Spline2D::interpolateVec(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const
 {
-  // Same as getSpline, but using vectorized calculation.
-  // \param data should be at least 128-bit aligned
+  // Same as interpolate, but using vectorized calculation.
+  // \param parameters should be at least 128-bit aligned
 
   /// TODO: vectorize
-  getSpline<Ndim, T>(data, u, v, Fuv);
+  interpolate<T>(Ndim, parameters, u, v, Fuv);
 }
 
 } // namespace gpu

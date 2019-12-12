@@ -60,12 +60,14 @@ class SplineHelper2D
 
   /// Tools for a manual construction of compact splines
   int setSpline(const Spline2D& spline, int nAxiliaryPointsU, int nAxiliaryPointsV);
-  int getNdataPointsU() const { return mHelperU.getNdataPoints(); }
-  int getNdataPointsV() const { return mHelperV.getNdataPoints(); }
-  int getNdataPoints() const { return getNdataPointsU() * getNdataPointsV(); }
-  int getNparameters() const { return mSpline.getDataSizeInElements<1>(); }
+  int getNumberOfMeasurementsU() const { return mHelperU.getNumberOfMeasurements(); }
+  int getNumberOfMeasurementsV() const { return mHelperV.getNumberOfMeasurements(); }
+  int getNumberOfMeasurements() const { return getNumberOfMeasurementsU() * getNumberOfMeasurementsV(); }
 
-  void constructData(int Ndim, const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
+  const SplineHelper1D& getHelperU() const { return mHelperU; }
+  const SplineHelper1D& getHelperV() const { return mHelperV; }
+
+  void constructParameters(int Ndim, const float inF[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
 
   /// _______________  Utilities   ________________________
 

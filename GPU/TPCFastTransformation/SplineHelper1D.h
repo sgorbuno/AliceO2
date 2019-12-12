@@ -40,12 +40,14 @@ class SplineHelper1D
   ///
   /// \brief Helper structure for 1D spline construction
   ///
-  struct Point {
-    int iKnot; ///< knot index
-    double cf0;
-    double cz0;
-    double cf1;
-    double cz1;
+  struct MeasurementPoint {
+    double u; ///< u coordinate 
+    double cS0; ///< a coefficient for s0
+    double cZ0; ///< a coefficient for s'0
+    double cS1; ///< a coefficient for s1
+    double cZ1; ///< a coefficient for s'1
+    int iKnot; ///< index of the left knot of the segment
+    bool isKnot; ///< is the point placed at a knot
   };
 
   /// _____________  Constructors / destructors __________________________
@@ -64,31 +66,36 @@ class SplineHelper1D
 
   /// _______________  Main functionality  ________________________
 
-  /// Creates classical spline data for a given input function
-  std::unique_ptr<float[]> constructDataClassical1D(const Spline1D& spline, std::function<float(float)> F, float uMin, float uMax);
-
-  /// Creates compact spline data for a given input function
-  std::unique_ptr<float[]> constructData1D(const Spline1D& spline, std::function<float(float)> F, float uMin, float uMax, int nAxiliaryPoints);
-
-  /// _______________   Tools for a manual construction of compact splines   ________________________
-
   int setSpline(const Spline1D& spline, int nAxiliaryPoints);
-  int getNdataPoints() const { return mPoints.size(); }
 
-  /// N parameters in the data array per output dimension
-  int getNparameters() const { return 2 * mNKnots; }
+  /// Create classical spline parameters for a given input function
+  std::unique_ptr<float[]> constructParametersClassical(int Ndim, std::function<void(float, float[])> F, float uMin, float uMax);
 
-  void constructData1D(const float inF[/*getNdataPoints()*/], float outSplineData[/*getNparameters()*/]) const;
-  void constructDataGradually(int Ndim, const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const;
+  /// Create compact spline parameters for a given input function
+  std::unique_ptr<float[]> constructParameters(int Ndim, std::function<void(float, float[])> F, float uMin, float uMax);
 
-  template <int Ndim>
-  void constructDataGradually(const float inF[/*N Data Points x Ndim */], float outSplineData[/*N Spline Parameters*/]) const
-  {
-    constructDataGradually(Ndim, inF, outSplineData);
-  }
+  /// Create compact spline parameters gradually
+  std::unique_ptr<float[]> constructParametersGradually(int Ndim, std::function<void(float, float[])> F, float uMin, float uMax);
+
+  /// _______________   Interface for a manual construction of compact splines   ________________________
+
+  int getNumberOfMeasurements() const { return mMeasurementPoints.size(); }
+
+  void constructParameters(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+
+  void constructParametersGradually(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim */], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+
+  void copySfromMeasurements(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+
+  void constructDerivatives(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+
   /// _______________  Utilities   ________________________
 
-  int getKnotPoint(int iknot) const { return mKnotPoints[iknot]; }
+  const Spline1D& getSpline() const { return mSpline; }
+
+  int getKnotMeasurement(int iknot) const { return mKnotMeasurements[iknot]; }
+
+  const MeasurementPoint& getMeasurementPoint(int ip) const { return mMeasurementPoints[ip]; }
 
   ///  Gives error string
   const char* getLastError() const { return mError.Data(); }
@@ -100,12 +107,13 @@ class SplineHelper1D
   TString mError = ""; ///< error string
 
   /// helpers for the construction of 1D spline
-  int mNKnots = 0;
-  std::vector<Point> mPoints;
-  std::vector<int> mKnotPoints;
-  std::vector<double> mMatrixI;
-  std::vector<double> mMatrixFastI;
-  std::vector<double> mMatrixFastF;
+
+  Spline1D mSpline; ///< copy of the spline
+  std::vector<MeasurementPoint> mMeasurementPoints; ///< measurement points
+  std::vector<int> mKnotMeasurements; ///< which measurement points are at knots
+  std::vector<double> mLSMmatrixFull; ///< a matrix to convert the measurements into the spline parameters with the LSM method
+  std::vector<double> mLSMmatrixSderivatives;
+  std::vector<double> mLSMmatrixSvalues;
 };
 
 inline int SplineHelper1D::storeError(int code, const char* msg)

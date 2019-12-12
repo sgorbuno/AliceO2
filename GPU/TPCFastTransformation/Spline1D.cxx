@@ -33,11 +33,6 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-Spline1D::Spline1D() : FlatObject(), mNumberOfKnots(0), mUmax(0), mUtoKnotMap(0)
-{
-  /// Default constructor. Creates an empty uninitialised object
-}
-
 void Spline1D::destroy()
 {
   /// See FlatObject for description
@@ -195,20 +190,23 @@ int Spline1D::test(bool draw)
 {
   using namespace std;
 
+  const int Ndim = 1;
+
   const int funcN = 10;
-  double funcC[2 * funcN + 2];
+  double funcC[Ndim][2 * funcN + 2];
 
   int nKnots = 4;
   const int nAxiliaryPoints = 5;
   int uMax = nKnots * 3;
 
-  auto F = [&](float u) -> float {
+  auto F = [&](float u, float f[]) -> void {
     double uu = u * TMath::Pi() / uMax;
-    double f = 0; //funcC[0]/2;
-    for (int i = 1; i <= funcN; i++) {
-      f += funcC[2 * i] * TMath::Cos(i * uu) + funcC[2 * i + 1] * TMath::Sin(i * uu);
+    for (int dim = 0; dim < Ndim; dim++) {
+      f[dim] = 0; //funcC[0]/2;
+      for (int i = 1; i <= funcN; i++) {
+        f[dim] += funcC[dim][2 * i] * TMath::Cos(i * uu) + funcC[dim][2 * i + 1] * TMath::Sin(i * uu);
+      }
     }
-    return f;
   };
 
   TCanvas* canv = nullptr;
@@ -235,26 +233,28 @@ int Spline1D::test(bool draw)
     nTries = 10000;
   }
 
-  double statDf = 0;
+  double statDf1 = 0;
+  double statDf2 = 0;
   double statN = 0;
 
   for (int seed = 1; seed < nTries; seed++) {
 
     gRandom->SetSeed(seed);
 
-    for (int i = 0; i <= funcN; i++) {
-      funcC[i] = gRandom->Uniform(-1, 1);
+    for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i <= funcN; i++) {
+        funcC[dim][i] = gRandom->Uniform(-1, 1);
+      }
     }
-
     SplineHelper1D helper;
-    Spline1D spline;
+    Spline1D spline(2);
 
-    int knotsU[nKnots];
     do {
+      int knotsU[nKnots];
       knotsU[0] = 0;
       double du = 1. * uMax / (nKnots - 1);
       for (int i = 1; i < nKnots; i++) {
-        knotsU[i] = (int)(i * du); //+ gRandom->Uniform(-du / 3, du / 3);
+        knotsU[i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
       }
       knotsU[nKnots - 1] = uMax;
       spline.construct(nKnots, knotsU);
@@ -274,20 +274,25 @@ int Spline1D::test(bool draw)
     }
 
     nKnots = spline.getNumberOfKnots();
-    std::unique_ptr<float[]> data = helper.constructData1D(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
-    if (data == nullptr) {
-      cout << "can not create data array for the spline" << endl;
-      return -3;
-    }
+
+    helper.setSpline(spline, nAxiliaryPoints);
+
+    std::unique_ptr<float[]> parameters1 = helper.constructParameters(Ndim, F, 0., spline.getUmax());
+    std::unique_ptr<float[]> parameters2 = helper.constructParametersGradually(Ndim, F, 0., spline.getUmax());
 
     float stepU = 1.e-2;
     for (double u = 0; u < uMax + stepU; u += stepU) {
-      double f0 = F(u);
-      double fSpline = spline.getSpline((const float*)data.get(), u);
-      statDf += (fSpline - f0) * (fSpline - f0);
-      statN++;
+      float f0[Ndim], s1[Ndim], s2[Ndim];
+      F(u, f0);
+      spline.interpolate(Ndim, parameters1.get(), u, s1);
+      spline.interpolate(Ndim, parameters2.get(), u, s2);
+      for (int dim = 0; dim < Ndim; dim++) {
+        statDf1 += (s1[dim] - f0[dim]) * (s1[dim] - f0[dim]);
+        statDf2 += (s2[dim] - f0[dim]) * (s2[dim] - f0[dim]);
+      }
+      statN += Ndim;
     }
-    //cout << "std dev Compact   : " << sqrt(statDf / statN) << std::endl;
+    //cout << "std dev Compact   : " << sqrt(statDf1 / statN) << std::endl;
 
     if (draw) {
       delete nt;
@@ -295,9 +300,10 @@ int Spline1D::test(bool draw)
       nt = new TNtuple("nt", "nt", "u:f0:fSpline");
       float stepU = 1.e-4;
       for (double u = 0; u < uMax + stepU; u += stepU) {
-        double f0 = F(u);
-        double fSpline = spline.getSpline((const float*)data.get(), u);
-        nt->Fill(u, f0, fSpline);
+        float f0[Ndim], s[Ndim];
+        F(u, f0);
+        spline.interpolate(Ndim, parameters1.get(), u, s);
+        nt->Fill(u, f0[0], s[0]);
       }
 
       nt->SetMarkerStyle(8);
@@ -317,17 +323,15 @@ int Spline1D::test(bool draw)
       knots = new TNtuple("knots", "knots", "type:u:f");
       for (int i = 0; i < nKnots; i++) {
         double u = spline.getKnot(i).u;
-        double f = spline.getSpline((const float*)data.get(), u);
-        knots->Fill(1, u, f);
-        if (i < nKnots - 1) {
-          double u1 = spline.getKnot(i + 1).u;
-          int nax = nAxiliaryPoints;
-          double du = (u1 - u) / (nax + 1);
-          for (int j = 0; j < nax; j++) {
-            double uu = u + du * (j + 1);
-            double ff = spline.getSpline((const float*)data.get(), uu);
-            knots->Fill(2, uu, ff);
-          }
+        float s[Ndim];
+        spline.interpolate(Ndim, parameters1.get(), u, s);
+        knots->Fill(1, u, s[0]);
+        for (int j = 0; j < helper.getNumberOfMeasurements(); j++) {
+          const SplineHelper1D::MeasurementPoint& p = helper.getMeasurementPoint(j);
+          if (p.isKnot)
+            continue;
+          spline.interpolate(Ndim, parameters1.get(), p.u, s);
+          knots->Fill(2, p.u, s[0]);
         }
       }
 
@@ -348,9 +352,10 @@ int Spline1D::test(bool draw)
   delete nt;
   delete knots;
 
-  statDf = sqrt(statDf / statN);
-  cout << "\n std dev for Compact Spline   : " << statDf << std::endl;
-  if (statDf < 0.1)
+  statDf1 = sqrt(statDf1 / statN);
+  statDf2 = sqrt(statDf2 / statN);
+  cout << "\n std dev for Compact Spline   : " << statDf1 << " / " << statDf2 << std::endl;
+  if (statDf1 < 0.1 && statDf2 < 0.1)
     cout << "Everything is fine" << endl;
   else {
     cout << "Something is wrong!!" << endl;

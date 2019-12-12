@@ -1,5 +1,5 @@
 /*
-   root -l -q CompactSplineDemo.C+
+   root -l -q SplineDemo.C+
  */
 
 #if !defined(__CLING__) || defined(__ROOTCLING__)
@@ -39,7 +39,7 @@ float F01(float u)
   return F(u * (nKnots - 1));
 }
 
-TCanvas* canv = new TCanvas("cQA", "Compact Spline Demo", 2000, 800);
+TCanvas* canv = new TCanvas("cQA", "Spline Demo", 2000, 800);
 
 bool doAskSteps = 1;
 
@@ -64,7 +64,7 @@ bool askStep()
   return ask();
 }
 
-int CompactSplineDemo()
+int SplineDemo()
 {
 
   const int nAxiliaryPoints = 10;
@@ -90,12 +90,10 @@ int CompactSplineDemo()
 
     SplineHelper1D helper;
 
-    Spline1D spline;
-    spline.constructRegular(nKnots);
+    Spline1D spline(nKnots);
     std::unique_ptr<float[]> data = helper.constructData1D(spline, F, 0., spline.getUmax(), nAxiliaryPoints);
 
-    Spline1D splineClassic;
-    splineClassic.constructRegular(nKnots);
+    Spline1D splineClassic(nKnots);
     std::unique_ptr<float[]> dataClassic = helper.constructDataClassical1D(splineClassic, F, 0., splineClassic.getUmax());
 
     IrregularSpline1D splineLocal;
@@ -119,13 +117,13 @@ int CompactSplineDemo()
 
     for (int i = 0; i < nKnots; i++) {
       double u = splineClassic.getKnot(i).u;
-      double fs = splineClassic.getSpline((const float*)dataClassic.get(), u);
+      double fs = splineClassic.interpolate((const float*)dataClassic.get(), u);
       knots->Fill(1, u, fs);
     }
 
     for (int i = 0; i < nKnots; i++) {
       double u = spline.getKnot(i).u;
-      double fs = spline.getSpline((const float*)data.get(), u);
+      double fs = spline.interpolate((const float*)data.get(), u);
       knots->Fill(2, u, fs);
       if (i < nKnots - 1) {
         double u1 = spline.getKnot(i + 1).u;
@@ -133,7 +131,7 @@ int CompactSplineDemo()
         double du = (u1 - u) / (nax + 1);
         for (int j = 0; j < nax; j++) {
           double uu = u + du * (j + 1);
-          double ff = spline.getSpline((const float*)data.get(), uu);
+          double ff = spline.interpolate((const float*)data.get(), uu);
           knots->Fill(3, uu, ff);
         }
       }
@@ -158,8 +156,8 @@ int CompactSplineDemo()
     for (float s = 0; s < 1. + stepS; s += stepS) {
       double u = s * (nKnots - 1);
       double f0 = F(u);
-      double fComp = spline.getSpline((const float*)data.get(), u);
-      double fClass = splineClassic.getSpline((const float*)dataClassic.get(), u);
+      double fComp = spline.interpolate((const float*)data.get(), u);
+      double fClass = splineClassic.interpolate((const float*)dataClassic.get(), u);
       double fLocal = splineLocal.getSpline((const float*)dataLocal.get(), s);
 
       statDfComp += (fComp - f0) * (fComp - f0);
