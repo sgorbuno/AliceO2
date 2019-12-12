@@ -181,12 +181,12 @@ std::unique_ptr<float[]> SplineHelper1D::constructParametersGradually(int Ndim, 
   return parameters;
 }
 
-int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryPoints)
+int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryMeasurements)
 {
   // Prepare creation of 1D irregular spline in a compact way:
   // fit all the spline parameters (which are the spline values and the slopes at the knots) to multiple data points.
   // The should be at least one (better, two) axiliary data point on each segnment between two knots and at least 2*nKnots data points in total
-  // Returns 0 when the spline can not be constructed with the given nAxiliaryPoints
+  // Returns 0 when the spline can not be constructed with the given nAxiliaryMeasurements
 
   int ret = 0;
 
@@ -196,23 +196,23 @@ int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryPoints)
   if (!spline.isConstructed()) {
     ret = storeError(-1, "SplineHelper1D::setSpline: input spline is not constructed");
     mSpline.constructRegular(2);
-    nAxiliaryPoints = 2;
+    nAxiliaryMeasurements = 2;
     nPoints = 4;
   } else {
 
     mSpline.cloneFromObject(spline, nullptr);
 
-    if (nAxiliaryPoints < 1) {
-      ret = storeError(-2, "SplineHelper1D::setSpline: nAxiliaryPoints<1, increase to 1 ");
-      nAxiliaryPoints = 1;
+    if (nAxiliaryMeasurements < 1) {
+      ret = storeError(-2, "SplineHelper1D::setSpline: nAxiliaryMeasurements<1, increase to 1 ");
+      nAxiliaryMeasurements = 1;
     }
 
-    nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryPoints;
+    nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryMeasurements;
 
     if (nPoints < 2 * spline.getNumberOfKnots()) {
-      nAxiliaryPoints = 2;
-      nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryPoints;
-      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAxiliaryPoints, increase to 2");
+      nAxiliaryMeasurements = 2;
+      nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryMeasurements;
+      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAxiliaryMeasurements, increase to 2");
     }
   }
 
@@ -248,7 +248,7 @@ int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryPoints)
   for (int i = 0; i < nKnots; ++i) {
     const Spline1D::Knot& knot = spline.getKnot(i);
     int iu = (int)(knot.u + 0.1f);
-    mKnotMeasurements[i] = iu * (1 + nAxiliaryPoints);
+    mKnotMeasurements[i] = iu * (1 + nAxiliaryMeasurements);
     mMeasurementPoints[mKnotMeasurements[i]].isKnot = 1;
   }
 

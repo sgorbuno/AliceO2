@@ -66,7 +66,7 @@ class SplineHelper1D
 
   /// _______________  Main functionality  ________________________
 
-  int setSpline(const Spline1D& spline, int nAxiliaryPoints);
+  int setSpline(const Spline1D& spline, int nAxiliaryMeasurements);
 
   /// Create classical spline parameters for a given input function
   std::unique_ptr<float[]> constructParametersClassical(int Ndim, std::function<void(float, float[])> F, float uMin, float uMax);

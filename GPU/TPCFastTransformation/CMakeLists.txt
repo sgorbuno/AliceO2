@@ -41,7 +41,7 @@ if(${ALIGPU_BUILD_TYPE} STREQUAL "O2")
   file(COPY ${HDRS_CINT_O2} DESTINATION ${CMAKE_BINARY_DIR}/stage/include/GPU)
 
   foreach(m
-          CompactSplineDemo.C
+          SplineDemo.C
           IrregularSpline1DTest.C
           IrregularSpline2D3DCalibratorTest.C
           IrregularSpline2D3DTest.C
