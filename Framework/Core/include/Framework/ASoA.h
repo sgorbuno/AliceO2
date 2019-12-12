@@ -13,6 +13,7 @@
 
 #include "Framework/FunctionalHelpers.h"
 #include "Framework/CompilerBuiltins.h"
+#include "Framework/Expressions.h"
 #include "Framework/Traits.h"
 #include <arrow/table.h>
 #include <arrow/array.h>
@@ -304,6 +305,21 @@ struct RowView : public C... {
     return copy;
   }
 
+  /// Allow incrementing by more than one the iterator
+  RowView<C...> operator+(size_t inc) const
+  {
+    RowView<C...> copy = *this;
+    copy.mRowIndex += inc;
+    return copy;
+  }
+
+  RowView<C...> operator-(size_t dec) const
+  {
+    RowView<C...> copy = *this;
+    copy.mRowIndex -= dec;
+    return copy;
+  }
+
   RowView<C...> const& operator*() const
   {
     return *this;
@@ -496,7 +512,8 @@ class TableMetadata
     {                                                                          \
       return *mColumnIterator;                                                 \
     }                                                                          \
-  }
+  };                                                                           \
+  static const o2::framework::expressions::BindingNode _Getter_ { _Label_ }
 
 /// A dynamic column is a column whose values are derived
 /// from those of other real columns. These can be used for

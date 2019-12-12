@@ -36,6 +36,7 @@ o2_add_library(Framework
                        src/CommonDataProcessors.cxx
                        src/CompletionPolicy.cxx
                        src/CompletionPolicyHelpers.cxx
+                       src/ComputingResourceHelpers.cxx
                        src/DispatchPolicy.cxx
                        src/ConfigParamsHelper.cxx
                        src/DDSConfigHelpers.cxx
@@ -44,8 +45,11 @@ o2_add_library(Framework
                        src/DataDescriptorQueryBuilder.cxx
                        src/DataProcessingDevice.cxx
                        src/DataProcessingHeader.cxx
+                       src/DataProcessingHelpers.cxx
+                       src/SourceInfoHeader.cxx
                        src/DataProcessor.cxx
                        src/DataRelayer.cxx
+                       src/DataRelayerHelpers.cxx
                        src/DataSampling.cxx
                        src/DataSamplingConditionFactory.cxx
                        src/DataSamplingHeader.cxx
@@ -149,6 +153,7 @@ foreach(t
         CallbackRegistry
         ChannelSpecHelpers
         CompletionPolicy
+        ComputingResourceHelpers
         ConfigParamRegistry
         ContextRegistry
         DataDescriptorMatcher
@@ -171,7 +176,6 @@ foreach(t
         InputRecord
         Kernels
         LogParsingHelpers
-        Parallel
         PtrHelpers
         Root2ArrowTable
         Services
@@ -260,7 +264,10 @@ foreach(w
         SimpleStatefulProcessing01
         SimpleStringProcessing
         SimpleTimer
-        SingleDataSource)
+        SimpleWildcard
+        SingleDataSource
+        Task
+        )
   o2_add_test(${w} NAME test_Framework_test_${w}
               SOURCES test/test_${w}.cxx
               COMPONENT_NAME Framework
@@ -268,7 +275,7 @@ foreach(w
               PUBLIC_LINK_LIBRARIES O2::Framework
               TIMEOUT 30
               NO_BOOST_TEST
-              COMMAND_LINE_ARGS --run)
+              COMMAND_LINE_ARGS ${DPL_WORKFLOW_TESTS_EXTRA_OPTIONS} --run --shm-segment-size 20000000)
 endforeach()
 
 # TODO: DanglingInput test not working for the moment [ERROR] Unable to relay
@@ -296,7 +303,7 @@ o2_add_test(
   PUBLIC_LINK_LIBRARIES O2::Framework
   NO_BOOST_TEST
   COMMAND_LINE_ARGS
-    --global-config require-me --run
+    --global-config require-me --run ${DPL_WORKFLOW_TESTS_EXTRA_OPTIONS}
     # Note: the group switch makes process consumer parse only the group
     arguments --consumer
     "--global-config consumer-config --local-option hello-aliceo2 --a-boolean3 --an-int2 20 --a-double2 22."

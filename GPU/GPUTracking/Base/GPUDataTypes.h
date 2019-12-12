@@ -16,8 +16,13 @@
 
 #include "GPUCommonDef.h"
 
+#ifndef __OPENCL__
+#include <cstddef>
+#endif
 #ifdef GPUCA_NOCOMPAT_ALLOPENCL
 #include <type_traits>
+#endif
+#ifdef GPUCA_NOCOMPAT
 #include "GPUTRDDef.h"
 
 class AliHLTTPCClusterMCLabel;
@@ -52,6 +57,11 @@ template <class T>
 class MCTruthContainer;
 } // namespace dataformats
 } // namespace o2
+
+namespace gpucf // TODO: Clean up namespace
+{
+typedef struct PackedDigit_s PackedDigit;
+}
 
 namespace GPUCA_NAMESPACE
 {
@@ -105,6 +115,7 @@ class GPUDataTypes
                              TRDTracking = 16,
                              ITSTracking = 32,
                              TPCdEdx = 64,
+                             TPCClusterFinding = 128,
                              AllRecoSteps = 0x7FFFFFFF,
                              NoRecoStep = 0 };
   enum ENUM_CLASS InOutType { TPCClusters = 1,
@@ -112,14 +123,17 @@ class GPUDataTypes
                               TPCMergedTracks = 4,
                               TPCCompressedClusters = 8,
                               TRDTracklets = 16,
-                              TRDTracks = 32 };
+                              TRDTracks = 32,
+                              TPCRaw = 64 };
 
 #ifdef GPUCA_NOCOMPAT_ALLOPENCL
   static constexpr const char* const RECO_STEP_NAMES[] = {"TPC Transformation", "TPC Sector Tracking", "TPC Track Merging and Fit", "TPC Compression", "TRD Tracking", "ITS Tracking", "TPC dEdx Computation"};
   typedef bitfield<RecoStep, unsigned int> RecoStepField;
   typedef bitfield<InOutType, unsigned int> InOutTypeField;
 #endif
-
+#ifdef GPUCA_NOCOMPAT
+  static constexpr unsigned int NSLICES = 36;
+#endif
   static DeviceType GetDeviceType(const char* type);
 };
 
@@ -130,7 +144,9 @@ struct GPURecoStepConfiguration {
   GPUDataTypes::InOutTypeField inputs = 0;
   GPUDataTypes::InOutTypeField outputs = 0;
 };
+#endif
 
+#ifdef GPUCA_NOCOMPAT
 struct GPUCalibObjects {
   TPCFastTransform* fastTransform = nullptr;
   o2::base::MatLayerCylSet* matLUT = nullptr;
@@ -143,11 +159,18 @@ struct GPUCalibObjectsConst { // TODO: Any chance to do this as template?
   const o2::trd::TRDGeometryFlat* trdGeometry = nullptr;
 };
 
+struct GPUTrackingInOutDigits {
+  static constexpr unsigned int NSLICES = GPUDataTypes::NSLICES;
+  const gpucf::PackedDigit* tpcDigits[NSLICES] = {nullptr};
+  unsigned long long int nTPCDigits[NSLICES] = {0};
+};
+
 struct GPUTrackingInOutPointers {
   GPUTrackingInOutPointers() = default;
   GPUTrackingInOutPointers(const GPUTrackingInOutPointers&) = default;
-  static constexpr unsigned int NSLICES = 36;
+  static constexpr unsigned int NSLICES = GPUDataTypes::NSLICES;
 
+  GPUTrackingInOutDigits* tpcPackedDigits = nullptr;
   const GPUTPCClusterData* clusterData[NSLICES] = {nullptr};
   unsigned int nClusterData[NSLICES] = {0};
   const AliHLTTPCRawCluster* rawClusters[NSLICES] = {nullptr};

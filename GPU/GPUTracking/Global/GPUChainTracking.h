@@ -80,6 +80,7 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
     InOutMemory(InOutMemory&&);
     InOutMemory& operator=(InOutMemory&&);
 
+    std::unique_ptr<gpucf::PackedDigit[]> tpcDigits[NSLICES];
     std::unique_ptr<GPUTPCClusterData[]> clusterData[NSLICES];
     std::unique_ptr<AliHLTTPCRawCluster[]> rawClusters[NSLICES];
     std::unique_ptr<o2::tpc::ClusterNative[]> clustersNative;
@@ -121,6 +122,8 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
   int ForceInitQA();
 
   // Processing functions
+  int RunTPCClusterizer();
+  void ForwardTPCDigits();
   int RunTPCTrackingSlices();
   int RunTPCTrackingMerger();
   int RunTRDTracking();
@@ -167,6 +170,7 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
   void WriteOutput(int iSlice, int threadId);
   int GlobalTracking(int iSlice, int threadId);
 
+  void PrepareEventFromNative();
   int PrepareProfile();
   int DoProfile();
   void PrintMemoryRelations();
@@ -186,6 +190,7 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
 
   // Ptr to reconstruction detector objects
   std::unique_ptr<o2::tpc::ClusterNativeAccess> mClusterNativeAccess; // Internal memory for clusterNativeAccess
+  std::unique_ptr<GPUTrackingInOutDigits> mDigitMap;                  // Internal memory for digit-map, if needed
   std::unique_ptr<TPCFastTransform> mTPCFastTransformU;               // Global TPC fast transformation object
   std::unique_ptr<o2::base::MatLayerCylSet> mMatLUTU;                 // Material Lookup Table
   std::unique_ptr<o2::trd::TRDGeometryFlat> mTRDGeometryU;            // TRD Geometry
@@ -214,6 +219,7 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
 
  private:
   int RunTPCTrackingSlices_internal();
+  void RunTPCClusterizer_compactPeaks(GPUTPCClusterFinder& clusterer, GPUTPCClusterFinder& clustererShadow, int stage, bool doGPU, int lane);
   std::atomic_flag mLockAtomic = ATOMIC_FLAG_INIT;
 
   int HelperReadEvent(int iSlice, int threadId, GPUReconstructionHelpers::helperParam* par);

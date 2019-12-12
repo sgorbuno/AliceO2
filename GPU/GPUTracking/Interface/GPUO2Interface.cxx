@@ -45,6 +45,9 @@ int GPUTPCO2Interface::Initialize(const GPUO2InterfaceConfiguration& config)
   mChain = mRec->AddChain<GPUChainTracking>(mConfig->configInterface.maxTPCHits, mConfig->configInterface.maxTRDTracklets);
   mChain->mConfigDisplay = &mConfig->configDisplay;
   mChain->mConfigQA = &mConfig->configQA;
+  if (mConfig->configWorkflow.inputs.isSet(GPUDataTypes::InOutType::TPCRaw)) {
+    mConfig->configEvent.needsClusterer = 1;
+  }
   mRec->SetSettings(&mConfig->configEvent, &mConfig->configReconstruction, &mConfig->configDeviceProcessing, &mConfig->configWorkflow);
   mChain->SetTPCFastTransform(mConfig->configCalib.fastTransform);
   mChain->SetMatLUT(mConfig->configCalib.matLUT);
@@ -74,6 +77,7 @@ int GPUTPCO2Interface::RunTracking(GPUTrackingInOutPointers* data)
   if (mDumpEvents) {
     mChain->ClearIOPointers();
     mChain->mIOPtrs.clustersNative = data->clustersNative;
+    mChain->mIOPtrs.tpcPackedDigits = data->tpcPackedDigits;
 
     char fname[1024];
     sprintf(fname, "event.%d.dump", nEvent);
