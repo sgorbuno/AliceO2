@@ -156,31 +156,41 @@ int Spline2D::test(bool draw)
 {
   using namespace std;
 
-  const int funcN = 2;
-  double funcC[4 * funcN * funcN + 4];
+  const int Ndim = 3;
+
+  const int Fdegree = 4;
+
+  double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
 
   int nKnots = 4;
   const int nAxiliaryPoints = 5;
   int uMax = nKnots * 3;
 
-  auto F = [&](float u, float v) -> float {
+  auto F = [&](float u, float v, float Fuv[]) -> void {
     double uu = u * TMath::Pi() / uMax;
-    double vv = 0;//v * TMath::Pi() / uMax;
-    double f = 0; //funcC[0]/2;
-    for (int i = 1; i <= funcN; i++) {
-      for (int j = 1; j <= funcN; j++) {
-        f += funcC[4 * (i * funcN + j) + 0] * TMath::Cos(i * uu) * TMath::Cos(j * vv);
-        f += funcC[4 * (i * funcN + j) + 1] * TMath::Cos(i * uu) * TMath::Sin(j * vv);
-        f += funcC[4 * (i * funcN + j) + 2] * TMath::Sin(i * uu) * TMath::Cos(j * vv);
-        f += funcC[4 * (i * funcN + j) + 3] * TMath::Sin(i * uu) * TMath::Sin(j * vv);
+    double vv = v * TMath::Pi() / uMax;
+    for (int dim = 0; dim < Ndim; dim++) {
+      double f = 0; // Fcoeff[dim][0]/2;
+      for (int i = 1; i <= Fdegree; i++) {
+        double cosu = TMath::Cos(i * uu);
+        double sinu = TMath::Sin(i * uu);
+        for (int j = 1; j <= Fdegree; j++) {
+          double *c = &(Fcoeff[dim][4 * (i * Fdegree + j)]);
+          double cosv = TMath::Cos(j * vv);
+          double sinv = TMath::Sin(j * vv);
+          f += c[0] * cosu * cosv;
+          f += c[1] * cosu * sinv;
+          f += c[2] * sinu * cosv;
+          f += c[3] * sinu * sinv;
+        }
       }
+      Fuv[dim] = f;
     }
-    return f;
   };
 
-  TCanvas* canv = nullptr;
-  TNtuple* nt = nullptr;
-  TNtuple* knots = nullptr;
+  TCanvas *canv = nullptr;
+  TNtuple *nt = nullptr;
+  TNtuple *knots = nullptr;
 
   auto ask = [&]() -> bool {
     if (!canv)
@@ -192,30 +202,32 @@ int Spline2D::test(bool draw)
     return (str != "q" && str != ".q");
   };
 
-  std::cout
-    << "Test 2D interpolation with the compact spline" << std::endl;
+  std::cout << "Test 2D interpolation with the compact spline" << std::endl;
 
-  int nTries = 100;
+  int nTries = 10;
 
   if (draw) {
     canv = new TCanvas("cQA", "Spline1D  QA", 2000, 1000);
     nTries = 10000;
   }
 
-  double statDf = 0;
-  double statN = 0;
+  long double statDf = 0;
+  long double statN = 0;
 
-  for (int seed = 1; seed < nTries; seed++) {
-    cout << "next try.." << endl;
+  for (int seed = 1; seed < nTries + 1; seed++) {
+    //cout << "next try.." << endl;
 
     gRandom->SetSeed(seed);
 
-    for (int i = 0; i < 4 * funcN * funcN + 4; i++) {
-      funcC[i] = gRandom->Uniform(-1, 1);
+    for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
+      }
     }
 
-    SplineHelper2D helper;
-    Spline2D spline;
+    o2::gpu::SplineHelper2D helper;
+    o2::gpu::Spline2D spline;
+    // spline.constructRegular(nKnots, nKnots);
 
     do {
       int knotsU[nKnots], knotsV[nKnots];
@@ -230,8 +242,10 @@ int Spline2D::test(bool draw)
       knotsV[nKnots - 1] = uMax;
       spline.construct(nKnots, knotsU, nKnots, knotsV);
 
-      if (nKnots != spline.getGridU().getNumberOfKnots() || nKnots != spline.getGridV().getNumberOfKnots()) {
-        cout << "warning: n knots changed during the initialisation " << nKnots << " -> " << spline.getNumberOfKnots() << std::endl;
+      if (nKnots != spline.getGridU().getNumberOfKnots() ||
+          nKnots != spline.getGridV().getNumberOfKnots()) {
+        cout << "warning: n knots changed during the initialisation " << nKnots
+             << " -> " << spline.getNumberOfKnots() << std::endl;
         continue;
       }
     } while (0);
@@ -241,82 +255,105 @@ int Spline2D::test(bool draw)
       cout << "error at FlatObject functionality: " << err << endl;
       return -1;
     } else {
-      //cout << "flat object functionality is ok" << endl;
+      // cout << "flat object functionality is ok" << endl;
     }
 
-    helper.setSpline(spline, nAxiliaryPoints, nAxiliaryPoints);
+    int err2 = helper.setSpline(spline, nAxiliaryPoints, nAxiliaryPoints);
+    if (err2 != 0) {
+      cout << "Error by spline construction: " << helper.getLastError()
+           << std::endl;
+      return -1;
+    }
+    std::unique_ptr<float[]> parameters(
+        new float[spline.getNumberOfParameters(Ndim)]);
 
-    std::unique_ptr<float[]> parameters(new float[spline.getNumberOfParameters(1)]);
-    std::unique_ptr<float[]> mapF(new float[helper.getNumberOfMeasurements()]);
+    std::unique_ptr<float[]> mapF(
+        new float[helper.getNumberOfDataPoints() * Ndim]);
 
-    int nPointsU = helper.getNumberOfMeasurementsU();
-    int nPointsV = helper.getNumberOfMeasurementsV();
-    for (int ipu = 0; ipu < nPointsU; ipu++) {
-      for (int ipv = 0; ipv < nPointsV; ipv++) {
-        mapF[ipu * nPointsV + ipv] = F(helper.getHelperU().getMeasurementPoint(ipu).u, helper.getHelperV().getMeasurementPoint(ipv).u);
+    for (int i = 0; i < spline.getNumberOfParameters(Ndim); i++)
+      parameters[i] = 0.f;
+
+    int nPointsU = helper.getNumberOfDataPointsU();
+    int nPointsV = helper.getNumberOfDataPointsV();
+    for (int ipv = 0; ipv < nPointsV; ipv++) {
+      float v = helper.getHelperV().getDataPoint(ipv).u;
+      for (int ipu = 0; ipu < nPointsU; ipu++) {
+        float u = helper.getHelperU().getDataPoint(ipu).u;
+        float Fuv[Ndim];
+        F(u, v, Fuv);
+        for (int dim = 0; dim < Ndim; dim++) {
+          mapF[(ipv * nPointsU + ipu) * Ndim + dim] = Fuv[dim];
+        }
       }
     }
 
-    helper.constructParameters(1, mapF.get(), parameters.get());
+    helper.constructParameters(Ndim, mapF.get(), parameters.get());
 
-    float stepU = 1.e-2;
-    for (double u = 0; u < uMax + stepU; u += stepU) {
-      for (double v = 0; v < uMax + stepU; v += stepU) {
-        double f0 = F(u, v);
-        float fSpline;
-        spline.interpolate(1,(const float*)parameters.get(), u, v, &fSpline);
-        statDf += (fSpline - f0) * (fSpline - f0);
-        statN++;
+    double stepU = .1;
+    for (double u = 0; u < uMax; u += stepU) {
+      for (double v = 0; v < uMax; v += stepU) {
+        float f[Ndim];
+        F(u, v, f);
+        float s[Ndim];
+        spline.interpolate(Ndim, parameters.get(), u, v, s);
+        for (int dim = 0; dim < Ndim; dim++) {
+          statDf += (s[dim] - f[dim]) * (s[dim] - f[dim]);
+        }
+        statN += Ndim;
+        // cout << u << " " << v << ": f " << f << " s " << s << " df "
+        //   << s - f << " " << sqrt(statDf / statN) << std::endl;
       }
     }
-    cout << "Spline2D standard deviation   : " << sqrt(statDf / statN) << std::endl;
+    // cout << "Spline2D standard deviation   : " << sqrt(statDf / statN)
+    //   << std::endl;
 
     if (draw) {
       delete nt;
       delete knots;
-      nt = new TNtuple("nt", "nt", "u:v:f0:fSpline");
-      float stepU = 5.e-2;
-      for (double u = 0; u < uMax + stepU; u += stepU) {
-        for (double v = 0; v < uMax + stepU; v += stepU) {
+      nt = new TNtuple("nt", "nt", "u:v:f:s");
+      knots = new TNtuple("knots", "knots", "type:u:v:s");
 
-          double f0 = F(u, v);
-          float fSpline;
-          spline.interpolate(1,(const float*)parameters.get(), u, v, &fSpline);
-          nt->Fill(u, v, f0, fSpline);
+      double stepU = .1;
+      for (double u = 0; u < uMax; u += stepU) {
+        for (double v = 0; v < uMax; v += stepU) {
+          float f[Ndim];
+          F(u, v, f);
+          float s[Ndim];
+          spline.interpolate(Ndim, parameters.get(), u, v, s);
+          nt->Fill(u, v, f[0], s[0]);
         }
       }
       nt->SetMarkerStyle(8);
 
       nt->SetMarkerSize(.5);
       nt->SetMarkerColor(kBlue);
-      nt->Draw("fSpline:u:v", "", "P");
+      nt->Draw("s:u:v", "", "");
 
       nt->SetMarkerColor(kGray);
       nt->SetMarkerSize(2.);
-      nt->Draw("f0:u:v", "", "P,same");
+      nt->Draw("f:u:v", "", "same");
 
       nt->SetMarkerSize(.5);
       nt->SetMarkerColor(kBlue);
-      nt->Draw("fSpline:u:v", "", "P,same");
+      nt->Draw("s:u:v", "", "same");
 
-      knots = new TNtuple("knots", "knots", "type:u:v:f");
       for (int i = 0; i < nKnots; i++) {
         for (int j = 0; j < nKnots; j++) {
           double u = spline.getGridU().getKnot(i).u;
           double v = spline.getGridV().getKnot(j).u;
-          float f;
-          spline.interpolate(1,(const float*)parameters.get(), u, v, &f);
-          knots->Fill(1, u, v, f);
+          float s[Ndim];
+          spline.interpolate(Ndim, parameters.get(), u, v, s);
+          knots->Fill(1, u, v, s[0]);
           /*
           int naxU = 0, naxV = 0;
           double du = 0, dv = 0;
           if (i < nKnots - 1) {
-            du = (spline.getGridU().getKnot(i + 1).u - u) / (nAxiliaryPoints + 1);
-            naxU = nAxiliaryPoints;
+            du = (spline.getGridU().getKnot(i + 1).u - u) / (nAxiliaryPoints +
+          1); naxU = nAxiliaryPoints;
           }
           if (j < nKnots - 1) {
-            dv = (spline.getGridV().getKnot(j + 1).u - v) / (nAxiliaryPoints + 1);
-            naxV = nAxiliaryPoints;
+            dv = (spline.getGridV().getKnot(j + 1).u - v) / (nAxiliaryPoints +
+          1); naxV = nAxiliaryPoints;
           }
           for (int ii = 0; ii <= naxU; ii++) {
             double uu = u + du * (ii);
@@ -337,7 +374,7 @@ int Spline2D::test(bool draw)
       knots->SetMarkerSize(1.5);
       knots->SetMarkerColor(kRed);
       knots->SetMarkerSize(1.5);
-      knots->Draw("f:u:v", "type==1", "same"); // compact
+      knots->Draw("s:u:v", "type==1", "same"); // compact
       /*
         knots->SetMarkerColor(kBlack);
         knots->SetMarkerSize(1.);
@@ -347,13 +384,13 @@ int Spline2D::test(bool draw)
         break;
     }
   }
-  //delete canv;
-  //delete nt;
-  //delete knots;
+  // delete canv;
+  // delete nt;
+  // delete knots;
 
   statDf = sqrt(statDf / statN);
   cout << "\n std dev for Compact Spline   : " << statDf << std::endl;
-  if (statDf < 0.1)
+  if (statDf < 0.15)
     cout << "Everything is fine" << endl;
   else {
     cout << "Something is wrong!!" << endl;

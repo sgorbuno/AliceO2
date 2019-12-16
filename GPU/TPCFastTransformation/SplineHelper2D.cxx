@@ -53,7 +53,7 @@ int SplineHelper2D::setSpline(const Spline2D& spline, int nAxiliaryPointsU, int 
   return ret;
 }
 
-void SplineHelper2D::constructParameters(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim) */]) const
+void SplineHelper2D::constructParameters(int Ndim, const float DataPointF[/*getNumberOfDataPoints() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim) */]) const
 {
   // Create 2D irregular spline in a compact way
 
@@ -61,72 +61,76 @@ void SplineHelper2D::constructParameters(int Ndim, const float F[/*getNumberOfMe
   const int Ndim3 = 3 * Ndim;
   const int Ndim4 = 4 * Ndim;
 
-  int nMeasurementsU = getNumberOfMeasurementsU();
-  int nMeasurementsV = getNumberOfMeasurementsV();
+  int nDataPointsU = getNumberOfDataPointsU();
+  int nDataPointsV = getNumberOfDataPointsV();
 
   int nKnotsU = mSpline.getGridU().getNumberOfKnots();
   int nKnotsV = mSpline.getGridV().getNumberOfKnots();
 
-  std::unique_ptr<float[]> rotF(new float[nMeasurementsU * nMeasurementsV * Ndim]); // U Measurements x V Measurements :  rotated F for one output dimension
-  std::unique_ptr<float[]> Dv(new float[nKnotsV * nMeasurementsU * Ndim]);          // V knots x U Measurements
+  std::unique_ptr<float[]> rotDataPointF(new float[nDataPointsU * nDataPointsV * Ndim]); // U DataPoints x V DataPoints :  rotated DataPointF for one output dimension
+  std::unique_ptr<float[]> Dv(new float[nKnotsV * nDataPointsU * Ndim]);                 // V knots x U DataPoints
 
   std::unique_ptr<float[]> parU(new float[mHelperU.getSpline().getNumberOfParameters(Ndim)]);
   std::unique_ptr<float[]> parV(new float[mHelperV.getSpline().getNumberOfParameters(Ndim)]);
 
-  // get the function values and U derivatives at knots from the U splines
+  // rotated data points (u,v)->(v,u)
 
-  for (int ipu = 0; ipu < nMeasurementsU; ipu++) {
-    for (int ipv = 0; ipv < nMeasurementsV; ipv++) {
+  for (int ipu = 0; ipu < nDataPointsU; ipu++) {
+    for (int ipv = 0; ipv < nDataPointsV; ipv++) {
       for (int dim = 0; dim < Ndim; dim++) {
-        rotF[Ndim * (ipu * nMeasurementsV + ipv) + dim] = 0; //F[Ndim * (ipv * nMeasurementsU + ipu) + dim];
+        rotDataPointF[Ndim * (ipu * nDataPointsV + ipv) + dim] = DataPointF[Ndim * (ipv * nDataPointsU + ipu) + dim];
       }
     }
   }
 
-  for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
-    int ipv = mHelperV.getKnotMeasurement(iKnotV);
-    const float* Frow = &(F[Ndim * ipv * nMeasurementsU]);
-    mHelperU.constructParametersGradually(Ndim, Frow, parU.get());
+  // get S and S'u at all the knots by interpolating along the U axis
 
-    for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
-      for (int dim = 0; dim < Ndim; dim++) {
-        parameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + dim] = parU[2 * iKnotU + dim];                // store f for all the knots
-        parameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim2 + dim] = parU[2 * iKnotU + Ndim + dim]; // store f'u for all the knots
+  for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
+    int ipv = mHelperV.getKnotDataPoint(iKnotV);
+    const float* DataPointFrow = &(DataPointF[Ndim * ipv * nDataPointsU]);
+    mHelperU.constructParametersGradually(Ndim, DataPointFrow, parU.get());
+
+    for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
+      float *knotPar = &parameters[Ndim4 * (iKnotV * nKnotsU + iKnotU)];
+      for (int dim = 0; dim < Ndim; ++dim) {
+        knotPar[dim] = parU[Ndim* (2 * iKnotU) + dim];                // store S for all the knots
+        knotPar[Ndim2 + dim] = parU[Ndim*(2 * iKnotU) + Ndim + dim]; // store S'u for all the knots //SG!!!
       }
     }
 
-    // recalculate F values for all ipu Measurements at V = ipv
-    for (int ipu = 0; ipu < nMeasurementsU; ipu++) {
+    // recalculate F values for all ipu DataPoints at V = ipv
+    for (int ipu = 0; ipu < nDataPointsU; ipu++) {
       float splineF[Ndim];
-      float u = mHelperU.getMeasurementPoint(ipu).u;
+      float u = mHelperU.getDataPoint(ipu).u;
       mSpline.getGridU().interpolate(Ndim, parU.get(), u, splineF);
       for (int dim = 0; dim < Ndim; dim++) {
-        rotF[(ipu * nMeasurementsV + ipv) * Ndim + dim] = splineF[dim];
+        rotDataPointF[(ipu * nDataPointsV + ipv) * Ndim + dim] = splineF[dim];
       }
     }
   }
 
-  for (int ipu = 0; ipu < nMeasurementsU; ipu++) {
-    const float* Fcolumn = &(rotF[ipu * nMeasurementsV * Ndim]);
-    mHelperV.constructParametersGradually(Ndim, Fcolumn, parV.get());
+  // calculate S'v at all data points with V == V of a knot
+
+  for (int ipu = 0; ipu < nDataPointsU; ipu++) {
+    const float* DataPointFcol = &(rotDataPointF[ipu * nDataPointsV * Ndim]);
+    mHelperV.constructParametersGradually(Ndim, DataPointFcol, parV.get());
     for (int iKnotV = 0; iKnotV < nKnotsV; iKnotV++) {
       for (int dim = 0; dim < Ndim; dim++) {
-        //int ipv = mHelperV.getKnotMeasurement(iKnotV);
         float dv = parV[(iKnotV * 2 + 1) * Ndim + dim];
-        Dv[(iKnotV * nMeasurementsU + ipu) * Ndim + dim] = dv;
+        Dv[(iKnotV * nDataPointsU + ipu) * Ndim + dim] = dv;
       }
     }
   }
 
-  // fit F'v and f''_vu
+  // fit S'v and S''_vu at all the knots
 
   for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
-    const float* measurements = &(Dv[iKnotV * nMeasurementsU * Ndim]);
-    mHelperU.constructParametersGradually(Ndim, measurements, parU.get());
-    for (int iKnotU = 0; iKnotU < nKnotsU; iKnotU++) {
-      for (int dim = 0; dim < Ndim; dim++) {
-        parameters[iKnotV * Ndim4 * nKnotsU + iKnotU * Ndim4 + Ndim + dim] = parU[2 * iKnotU + 0];  // store f'v for all the knots
-        parameters[iKnotV * Ndim4 * nKnotsU + iKnotU * Ndim4 + Ndim3 + dim] = parU[2 * iKnotU + 1]; // store f''vu for all the knots
+    const float* Dvrow = &(Dv[iKnotV * nDataPointsU * Ndim]);
+    mHelperU.constructParameters(Ndim, Dvrow, parU.get());
+    for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
+      for (int dim = 0; dim < Ndim; ++dim) {
+        parameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim + dim] = parU[Ndim*2 * iKnotU + dim];  // store S'v for all the knots
+        parameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim3 + dim] = parU[Ndim*2 * iKnotU + Ndim+dim]; // store S''vu for all the knots
       }
     }
   }

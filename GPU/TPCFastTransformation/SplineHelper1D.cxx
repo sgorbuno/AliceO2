@@ -154,11 +154,11 @@ std::unique_ptr<float[]> SplineHelper1D::constructParameters(int Ndim, std::func
 
   // Create the spline in a compact way for the input function F
 
-  std::vector<float> vF(getNumberOfMeasurements() * Ndim);
+  std::vector<float> vF(getNumberOfDataPoints() * Ndim);
 
   double scale = (uMax - uMin) / ((double)mSpline.getUmax());
-  for (int i = 0; i < getNumberOfMeasurements(); i++) {
-    F(uMin + mMeasurementPoints[i].u * scale, &vF[i * Ndim]);
+  for (int i = 0; i < getNumberOfDataPoints(); i++) {
+    F(uMin + mDataPoints[i].u * scale, &vF[i * Ndim]);
   }
 
   std::unique_ptr<float[]> parameters(new float[mSpline.getNumberOfParameters(Ndim)]);
@@ -169,11 +169,11 @@ std::unique_ptr<float[]> SplineHelper1D::constructParameters(int Ndim, std::func
 std::unique_ptr<float[]> SplineHelper1D::constructParametersGradually(int Ndim, std::function<void(float, float[])> F, float uMin, float uMax)
 {
   // Create compact spline parameters gradually
-  std::vector<float> vF(getNumberOfMeasurements() * Ndim);
+  std::vector<float> vF(getNumberOfDataPoints() * Ndim);
 
   double scale = (uMax - uMin) / ((double)mSpline.getUmax());
-  for (int i = 0; i < getNumberOfMeasurements(); i++) {
-    F(uMin + mMeasurementPoints[i].u * scale, &vF[i * Ndim]);
+  for (int i = 0; i < getNumberOfDataPoints(); i++) {
+    F(uMin + mDataPoints[i].u * scale, &vF[i * Ndim]);
   }
 
   std::unique_ptr<float[]> parameters(new float[mSpline.getNumberOfParameters(Ndim)]);
@@ -181,12 +181,12 @@ std::unique_ptr<float[]> SplineHelper1D::constructParametersGradually(int Ndim, 
   return parameters;
 }
 
-int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryMeasurements)
+int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryDataPoints)
 {
   // Prepare creation of 1D irregular spline in a compact way:
   // fit all the spline parameters (which are the spline values and the slopes at the knots) to multiple data points.
   // The should be at least one (better, two) axiliary data point on each segnment between two knots and at least 2*nKnots data points in total
-  // Returns 0 when the spline can not be constructed with the given nAxiliaryMeasurements
+  // Returns 0 when the spline can not be constructed with the given nAxiliaryDataPoints
 
   int ret = 0;
 
@@ -196,33 +196,33 @@ int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryMeasurements)
   if (!spline.isConstructed()) {
     ret = storeError(-1, "SplineHelper1D::setSpline: input spline is not constructed");
     mSpline.constructRegular(2);
-    nAxiliaryMeasurements = 2;
+    nAxiliaryDataPoints = 2;
     nPoints = 4;
   } else {
 
     mSpline.cloneFromObject(spline, nullptr);
 
-    if (nAxiliaryMeasurements < 1) {
-      ret = storeError(-2, "SplineHelper1D::setSpline: nAxiliaryMeasurements<1, increase to 1 ");
-      nAxiliaryMeasurements = 1;
+    if (nAxiliaryDataPoints < 1) {
+      ret = storeError(-2, "SplineHelper1D::setSpline: nAxiliaryDataPoints<1, increase to 1 ");
+      nAxiliaryDataPoints = 1;
     }
 
-    nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryMeasurements;
+    nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryDataPoints;
 
     if (nPoints < 2 * spline.getNumberOfKnots()) {
-      nAxiliaryMeasurements = 2;
-      nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryMeasurements;
-      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAxiliaryMeasurements, increase to 2");
+      nAxiliaryDataPoints = 2;
+      nPoints = 1 + spline.getUmax() + spline.getUmax() * nAxiliaryDataPoints;
+      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAxiliaryDataPoints, increase to 2");
     }
   }
 
   const int nPar = mSpline.getNumberOfParameters(1);
 
-  mMeasurementPoints.resize(nPoints);
+  mDataPoints.resize(nPoints);
 
   double scalePoints2Knots = ((double)spline.getUmax()) / (nPoints - 1.);
   for (int i = 0; i < nPoints; ++i) {
-    MeasurementPoint& p = mMeasurementPoints[i];
+    DataPoint& p = mDataPoints[i];
     double u = i * scalePoints2Knots;
     int iKnot = spline.getKnotIndex(u);
     const Spline1D::Knot& knot0 = spline.getKnot(iKnot);
@@ -243,20 +243,20 @@ int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryMeasurements)
 
   const int nKnots = mSpline.getNumberOfKnots();
 
-  mKnotMeasurements.resize(nKnots);
+  mKnotDataPoints.resize(nKnots);
 
   for (int i = 0; i < nKnots; ++i) {
     const Spline1D::Knot& knot = spline.getKnot(i);
     int iu = (int)(knot.u + 0.1f);
-    mKnotMeasurements[i] = iu * (1 + nAxiliaryMeasurements);
-    mMeasurementPoints[mKnotMeasurements[i]].isKnot = 1;
+    mKnotDataPoints[i] = iu * (1 + nAxiliaryDataPoints);
+    mDataPoints[mKnotDataPoints[i]].isKnot = 1;
   }
 
   TMatrixDSym A(nPar);
   A.Zero();
 
   for (int i = 0; i < nPoints; ++i) {
-    MeasurementPoint& p = mMeasurementPoints[i];
+    DataPoint& p = mDataPoints[i];
     int j = p.iKnot * 2;
     A(j + 0, j + 0) += p.cS0 * p.cS0;
     A(j + 1, j + 0) += p.cS0 * p.cZ0;
@@ -323,7 +323,7 @@ int SplineHelper1D::setSpline(const Spline1D& spline, int nAxiliaryMeasurements)
   return ret;
 }
 
-void SplineHelper1D::constructParameters(int Ndim, const float F[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters x Ndim */]) const
+void SplineHelper1D::constructParameters(int Ndim, const float DataPointF[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters x Ndim */]) const
 {
   // Create 1D irregular spline in a compact way
 
@@ -333,10 +333,10 @@ void SplineHelper1D::constructParameters(int Ndim, const float F[/*N Data Points
     for (int i = 0; i < nPar; i++)
       b[i] = 0.;
 
-    for (int i = 0; i < getNumberOfMeasurements(); ++i) {
-      const MeasurementPoint& p = mMeasurementPoints[i];
+    for (int i = 0; i < getNumberOfDataPoints(); ++i) {
+      const DataPoint& p = mDataPoints[i];
       double* bb = &(b[p.iKnot * 2]);
-      double f = (double)F[i * Ndim + idim];
+      double f = (double)DataPointF[i * Ndim + idim];
       bb[0] += f * p.cS0;
       bb[1] += f * p.cZ0;
       bb[2] += f * p.cS1;
@@ -355,25 +355,25 @@ void SplineHelper1D::constructParameters(int Ndim, const float F[/*N Data Points
   }
 }
 
-void SplineHelper1D::constructParametersGradually(int Ndim, const float F[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters*/]) const
+void SplineHelper1D::constructParametersGradually(int Ndim, const float DataPointF[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters*/]) const
 {
-  copySfromMeasurements(Ndim, F, parameters);
-  constructDerivatives(Ndim, F, parameters);
+  copySfromDataPoints(Ndim, DataPointF, parameters);
+  constructDerivatives(Ndim, DataPointF, parameters);
 }
 
-void SplineHelper1D::copySfromMeasurements(int Ndim, const float F[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters * Ndim*/]) const
+void SplineHelper1D::copySfromDataPoints(int Ndim, const float DataPointF[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters * Ndim*/]) const
 {
   // Create 1D irregular spline in a compact way
 
   for (int i = 0; i < mSpline.getNumberOfKnots(); ++i) { // set F values at knots
-    int ip = mKnotMeasurements[i];
+    int ip = mKnotDataPoints[i];
     for (int d = 0; d < Ndim; d++) {
-      parameters[2 * i * Ndim + d] = F[ip * Ndim + d];
+      parameters[2 * i * Ndim + d] = DataPointF[ip * Ndim + d];
     }
   }
 }
 
-void SplineHelper1D::constructDerivatives(int Ndim, const float F[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters * Ndim*/]) const
+void SplineHelper1D::constructDerivatives(int Ndim, const float DataPointF[/*N Data Points x Ndim */], float parameters[/*N Spline Parameters * Ndim*/]) const
 {
   // Create 1D irregular spline in a compact way
 
@@ -384,12 +384,12 @@ void SplineHelper1D::constructDerivatives(int Ndim, const float F[/*N Data Point
     b[i] = 0.;
   }
 
-  for (int i = 0; i < getNumberOfMeasurements(); ++i) {
-    const MeasurementPoint& p = mMeasurementPoints[i];
+  for (int i = 0; i < getNumberOfDataPoints(); ++i) {
+    const DataPoint& p = mDataPoints[i];
     if (p.isKnot)
       continue;
     for (int d = 0; d < Ndim; d++) {
-      double f = (double)F[i * Ndim + d];
+      double f = (double)DataPointF[i * Ndim + d];
       b[(p.iKnot + 0) * Ndim + d] += f * p.cZ0;
       b[(p.iKnot + 1) * Ndim + d] += f * p.cZ1;
     }

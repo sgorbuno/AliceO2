@@ -173,12 +173,12 @@ class Spline2D : public FlatObject
 
   /// Get interpolated value for f(u,v)
   template <typename T>
-  GPUd() void interpolate(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const;
+  GPUd() void interpolate(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Suv[/*Ndim*/]) const;
 
   /// Same as interpolate, but using vectorized calculation.
   /// \param parameters should be at least 128-bit aligned
   template <typename T>
-  GPUd() void interpolateVec(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const;
+  GPUd() void interpolateVec(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Suv[/*Ndim*/]) const;
 
   /// _______________  Getters   ________________________
 
@@ -194,11 +194,11 @@ class Spline2D : public FlatObject
   template <typename T>
   GPUd() size_t getSizeOfParameters(int Ndim) const
   {
-    return sizeof(T) * getNumberOfParameters(Ndim);
+    return sizeof(T) * (size_t)getNumberOfParameters(Ndim);
   }
 
   /// Number of parameters
-  GPUd() size_t getNumberOfParameters(int Ndim) const
+  GPUd() int getNumberOfParameters(int Ndim) const
   {
     return (4 * Ndim) * getNumberOfKnots();
   }
@@ -260,7 +260,7 @@ GPUdi() void Spline2D::getKnotUV(int iKnot, float& u, float& v) const
 }
 
 template <typename T>
-GPUdi() void Spline2D::interpolate(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const
+GPUdi() void Spline2D::interpolate(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Suv[/*Ndim*/]) const
 {
   // Get interpolated value for f(u,v) using parameters[getNumberOfParameters()]
 
@@ -276,52 +276,51 @@ GPUdi() void Spline2D::interpolate(int Ndim, GPUgeneric() const T* parameters, f
   const int Ndim2 = Ndim * 2;
   const int Ndim4 = Ndim * 4;
 
-  const T* parameters00 = parameters + (nu * iv + iu) * Ndim4; // values { {X,Y,Z}, {X,Y,Z}'v, {X,Y,Z}'u, {X,Y,Z}''vu } at {u0, v0}
-  const T* parameters10 = parameters00 + Ndim4;                // values { ... } at {u1, v0}
-  const T* parameters01 = parameters00 + Ndim4 * nu;           // values { ... } at {u0, v1}
-  const T* parameters11 = parameters01 + Ndim4;                // values { ... } at {u1, v1}
+  // X:=Sx, Y:=Sy, Z:=Sz
 
-  T Fu0[Ndim4]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u0
+  const T* par00 = parameters + (nu * iv + iu) * Ndim4; // values { {X,Y,Z}, {X,Y,Z}'v, {X,Y,Z}'u, {X,Y,Z}''vu } at {u0, v0}
+  const T* par10 = par00 + Ndim4;                       // values { ... } at {u1, v0}
+  const T* par01 = par00 + Ndim4 * nu;                  // values { ... } at {u0, v1}
+  const T* par11 = par01 + Ndim4;                       // values { ... } at {u1, v1}
+
+  T Su0[Ndim4]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u0
   T Du0[Ndim4]; // derivatives {}'_u  at u0
-  for (int i = 0; i < Ndim2; i++)
-    Fu0[i] = parameters00[i];
-  for (int i = 0; i < Ndim2; i++)
-    Fu0[Ndim2 + i] = parameters01[i];
-  for (int i = 0; i < Ndim2; i++)
-    Du0[i] = parameters00[Ndim2 + i];
-  for (int i = 0; i < Ndim2; i++)
-    Du0[Ndim2 + i] = parameters01[Ndim2 + i];
-
-  T Fu1[Ndim4]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u1
+  T Su1[Ndim4]; // values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) }, at u1
   T Du1[Ndim4]; // derivatives {}'_u  at u1
-  for (int i = 0; i < Ndim2; i++)
-    Fu1[i] = parameters10[i];
-  for (int i = 0; i < Ndim2; i++)
-    Fu1[Ndim2 + i] = parameters11[i];
-  for (int i = 0; i < Ndim2; i++)
-    Du0[i] = parameters10[Ndim2 + i];
-  for (int i = 0; i < Ndim2; i++)
-    Du0[Ndim2 + i] = parameters11[Ndim2 + i];
 
-  T parametersU[Ndim4]; // interpolated values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) } at u
-  gridU.interpolate<T>(Ndim4, knotU, Fu0, Du0, Fu1, Du1, u, parametersU);
+  for (int i = 0; i < Ndim2; i++) {
+    Su0[i] = par00[i];
+    Su0[Ndim2 + i] = par01[i];
 
-  T* Fv0 = parametersU + 0;
-  T* Dv0 = parametersU + Ndim;
-  T* Fv1 = parametersU + Ndim2;
-  T* Dv1 = parametersU + Ndim2 + Ndim;
+    Du0[i] = par00[Ndim2 + i];
+    Du0[Ndim2 + i] = par01[Ndim2 + i];
 
-  gridV.interpolate<T>(Ndim, knotV, Fv0, Dv0, Fv1, Dv1, v, Fuv);
+    Su1[i] = par10[i];
+    Su1[Ndim2 + i] = par11[i];
+
+    Du1[i] = par10[Ndim2 + i];
+    Du1[Ndim2 + i] = par11[Ndim2 + i];
+  }
+
+  T parU[Ndim4]; // interpolated values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) } at u
+  gridU.interpolate<T>(Ndim4, knotU, Su0, Du0, Su1, Du1, u, parU);
+
+  const T* Sv0 = parU + 0;
+  const T* Dv0 = parU + Ndim;
+  const T* Sv1 = parU + Ndim2;
+  const T* Dv1 = parU + Ndim2 + Ndim;
+
+  gridV.interpolate<T>(Ndim, knotV, Sv0, Dv0, Sv1, Dv1, v, Suv);
 }
 
 template <typename T>
-GPUdi() void Spline2D::interpolateVec(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Fuv[/*Ndim*/]) const
+GPUdi() void Spline2D::interpolateVec(int Ndim, GPUgeneric() const T* parameters, float u, float v, GPUgeneric() T Suv[/*Ndim*/]) const
 {
   // Same as interpolate, but using vectorized calculation.
   // \param parameters should be at least 128-bit aligned
 
   /// TODO: vectorize
-  interpolate<T>(Ndim, parameters, u, v, Fuv);
+  interpolate<T>(Ndim, parameters, u, v, Suv);
 }
 
 } // namespace gpu

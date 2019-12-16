@@ -31,7 +31,7 @@ namespace gpu
 {
 
 ///
-/// The SplineHelper1D class is to initialize Spline* objects
+/// The SplineHelper1D class is to initialize parameters for Spline1D class
 ///
 
 class SplineHelper1D
@@ -40,7 +40,7 @@ class SplineHelper1D
   ///
   /// \brief Helper structure for 1D spline construction
   ///
-  struct MeasurementPoint {
+  struct DataPoint {
     double u; ///< u coordinate 
     double cS0; ///< a coefficient for s0
     double cZ0; ///< a coefficient for s'0
@@ -66,7 +66,7 @@ class SplineHelper1D
 
   /// _______________  Main functionality  ________________________
 
-  int setSpline(const Spline1D& spline, int nAxiliaryMeasurements);
+  int setSpline(const Spline1D& spline, int nAxiliaryDataPoints);
 
   /// Create classical spline parameters for a given input function
   std::unique_ptr<float[]> constructParametersClassical(int Ndim, std::function<void(float, float[])> F, float uMin, float uMax);
@@ -79,23 +79,23 @@ class SplineHelper1D
 
   /// _______________   Interface for a manual construction of compact splines   ________________________
 
-  int getNumberOfMeasurements() const { return mMeasurementPoints.size(); }
+  int getNumberOfDataPoints() const { return mDataPoints.size(); }
 
-  void constructParameters(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+  void constructParameters(int Ndim, const float DataPointF[/*getNumberOfDataPoints() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
 
-  void constructParametersGradually(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim */], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+  void constructParametersGradually(int Ndim, const float DataPointF[/*getNumberOfDataPoints() x Ndim */], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
 
-  void copySfromMeasurements(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+  void copySfromDataPoints(int Ndim, const float DataPointF[/*getNumberOfDataPoints() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
 
-  void constructDerivatives(int Ndim, const float F[/*getNumberOfMeasurements() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
+  void constructDerivatives(int Ndim, const float DataPointF[/*getNumberOfDataPoints() x Ndim*/], float parameters[/*mSpline.getNumberOfParameters(Ndim)*/]) const;
 
   /// _______________  Utilities   ________________________
 
   const Spline1D& getSpline() const { return mSpline; }
 
-  int getKnotMeasurement(int iknot) const { return mKnotMeasurements[iknot]; }
+  int getKnotDataPoint(int iknot) const { return mKnotDataPoints[iknot]; }
 
-  const MeasurementPoint& getMeasurementPoint(int ip) const { return mMeasurementPoints[ip]; }
+  const DataPoint& getDataPoint(int ip) const { return mDataPoints[ip]; }
 
   ///  Gives error string
   const char* getLastError() const { return mError.Data(); }
@@ -109,8 +109,8 @@ class SplineHelper1D
   /// helpers for the construction of 1D spline
 
   Spline1D mSpline; ///< copy of the spline
-  std::vector<MeasurementPoint> mMeasurementPoints; ///< measurement points
-  std::vector<int> mKnotMeasurements; ///< which measurement points are at knots
+  std::vector<DataPoint> mDataPoints; ///< measurement points
+  std::vector<int> mKnotDataPoints; ///< which measurement points are at knots
   std::vector<double> mLSMmatrixFull; ///< a matrix to convert the measurements into the spline parameters with the LSM method
   std::vector<double> mLSMmatrixSderivatives;
   std::vector<double> mLSMmatrixSvalues;
