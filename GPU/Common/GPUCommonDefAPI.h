@@ -118,7 +118,7 @@
   #define GPUbarrier() __syncthreads()
   #define GPUAtomic(type) type
 #elif defined(__HIPCC__) //Defines for HIP
-  #define GPUd() __device__
+  #define GPUd() __device__ __forceinline__
   #define GPUdDefault() __device__
   #define GPUdi() __device__ inline
   #define GPUdii() __device__ __forceinline__
