@@ -57,7 +57,7 @@ class GPUTPCRow
   GPUhd() int HitNumberOffset() const { return mHitNumberOffset; }
   GPUhd() unsigned int FirstHitInBinOffset() const { return mFirstHitInBinOffset; }
 
- private:
+ public:
   int mNHits;       // number of hits
   float mX;         // X coordinate of the row
   float mMaxY;      // maximal Y coordinate of the row

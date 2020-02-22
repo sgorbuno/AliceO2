@@ -12,8 +12,11 @@
 /// \author David Rohr
 
 #define GPUCA_GPUTYPE_VEGA
+#define HIP_ENABLE_PRINTF
+
 #include <hip/hip_runtime.h>
 #include "hip/hip_ext.h"
+#include "hcc/hc_printf.hpp"
 
 #ifdef __CUDACC__
 #define __HIPCC_CUDA__
