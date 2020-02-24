@@ -171,6 +171,6 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
         */
       }
     }
-    digits[nDigitsTmp1] = dg;
+    //digits[nDigitsTmp1] = dg;
   }  
 }
