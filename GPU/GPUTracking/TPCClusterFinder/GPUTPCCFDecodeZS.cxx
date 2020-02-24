@@ -45,6 +45,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   const unsigned int slice = clusterer.mISlice;
   const unsigned int endpoint = iBlock;
   const GPUTrackingInOutZS::GPUTrackingInOutZSSlice& zs = clusterer.GetConstantMem()->ioPtrs.tpcZS->slice[slice];
+  
   if (zs.count[endpoint] == 0) {
     return;
   }
@@ -69,8 +70,10 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
 
   const unsigned int myRow = iThread / s.nThreadsPerRow;
   const unsigned int mySequence = iThread % s.nThreadsPerRow;
+  
   for (unsigned int i = 0; i < zs.count[endpoint]; i++) {
-    for (unsigned int j = 0; j < zs.nZSPtr[endpoint][i]; j++) {
+  for (unsigned int j = 0; j < zs.nZSPtr[endpoint][i]; j++) {
+
       const unsigned int* pageSrc = (const unsigned int*)(((const unsigned char*)zs.zsPtr[endpoint][i]) + j * TPCZSHDR::TPC_ZS_PAGE_SIZE);
       GPUbarrier();
       CA_SHARED_CACHE_REF(&s.ZSPage[0], pageSrc, TPCZSHDR::TPC_ZS_PAGE_SIZE, unsigned int, pageCache);
@@ -101,26 +104,28 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
           }
         }
         GPUbarrier();
+        dg.time += myRow;
+        /*
         if (myRow < s.rowStride) {
           for (int m = myRow; m < nRows; m += s.rowStride) {
             if ((tbHdr->rowMask & (1 << m)) == 0) {
               continue;
             }
-            const int rowPos = CAMath::Popcount((unsigned int)(tbHdr->rowMask & ((1 << m) - 1)));
+            const int rowPos = CAMath::Popcount((unsigned int)(tbHdr->rowMask & ((1 << m) - 1)));                        
             size_t nDigitsTmp = nDigits + s.RowClusterOffset[rowPos];
             nDigitsTmp1 = nDigitsTmp;
             const unsigned char* rowData = rowPos == 0 ? pagePtr : (page + tbHdr->rowAddr1()[rowPos - 1]);
             const int nSeqRead = *rowData;
             const int nSeqPerThread = (nSeqRead + s.nThreadsPerRow - 1) / s.nThreadsPerRow;
             const int mySequenceStart = mySequence * nSeqPerThread;
-            const int mySequenceEnd = CAMath::Min(mySequenceStart + nSeqPerThread, nSeqRead);
-            if (mySequenceEnd > mySequenceStart) {
+            const int mySequenceEnd = CAMath::Min(mySequenceStart + nSeqPerThread, nSeqRead);                     
+            if (mySequenceEnd > mySequenceStart) {                            
               const unsigned char* adcData = rowData + 2 * nSeqRead + 1;
               const unsigned int nSamplesStart = mySequenceStart ? rowData[2 * mySequenceStart] : 0;
               nDigitsTmp += nSamplesStart;
               unsigned int nADCStartBits = nSamplesStart * s.decodeBits;
               const unsigned int nADCStart = (nADCStartBits + 7) / 8;
-              const int nADC = (rowData[2 * mySequenceEnd] * s.decodeBits + 7) / 8;
+              const int nADC = (rowData[2 * mySequenceEnd] * s.decodeBits + 7) / 8;                            
               adcData += nADCStart;
               nADCStartBits &= 0x7;
               unsigned int byte = 0, bits = 0;
@@ -141,20 +146,22 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
                   }
                   //digits[nDigitsTmp++] = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
                   deprecated::PackedDigit ddg = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
-                  
-                  dg.charge+=ddg.charge;
-                  dg.time+=ddg.time;
-                  dg.pad+=ddg.pad;
-                  dg.row+=ddg.row;
+
+                  dg.charge += ddg.charge;
+                  dg.time += ddg.time;
+                  dg.pad += ddg.pad;
+                  dg.row += ddg.row;
 
                   byte = byte >> s.decodeBits;
                   bits -= s.decodeBits;
                   seqLen--;
-                }
+                }                
               }
-            }
+              
+            }            
           }
         }
+        */
         if (nRowsUsed > 1) {
           pagePtr = page + tbHdr->rowAddr1()[nRowsUsed - 2];
         }
