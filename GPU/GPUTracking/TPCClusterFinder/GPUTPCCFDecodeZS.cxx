@@ -84,7 +84,8 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
       pagePtr += sizeof(*hdr);
       unsigned int mask = (1 << s.decodeBits) - 1;
       int timeBin = hdr->timeOffset;
-      for (int l = 0; l < hdr->nTimeBins; l++) {
+      for (int l = 0; l < hdr->nTimeBins; l++) {        
+        
         pagePtr += (pagePtr - page) & 1; //Ensure 16 bit alignment
         const TPCZSTBHDR* tbHdr = reinterpret_cast<const TPCZSTBHDR*>(pagePtr);
         if ((tbHdr->rowMask & 0x7FFF) == 0) {
@@ -94,8 +95,8 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
         const int rowOffset = s.regionStartRow + ((endpoint & 1) ? (s.nRowsRegion / 2) : 0);
         const int nRows = (endpoint & 1) ? (s.nRowsRegion - s.nRowsRegion / 2) : (s.nRowsRegion / 2);
         const int nRowsUsed = CAMath::Popcount((unsigned int)(tbHdr->rowMask & 0x7FFF));
-        pagePtr += 2 * nRowsUsed;
-        GPUbarrier();
+        pagePtr += 2 * nRowsUsed;        
+        GPUbarrier();                 
         if (iThread == 0) {
           for (int n = 0; n < nRowsUsed; n++) {
             s.RowClusterOffset[n] = rowOffsetCounter;
@@ -103,8 +104,8 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
             rowOffsetCounter += rowData[2 * *rowData]; // Sum up number of ADC samples per row to compute offset in target buffer
           }
         }
-        GPUbarrier();
-        dg.time += myRow;
+        GPUbarrier();                
+        dg.time += myRow;       
         /*
         if (myRow < s.rowStride) {
           for (int m = myRow; m < nRows; m += s.rowStride) {
@@ -144,7 +145,8 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
                     seqLen = rowData[(nSeq + 1) * 2] - rowData[nSeq * 2];
                     pad = rowData[nSeq++ * 2 + 1];
                   }
-                  //digits[nDigitsTmp++] = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
+                  digits[nDigitsTmp++] = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
+                  
                   deprecated::PackedDigit ddg = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
 
                   dg.charge += ddg.charge;
@@ -160,13 +162,13 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
               
             }            
           }
-        }
-        */
+        }                
         if (nRowsUsed > 1) {
           pagePtr = page + tbHdr->rowAddr1()[nRowsUsed - 2];
         }
         pagePtr += 2 * *pagePtr;                          // Go to entry for last sequence length
-        pagePtr += 1 + (*pagePtr * s.decodeBits + 7) / 8; // Go to beginning of next time bin
+        pagePtr += 1 + (*pagePtr * s.decodeBits + 7) / 8; // Go to beginning of next time bin        
+        */
       }
     }
   }
