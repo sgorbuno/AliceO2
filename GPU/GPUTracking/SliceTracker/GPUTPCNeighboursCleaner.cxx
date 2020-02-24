@@ -30,9 +30,9 @@ GPUdii() void GPUTPCNeighboursCleaner::Thread<0>(int /*nBlocks*/, int nThreads, 
   const GPUTPCRow& row = tracker.Row(iRow);
 #endif
 
-  unsigned int rowOffset = row.mHitNumberOffset;
+ const unsigned int &rowOffset = row.mHitNumberOffset;
 
-  for (long iter = 0; iter < 100000; iter++) {
+  for (long iter = 0; iter < 1000; iter++) {
     for (unsigned int ih = iThread; ih < nHits; ih += nThreads) {
       linkUpData[row.mHitNumberOffset + ih] = CALINK_INVAL;
       //linkUpData[rowOffset + ih] = CALINK_INVAL;

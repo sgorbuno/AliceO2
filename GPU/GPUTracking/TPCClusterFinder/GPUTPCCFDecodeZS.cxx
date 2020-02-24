@@ -64,6 +64,9 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
     s.decodeBitsFactor = 1.f / (1 << (s.decodeBits - 10));
   }
   GPUbarrier();
+  deprecated::PackedDigit dg;
+  size_t nDigitsTmp1 = 0;
+
   const unsigned int myRow = iThread / s.nThreadsPerRow;
   const unsigned int mySequence = iThread % s.nThreadsPerRow;
   for (unsigned int i = 0; i < zs.count[endpoint]; i++) {
@@ -105,6 +108,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
             }
             const int rowPos = CAMath::Popcount((unsigned int)(tbHdr->rowMask & ((1 << m) - 1)));
             size_t nDigitsTmp = nDigits + s.RowClusterOffset[rowPos];
+            nDigitsTmp1 = nDigitsTmp;
             const unsigned char* rowData = rowPos == 0 ? pagePtr : (page + tbHdr->rowAddr1()[rowPos - 1]);
             const int nSeqRead = *rowData;
             const int nSeqPerThread = (nSeqRead + s.nThreadsPerRow - 1) / s.nThreadsPerRow;
@@ -135,7 +139,14 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
                     seqLen = rowData[(nSeq + 1) * 2] - rowData[nSeq * 2];
                     pad = rowData[nSeq++ * 2 + 1];
                   }
-                  digits[nDigitsTmp++] = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
+                  //digits[nDigitsTmp++] = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
+                  deprecated::PackedDigit ddg = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
+                  
+                  dg.charge+=ddg.charge;
+                  dg.time+=ddg.time;
+                  dg.pad+=ddg.pad;
+                  dg.row+=ddg.row;
+
                   byte = byte >> s.decodeBits;
                   bits -= s.decodeBits;
                   seqLen--;
@@ -152,4 +163,5 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
       }
     }
   }
+  digits[nDigitsTmp1] = dg;
 }
