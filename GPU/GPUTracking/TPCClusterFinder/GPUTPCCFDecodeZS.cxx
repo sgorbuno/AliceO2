@@ -170,7 +170,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
         pagePtr += 2 * *pagePtr;                          // Go to entry for last sequence length
         pagePtr += 1 + (*pagePtr * s.decodeBits + 7) / 8; // Go to beginning of next time bin                
       }
-    }
-    //digits[nDigitsTmp1] = dg;
+    }    
   }  
+  digits[nDigits] = dg;
 }
