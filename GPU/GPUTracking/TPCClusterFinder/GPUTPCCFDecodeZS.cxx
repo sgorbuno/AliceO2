@@ -52,6 +52,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   deprecated::PackedDigit* digits = clusterer.mPdigits;
   const size_t nDigits = clusterer.mPmemory->nDigitsOffset[endpoint];
   unsigned int rowOffsetCounter = 0;
+  /*
   if (iThread == 0) {
     const int region = endpoint / 2;
     s.nRowsRegion = clusterer.Param().tpcGeometry.GetRegionRows(region);
@@ -65,6 +66,8 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
     s.decodeBitsFactor = 1.f / (1 << (s.decodeBits - 10));
   }
   GPUbarrier();
+*/
+ auto s_decodeBits = TPCZSHDR::TPC_ZS_NBITS_V1;
 
   unsigned int tmpOutput = 0;
 
@@ -104,7 +107,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
           pagePtr = page + tbHdr->rowAddr1()[nRowsUsed - 2];
         }
         pagePtr += 2 * *pagePtr;                          // Go to entry for last sequence length
-        pagePtr += 1 + (*pagePtr * s.decodeBits + 7) / 8; // Go to beginning of next time bin
+        pagePtr += 1 + (*pagePtr * s_decodeBits + 7) / 8; // Go to beginning of next time bin
       }
     }
   }
