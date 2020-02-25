@@ -66,8 +66,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
 
   for (int iter = 0; iter < 100000; iter++) {
     for (int i = 0; i < N; i++) {
-      const int* data = (A + A[i]);
-      tmpOutput += data[2 * *data];
+      tmpOutput += A[i];
     }
   }
   A[0] = tmpOutput;
