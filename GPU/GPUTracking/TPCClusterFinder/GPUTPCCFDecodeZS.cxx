@@ -45,7 +45,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   const unsigned int slice = clusterer.mISlice;
   const unsigned int endpoint = iBlock;
   const GPUTrackingInOutZS::GPUTrackingInOutZSSlice& zs = clusterer.GetConstantMem()->ioPtrs.tpcZS->slice[slice];
-  
+
   if (zs.count[endpoint] == 0) {
     return;
   }
@@ -65,14 +65,11 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
     s.decodeBitsFactor = 1.f / (1 << (s.decodeBits - 10));
   }
   GPUbarrier();
-  deprecated::PackedDigit dg;
-  size_t nDigitsTmp1 = 0;
 
-  const unsigned int myRow = iThread / s.nThreadsPerRow;
-  const unsigned int mySequence = iThread % s.nThreadsPerRow;
-  
+  unsigned int tmpOutput = 0;
+
   for (unsigned int i = 0; i < zs.count[endpoint]; i++) {
-  for (unsigned int j = 0; j < zs.nZSPtr[endpoint][i]; j++) {
+    for (unsigned int j = 0; j < zs.nZSPtr[endpoint][i]; j++) {
 
       const unsigned int* pageSrc = (const unsigned int*)(((const unsigned char*)zs.zsPtr[endpoint][i]) + j * TPCZSHDR::TPC_ZS_PAGE_SIZE);
       GPUbarrier();
@@ -82,21 +79,18 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
       const unsigned char* pagePtr = page + sizeof(o2::header::RAWDataHeader);
       const TPCZSHDR* hdr = reinterpret_cast<const TPCZSHDR*>(pagePtr);
       pagePtr += sizeof(*hdr);
-      unsigned int mask = (1 << s.decodeBits) - 1;
-      int timeBin = hdr->timeOffset;
-      for (int l = 0; l < hdr->nTimeBins; l++) {        
-        
+
+      for (int l = 0; l < hdr->nTimeBins; l++) {
+
         pagePtr += (pagePtr - page) & 1; //Ensure 16 bit alignment
         const TPCZSTBHDR* tbHdr = reinterpret_cast<const TPCZSTBHDR*>(pagePtr);
         if ((tbHdr->rowMask & 0x7FFF) == 0) {
           pagePtr += 2;
           continue;
         }
-        const int rowOffset = s.regionStartRow + ((endpoint & 1) ? (s.nRowsRegion / 2) : 0);
-        const int nRows = (endpoint & 1) ? (s.nRowsRegion - s.nRowsRegion / 2) : (s.nRowsRegion / 2);
         const int nRowsUsed = CAMath::Popcount((unsigned int)(tbHdr->rowMask & 0x7FFF));
-        pagePtr += 2 * nRowsUsed;        
-        GPUbarrier();                 
+        pagePtr += 2 * nRowsUsed;
+        GPUbarrier();
         if (iThread == 0) {
           for (int n = 0; n < nRowsUsed; n++) {
             s.RowClusterOffset[n] = rowOffsetCounter;
@@ -104,73 +98,15 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
             rowOffsetCounter += rowData[2 * *rowData]; // Sum up number of ADC samples per row to compute offset in target buffer
           }
         }
-        GPUbarrier();                
-        dg.time += myRow;       
-        /*
-        if (myRow < s.rowStride) {
-          for (int m = myRow; m < nRows; m += s.rowStride) {
-            if ((tbHdr->rowMask & (1 << m)) == 0) {
-              continue;
-            }
-            const int rowPos = CAMath::Popcount((unsigned int)(tbHdr->rowMask & ((1 << m) - 1)));                        
-            size_t nDigitsTmp = nDigits + s.RowClusterOffset[rowPos];
-            nDigitsTmp1 = nDigitsTmp;
-            const unsigned char* rowData = rowPos == 0 ? pagePtr : (page + tbHdr->rowAddr1()[rowPos - 1]);
-            const int nSeqRead = *rowData;
-            const int nSeqPerThread = (nSeqRead + s.nThreadsPerRow - 1) / s.nThreadsPerRow;
-            const int mySequenceStart = mySequence * nSeqPerThread;
-            const int mySequenceEnd = CAMath::Min(mySequenceStart + nSeqPerThread, nSeqRead);                     
-            if (mySequenceEnd > mySequenceStart) {                            
-              const unsigned char* adcData = rowData + 2 * nSeqRead + 1;
-              const unsigned int nSamplesStart = mySequenceStart ? rowData[2 * mySequenceStart] : 0;
-              nDigitsTmp += nSamplesStart;
-              unsigned int nADCStartBits = nSamplesStart * s.decodeBits;
-              const unsigned int nADCStart = (nADCStartBits + 7) / 8;
-              const int nADC = (rowData[2 * mySequenceEnd] * s.decodeBits + 7) / 8;                            
-              adcData += nADCStart;
-              nADCStartBits &= 0x7;
-              unsigned int byte = 0, bits = 0;
-              if (nADCStartBits) { // % 8 != 0
-                bits = 8 - nADCStartBits;
-                byte = ((*(adcData - 1) & (0xFF ^ ((1 << nADCStartBits) - 1)))) >> nADCStartBits;
-              }
-              int nSeq = mySequenceStart;
-              int seqLen = nSeq ? (rowData[(nSeq + 1) * 2] - rowData[nSeq * 2]) : rowData[2];
-              Pad pad = rowData[nSeq++ * 2 + 1];
-              for (int n = nADCStart; n < nADC; n++) {
-                byte |= *(adcData++) << bits;
-                bits += 8;
-                while (bits >= s.decodeBits) {
-                  if (seqLen == 0) {
-                    seqLen = rowData[(nSeq + 1) * 2] - rowData[nSeq * 2];
-                    pad = rowData[nSeq++ * 2 + 1];
-                  }
-                  digits[nDigitsTmp++] = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
-                  
-                  deprecated::PackedDigit ddg = deprecated::PackedDigit{(float)(byte & mask) * s.decodeBitsFactor, (Timestamp)(timeBin + l), pad++, (Row)(rowOffset + m)};
-
-                  dg.charge += ddg.charge;
-                  dg.time += ddg.time;
-                  dg.pad += ddg.pad;
-                  dg.row += ddg.row;
-
-                  byte = byte >> s.decodeBits;
-                  bits -= s.decodeBits;
-                  seqLen--;
-                }                
-              }
-              
-            }            
-          }
-        }                
-        */
+        GPUbarrier();
+        tmpOutput++;
         if (nRowsUsed > 1) {
           pagePtr = page + tbHdr->rowAddr1()[nRowsUsed - 2];
         }
         pagePtr += 2 * *pagePtr;                          // Go to entry for last sequence length
-        pagePtr += 1 + (*pagePtr * s.decodeBits + 7) / 8; // Go to beginning of next time bin                
+        pagePtr += 1 + (*pagePtr * s.decodeBits + 7) / 8; // Go to beginning of next time bin
       }
-    }    
-  }  
-  digits[nDigits] = dg;
+    }
+  }
+  digits[nDigits].time = tmpOutput;
 }
