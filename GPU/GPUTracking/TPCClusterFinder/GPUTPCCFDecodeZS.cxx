@@ -48,10 +48,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
 
   if (iThread == 0) {
     for( int i=0; i<1000; i++){
-      A[i] = i%10;
-    }
-    for (int i = 0; i < 9; i++) {
-      A[i] = 10 + i;
+      A[i] = 0;
     }
     NN = 9;
   }
