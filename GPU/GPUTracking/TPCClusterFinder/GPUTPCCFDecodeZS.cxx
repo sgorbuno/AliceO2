@@ -55,8 +55,6 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   const size_t nDigits = clusterer.mPmemory->nDigitsOffset[endpoint];
   unsigned int rowOffsetCounter = 0;
 
-  unsigned int tmpOutput = 0;
-
   const unsigned int* pageSrc = (const unsigned int*)(((const unsigned char*)zs.zsPtr[endpoint][0]));
 
   GPUbarrier();
@@ -81,27 +79,15 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   if (iThread != 0)
     return;
 
+  unsigned int tmpOutput = 0;
+
   for (int iter = 0; iter < 100000; iter++) {
-
-    //GPUbarrier();
-    { //if (iThread == 0) {
-      {
-        //s_RowClusterOffset[0] = rowOffsetCounter;
-        const unsigned char* __restrict__ rowData = pagePtr;
-        unsigned int tmp = *rowData;
-        rowOffsetCounter += rowData[tmp << 1]; // Sum up number of ADC samples per row to compute offset in target buffer
-      }
-      for (int n = 1; n < nRowsUsed; n++) {
-        //s_RowClusterOffset[n] = rowOffsetCounter;
-        const unsigned char* __restrict__ rowData = (page + sg1[n - 1]);
-        unsigned int tmp = *rowData;
-        rowOffsetCounter += rowData[tmp << 1]; // Sum up number of ADC samples per row to compute offset in target buffer
-      }
+    for (int n = 1; n < nRowsUsed; n++) {
+      const unsigned char* __restrict__ rowData = (page + sg1[n - 1]);
+      tmpOutput += rowData[2 * *rowData]; 
     }
-    //GPUbarrier();
-    tmpOutput += rowOffsetCounter;
   }
-
+  
   if (iThread == 0) {
     digits[nDigits].time = tmpOutput;
   }
