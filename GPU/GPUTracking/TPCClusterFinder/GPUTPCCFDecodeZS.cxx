@@ -59,7 +59,7 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   CA_SHARED_CACHE_REF(&s.ZSPage[0], pageSrc, TPCZSHDR::TPC_ZS_PAGE_SIZE, unsigned int, pageCache);
   GPUbarrier();
 
-  const unsigned char* __restrict__ page = (const unsigned char*)pageCache;
+  const unsigned char* page = (const unsigned char*)pageCache;
 
   const unsigned char* pagePtr = page + sizeof(o2::header::RAWDataHeader) + sizeof(TPCZSHDR);
   pagePtr += (pagePtr - page) & 1; //Ensure 16 bit alignment
@@ -67,16 +67,16 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   const TPCZSTBHDR* tbHdr = reinterpret_cast<const TPCZSTBHDR*>(pagePtr);
 
   const int nRowsUsed = CAMath::Popcount(tbHdr->rowMask & 0x7FFF);
-  const unsigned short*  __restrict__ arr = tbHdr->rowAddr1();
+  const unsigned short* arr = tbHdr->rowAddr1();
 
   if (iThread != 0)
     return;
 
   unsigned int tmpOutput = 0;
 
-  for (int iter = 0; iter < 100000; iter++) {
+  for (int iter = 0; iter < 1000000; iter++) {
     for (int n = 1; n < nRowsUsed; n++) {
-      const unsigned char* __restrict__ rowData = (page + arr[n - 1]);
+      const unsigned char* rowData = (page + arr[n - 1]);
       tmpOutput += rowData[2 * *rowData];
     }
   }
