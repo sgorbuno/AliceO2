@@ -53,8 +53,6 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
   }
   deprecated::PackedDigit* digits = clusterer.mPdigits;
   const size_t nDigits = clusterer.mPmemory->nDigitsOffset[endpoint];
-  unsigned int rowOffsetCounter = 0;
-
   const unsigned int* pageSrc = (const unsigned int*)(((const unsigned char*)zs.zsPtr[endpoint][0]));
 
   GPUbarrier();
@@ -63,18 +61,13 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
 
   const unsigned char* __restrict__ page = (const unsigned char*)pageCache;
 
-  const unsigned char* pagePtr = page + sizeof(o2::header::RAWDataHeader);
-  const TPCZSHDR* hdr = reinterpret_cast<const TPCZSHDR*>(pagePtr);
-  pagePtr += sizeof(*hdr);
+  const unsigned char* pagePtr = page + sizeof(o2::header::RAWDataHeader) + sizeof(TPCZSHDR);
   pagePtr += (pagePtr - page) & 1; //Ensure 16 bit alignment
+
   const TPCZSTBHDR* tbHdr = reinterpret_cast<const TPCZSTBHDR*>(pagePtr);
-  const unsigned int mask = ((const unsigned int)tbHdr->rowMask) & 0x7FFF;
-  if (mask == 0) {
-    return;
-  }
-  const int nRowsUsed = CAMath::Popcount(mask);
-  pagePtr += 2 * nRowsUsed;
-  const auto sg1 = tbHdr->rowAddr1();
+
+  const int nRowsUsed = CAMath::Popcount(tbHdr->rowMask & 0x7FFF);
+  const unsigned short*  __restrict__ arr = tbHdr->rowAddr1();
 
   if (iThread != 0)
     return;
@@ -83,11 +76,11 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
 
   for (int iter = 0; iter < 100000; iter++) {
     for (int n = 1; n < nRowsUsed; n++) {
-      const unsigned char* __restrict__ rowData = (page + sg1[n - 1]);
-      tmpOutput += rowData[2 * *rowData]; 
+      const unsigned char* __restrict__ rowData = (page + arr[n - 1]);
+      tmpOutput += rowData[2 * *rowData];
     }
   }
-  
+
   if (iThread == 0) {
     digits[nDigits].time = tmpOutput;
   }
