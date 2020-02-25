@@ -982,7 +982,8 @@ int GPUChainTracking::RunTPCClusterizer()
         continue;
       }
       if (mIOPtrs.tpcZS) {
-        runKernel<GPUTPCCFDecodeZS, GPUTPCCFDecodeZS::decodeZS>({GPUTrackingInOutZS::NENDPOINTS, CFDecodeThreadCount(), lane}, {iSlice}, {});
+        // SG!!! runKernel<GPUTPCCFDecodeZS, GPUTPCCFDecodeZS::decodeZS>({GPUTrackingInOutZS::NENDPOINTS, CFDecodeThreadCount(), lane}, {iSlice}, {});
+        runKernel<GPUTPCCFDecodeZS, GPUTPCCFDecodeZS::decodeZS>({1, CFDecodeThreadCount(), lane}, {iSlice}, {});
         TransferMemoryResourceLinkToHost(RecoStep::TPCClusterFinding, clusterer.mMemoryId, lane);
         SynchronizeStream(lane);
       }
