@@ -43,14 +43,14 @@ GPUdii() void GPUTPCCFDecodeZS::Thread<GPUTPCCFDecodeZS::decodeZS>(int nBlocks, 
 GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMemory& s, int nBlocks, int nThreads, int iBlock, int iThread)
 {
 
-  GPUshared() int A[1000];
-  GPUshared() int NN;
+  GPUshared() float sA[1000];
+  GPUshared() int sN;
 
   if (iThread == 0) {
     for( int i=0; i<1000; i++){
-      A[i] = 0;
+      sA[i] = 0;
     }
-    NN = 9;
+    sN = 10;
   }
   GPUbarrier();
 
@@ -58,13 +58,13 @@ GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMe
     return;
   }
 
-  const int N = NN;
-  int tmpOutput = 0;
+  const int N = sN;  
+  float tmpOutput = 0;
 
   for (int iter = 0; iter < 100000; iter++) {
     for (int i = 0; i < N; i++) {
-      tmpOutput += A[i];
+      tmpOutput += sA[i];
     }
   }
-  A[0] = tmpOutput;
+  sA[0] = tmpOutput;
 }
