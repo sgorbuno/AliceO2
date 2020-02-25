@@ -42,49 +42,33 @@ GPUdii() void GPUTPCCFDecodeZS::Thread<GPUTPCCFDecodeZS::decodeZS>(int nBlocks, 
 
 GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMemory& s, int nBlocks, int nThreads, int iBlock, int iThread)
 {
-  
-  const unsigned int slice = clusterer.mISlice;
-  const unsigned int endpoint = iBlock;
-  const GPUTrackingInOutZS::GPUTrackingInOutZSSlice& zs = clusterer.GetConstantMem()->ioPtrs.tpcZS->slice[slice];  
 
-  if (zs.count[endpoint] == 0) {
-    // return;
-  }
-  deprecated::PackedDigit* digits = clusterer.mPdigits;
-  //const size_t nDigits = clusterer.mPmemory->nDigitsOffset[endpoint];
-  /*
-  const unsigned int* pageSrc = (const unsigned int*)(((const unsigned char*)zs.zsPtr[endpoint][0]));   
-
-   unsigned char* page = ( unsigned char*)pageSrc;
-   unsigned char* pagePtr = page + sizeof(o2::header::RAWDataHeader) + sizeof(TPCZSHDR);
-  pagePtr += (pagePtr - page) & 1; //Ensure 16 bit alignment
-   TPCZSTBHDR* tbHdr = reinterpret_cast< TPCZSTBHDR*>(pagePtr);
-  //const int nRowsUsed = CAMath::Popcount(tbHdr->rowMask & 0x7FFF);
-*/
-GPUshared()  unsigned char pp[1000];
-unsigned char* arr = reinterpret_cast< unsigned char*> (pp);
-
-  if (iThread != 0)
-    return;
- 
-
-for( int i=0; i<9; i++) arr[i] = 10*i;
-pp[0]=9;
-
-GPUbarrier();
-
-const int nRowsUsed = pp[0];
-
-  unsigned int tmpOutput = 0;
-
-  for (int iter = 0; iter < 1000000; iter++) {
-    for (int n = 1; n < nRowsUsed; n++) {
-      const unsigned char* rowData = (pp + arr[n - 1]);
-      tmpOutput += rowData[2 * *rowData];
-    }
-  }
+  GPUshared() int A[1000];
+  GPUshared() int NN;
 
   if (iThread == 0) {
-    digits[0].time = tmpOutput;
+    for( int i=0; i<1000; i++){
+      A[i] = i%10;
+    }
+    for (int i = 0; i < 9; i++) {
+      A[i] = 10 + i;
+    }
+    NN = 9;
   }
+  GPUbarrier();
+
+  if (iThread != 0) {
+    return;
+  }
+
+  const int N = NN;
+  int tmpOutput = 0;
+
+  for (int iter = 0; iter < 100000; iter++) {
+    for (int i = 0; i < N; i++) {
+      const int* data = (A + A[i]);
+      tmpOutput += data[2 * *data];
+    }
+  }
+  A[0] = tmpOutput;
 }
