@@ -42,7 +42,7 @@ GPUdii() void GPUTPCCFDecodeZS::Thread<GPUTPCCFDecodeZS::decodeZS>(int nBlocks, 
 
 GPUd() void GPUTPCCFDecodeZS::decode(GPUTPCClusterFinder& clusterer, GPUSharedMemory& s, int nBlocks, int nThreads, int iBlock, int iThread)
 {
-
+  
   GPUshared() float sA[1000];
   GPUshared() int sN;
 
