@@ -25,17 +25,19 @@ GPUdii() void GPUTPCNeighboursCleaner::Thread<0>(int /*nBlocks*/, int nThreads, 
 
   {
     int iRow = iBlock;
+    if (iRow < GPUCA_ROW_COUNT) {
 #ifdef GPUCA_GPUCODE
-    GPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = tracker.Row(s.mIRow);
+      GPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = tracker.Row(iRow);
 #else
-    const GPUTPCRow& GPUrestrict() row = tracker.Row(s.mIRow);
+      const GPUTPCRow& GPUrestrict() row = tracker.Row(s.mIRow);
 #endif
-    int nHits = tracker.Row(iRow).NHits();
-    for (int ih = iThread; ih < nHits; ih += nThreads) {
-      tracker.SetHitLinkUpData(row, ih, CALINK_INVAL);
-      tracker.SetHitLinkDownData(row, ih, CALINK_INVAL);
+      int nHits = tracker.Row(iRow).NHits();
+      for (int ih = iThread; ih < nHits; ih += nThreads) {
+        tracker.SetHitLinkUpData(row, ih, CALINK_INVAL);
+        tracker.SetHitLinkDownData(row, ih, CALINK_INVAL);
+      }
+      return;
     }
-    return;
   }
 
   if (iThread == 0) {
