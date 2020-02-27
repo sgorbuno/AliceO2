@@ -87,20 +87,11 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   // local copies
 
   if ((s.mIRow <= 1) || (s.mIRow >= GPUCA_ROW_COUNT - 2)) {
-#ifdef GPUCA_GPUCODE
-    HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRow;
-#else
-    HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow)&)tracker.mData.mRows[s.mIRow];
-#endif
-    long int lHitNumberOffset = row.mHitNumberOffset;
-    for (int ih = iThread; ih < s.mNHits; ih += nThreads) {
-      tracker.mData.mLinkUpData[lHitNumberOffset + ih] = CALINK_INVAL;
-      tracker.mData.mLinkDownData[lHitNumberOffset + ih] = CALINK_INVAL;
-    }
     return;
   }
 
   const float chi2Cut = 3.f * 3.f * 4 * (s.mUpDx * s.mUpDx + s.mDnDx * s.mDnDx);
+  const int chi2Tmp = (int) chi2Cut;
 // float chi2Cut = 3.*3.*(s.mUpDx*s.mUpDx + s.mDnDx*s.mDnDx ); //SG
 #ifdef GPUCA_GPUCODE
   HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRow;
@@ -238,42 +229,20 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
               continue;
 
             nNeighDn++;
-            float2 yzdn = CAMath::MakeFloat2(s.mUpDx * (h.Y() - y), s.mUpDx * (h.Z() - z));
 
-            for (int iUp = 0; iUp < nNeighUp; iUp++) {
-#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-              float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP ? CAMath::MakeFloat2(yzUp[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP], yzUp2[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP]) : CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
-#elif GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == GPUCA_MAXN
-              const float2 yzup = CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
-#else
-              const float2 yzup = CAMath::MakeFloat2(yzUp[iUp], yzUp2[iUp]);
-#endif
-              const float dy = yzdn.x - yzup.x;
-              const float dz = yzdn.y - yzup.y;
-              const float d = dy * dy + dz * dz;
-              if (d < bestD) {
-                bestD = d;
+            if (h.mY+h.mZ < bestD) {
+                bestD = h.mY+h.mZ ;
                 bestDn = i;
-                bestUp = iUp;
+                bestUp = i;
               }
-            }
           }
         }
 
-        if (bestD <= chi2Cut) {
-#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-          linkUp = bestUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP ? neighUp[bestUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP] : s.mB[bestUp][iThread];
-#elif GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == GPUCA_MAXN
-          linkUp = s.mB[bestUp][iThread];
-#else
-          linkUp = neighUp[bestUp];
-#endif
+        if (1) {
           linkDn = bestDn;
         }
       }
-    }
-
-    tracker.mData.mLinkUpData[lHitNumberOffset + ih] = linkUp;
-    tracker.mData.mLinkDownData[lHitNumberOffset + ih] = linkDn;
+    }    
+    tracker.mData.mLinkDownData[lHitNumberOffset + ih] = chi2Tmp + linkDn;
   }
 }
