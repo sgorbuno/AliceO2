@@ -107,17 +107,13 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   const float stepY = row.mHstepY;
   const float stepZ = row.mHstepZ;
 
-  const long int lHitNumberOffset = row.mHitNumberOffset;
-  const long int lHitNumberOffsetUp = rowUp.mHitNumberOffset;
+  const long int lHitNumberOffset = row.mHitNumberOffset;  
   const long int lHitNumberOffsetDn = rowDn.mHitNumberOffset;
   const int lFirstHitInBinOffsetUp = rowUp.mFirstHitInBinOffset;
   const int lFirstHitInBinOffsetDn = rowDn.mFirstHitInBinOffset;
   HIPGPUglobalref() const calink* GPUrestrict() lFirstHitInBin = (HIPGPUglobalref() const calink*)tracker.mData.mFirstHitInBin;
   HIPGPUglobalref() const cahit2* GPUrestrict() pHitData = (HIPGPUglobalref() const cahit2*)tracker.mData.mHitData;
-  const float y0Up = rowUp.mGrid.mYMin;
-  const float z0Up = rowUp.mGrid.mZMin;
-  const float stepYUp = rowUp.mHstepY;
-  const float stepZUp = rowUp.mHstepZ;
+  
   const float y0Dn = rowDn.mGrid.mYMin;
   const float z0Dn = rowDn.mGrid.mZMin;
   const float stepYDn = rowDn.mHstepY;
@@ -159,22 +155,16 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         int iMin = lFirstHitInBin[lFirstHitInBinOffsetUp + k1 * nY + binYmin];
         int iMax = lFirstHitInBin[lFirstHitInBinOffsetUp + k1 * nY + binYmax + 1];
         for (int i = iMin; i < iMax; i++) {
-          /*
-          HIPGPUglobalref() const cahit2& hitDataUp = pHitData[lHitNumberOffsetUp + i];
-          GPUTPCHit h;
-          h.mY = y0Up + (hitDataUp.x) * stepYUp;
-          h.mZ = z0Up + (hitDataUp.y) * stepZUp;
-          if (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ)
-            continue;
-*/
-#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == 0
-          if (true) {
-#else
+
+//#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
+
+//#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == 0
+ //         if (true) {           
+//#else
           if ((unsigned int)nNeighUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP) {
-#endif
+//#endif
           } else
-#endif
+//#endif
           {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0
             s.mB[nNeighUp][iThread] = (calink)i;
