@@ -84,7 +84,8 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
   const long int lHitNumberOffset = row.mHitNumberOffset;
   const long int lHitNumberOffsetDn = rowDn.mHitNumberOffset;
-  const int lFirstHitInBinOffsetDn = rowDn.mFirstHitInBinOffset;
+  const int lFirstHitInBinOffset = row.mFirstHitInBinOffset;
+ const int lFirstHitInBinOffsetDn = rowDn.mFirstHitInBinOffset;
   HIPGPUglobalref() const calink* GPUrestrict() lFirstHitInBin = (HIPGPUglobalref() const calink*)tracker.mData.mFirstHitInBin;
   HIPGPUglobalref() const cahit2* GPUrestrict() pHitData = (HIPGPUglobalref() const cahit2*)tracker.mData.mHitData;
 
