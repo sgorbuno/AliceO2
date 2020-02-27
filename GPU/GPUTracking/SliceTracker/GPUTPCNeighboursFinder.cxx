@@ -112,8 +112,8 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
       float bestD = 1.e10f;
       for (int k1 = binZmin; k1 <= binZmax; k1++) {
-        int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
-        int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
+        int iMin = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmin];
+        int iMax = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmax + 1];
         for (int i = iMin; i < iMax; i++) {
           HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
           float d = hitDataDn.x + hitDataDn.y;
