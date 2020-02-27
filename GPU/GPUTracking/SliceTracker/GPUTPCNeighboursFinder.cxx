@@ -124,19 +124,13 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   const float stepZDn = rowDn.mHstepZ;
 
   for (int ih = iThread; ih < s.mNHits; ih += nThreads) {
-    int linkUp = -1;
+ 
     int linkDn = -1;
 
     if (rowUp.mNHits > 0 && rowDn.mNHits > 0) {
       HIPGPUglobalref() const cahit2& hitData = pHitData[lHitNumberOffset + ih];
       const float y = y0 + (hitData.x) * stepY;
       const float z = z0 + (hitData.y) * stepZ;
-
-#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-      calink neighUp[GPUCA_MAXN - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP];
-      float yzUp[GPUCA_MAXN - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP];
-      float yzUp2[GPUCA_MAXN - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP];
-#endif // GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0
 
       int nNeighUp = 0;
       float minZ, maxZ, minY, maxY;
@@ -165,29 +159,25 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         int iMin = lFirstHitInBin[lFirstHitInBinOffsetUp + k1 * nY + binYmin];
         int iMax = lFirstHitInBin[lFirstHitInBinOffsetUp + k1 * nY + binYmax + 1];
         for (int i = iMin; i < iMax; i++) {
+          /*
           HIPGPUglobalref() const cahit2& hitDataUp = pHitData[lHitNumberOffsetUp + i];
           GPUTPCHit h;
           h.mY = y0Up + (hitDataUp.x) * stepYUp;
           h.mZ = z0Up + (hitDataUp.y) * stepZUp;
           if (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ)
             continue;
-
+*/
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == 0
           if (true) {
 #else
           if ((unsigned int)nNeighUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP) {
 #endif
-            neighUp[nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP] = (calink)i;
-            yzUp[nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP] = s.mDnDx * (h.Y() - y);
-            yzUp2[nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP] = s.mDnDx * (h.Z() - z);
           } else
 #endif
           {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0
             s.mB[nNeighUp][iThread] = (calink)i;
-            s.mA1[nNeighUp][iThread] = s.mDnDx * (h.Y() - y);
-            s.mA2[nNeighUp][iThread] = s.mDnDx * (h.Z() - z);
 #endif
           }
           if (++nNeighUp >= GPUCA_MAXN) {
@@ -199,7 +189,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           break;
       }
 
-      if (nNeighUp > 0) {
+      if (1) {
         {
           const float yy = y * s.mDnTx;
           const float zz = kAngularMultiplier != 0.f ? z : (z * s.mDnTx);
@@ -242,7 +232,8 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           linkDn = bestDn;
         }
       }
-    }    
+    }
+
     tracker.mData.mLinkDownData[lHitNumberOffset + ih] = chi2Tmp + linkDn;
   }
 }
