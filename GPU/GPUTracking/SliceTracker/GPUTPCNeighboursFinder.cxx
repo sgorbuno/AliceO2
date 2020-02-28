@@ -19,7 +19,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 #if defined(__HIPCC__) && defined(GPUCA_GPUCODE_DEVICE)
 #define HIPGPUsharedref() __attribute__((address_space(3)))
-#define HIPGPUglobalref() __attribute__((address_space(1))) 
+#define HIPGPUglobalref() __attribute__((address_space(1)))
 #define HIPGPUconstantref() __attribute__((address_space(4)))
 #else
 #define HIPGPUsharedref()
@@ -85,28 +85,29 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     reinterpret_cast<const GPUTPCRow&>(row).Grid().GetBin(y + kAreaSize, z + kAreaSize, &binYmax, &binZmax);
     nY = reinterpret_cast<const GPUTPCRow&>(row).Grid().Ny();
 
-     //continue;
-
+    //continue;
+    int d = 0;
     for (int k1 = binZmin; k1 <= binZmax; k1++) {
       int iMin = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmin];
       int iMax = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmax + 1];
-      
+      /*      
       int d = iMin + iMax;
       if (d < bestD) {
         bestD = d;
         linkDn = k1;
       }
-      /*
+  */
+
       //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[0];
       for (int i = iMin; i < iMax; i++) {
-         HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
-        float d = hitDataDn.x + hitDataDn.y;
+        //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
+        d = d + i;
+        //hitDataDn.x + hitDataDn.y;
         if (d < bestD) {
           bestD = d;
           linkDn = i;
         }
       }
-*/      
     }
   }
   tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn;
