@@ -31,7 +31,7 @@ template <>
 GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, int iBlock, int iThread, GPUsharedref() MEM_LOCAL(GPUSharedMemory) & GPUrestrict() ss, processorType& GPUrestrict() trackerX)
 {
   //* find neighbours
-/*
+
 #ifdef GPUCA_GPUCODE
   for (unsigned int i = iThread; i < sizeof(MEM_PLAIN(GPUTPCRow)) / sizeof(int); i += nThreads) {
     ((int*)&ss.mRow)[i] = ((int*)&trackerX.SliceDataRows()[iBlock])[i];
@@ -42,7 +42,6 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   }
   GPUbarrier();
 #endif
-*/
 
   HIPGPUsharedref() MEM_LOCAL(GPUSharedMemory) & GPUrestrict() s = (HIPGPUsharedref() MEM_LOCAL(GPUSharedMemory)&)ss;
   HIPGPUconstantref() processorType& GPUrestrict() tracker = (HIPGPUconstantref() processorType&)trackerX;
@@ -85,7 +84,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
     int linkDn = -1;
 
-    if (1) {
+    if (row.mNHits > 0) {
       HIPGPUglobalref() const cahit2& hitData = pHitData[lHitNumberOffset + ih];
       const float y = y0 + (hitData.x) * stepY;
       const float z = z0 + (hitData.y) * stepZ;
@@ -93,7 +92,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
       const float kAreaSize = tracker.mConstantMem->param.rec.NeighboursSearchArea;
 
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0
-      s.mB[0][iThread] = (calink)0;
+//      s.mB[0][iThread] = (calink)0;
 #endif
 
       int binYmin, binYmax, binZmin, binZmax;
