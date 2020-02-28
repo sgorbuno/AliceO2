@@ -19,7 +19,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 #if defined(__HIPCC__) && defined(GPUCA_GPUCODE_DEVICE)
 #define HIPGPUsharedref() __attribute__((address_space(3)))
-#define HIPGPUglobalref() __attribute__((address_space(1)))
+#define HIPGPUglobalref() __attribute__((address_space(1))) 
 #define HIPGPUconstantref() __attribute__((address_space(4)))
 #else
 #define HIPGPUsharedref()
@@ -97,8 +97,9 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         linkDn = k1;
       }
       */
+      //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[0];
       for (int i = iMin; i < iMax; i++) {
-        HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
+         HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
         float d = hitDataDn.x + hitDataDn.y;
         if (d < bestD) {
           bestD = d;
