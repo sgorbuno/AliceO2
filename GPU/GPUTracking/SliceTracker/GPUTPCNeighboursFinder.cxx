@@ -84,6 +84,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     reinterpret_cast<const GPUTPCRow&>(row).Grid().GetBin(y - kAreaSize, z - kAreaSize, &binYmin, &binZmin);
     reinterpret_cast<const GPUTPCRow&>(row).Grid().GetBin(y + kAreaSize, z + kAreaSize, &binYmax, &binZmax);
     nY = reinterpret_cast<const GPUTPCRow&>(row).Grid().Ny();
+continue;
 
     for (int k1 = binZmin; k1 <= binZmax; k1++) {
       int iMin = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmin];
