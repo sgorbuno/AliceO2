@@ -99,13 +99,13 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
       */
       for (int i = iMin; i < iMax; i++) {
         HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
-        bestD += hitDataDn.x + hitDataDn.y;
-        /*if (d < bestD) {
+        float d = hitDataDn.x + hitDataDn.y;
+        if (d < bestD) {
           bestD = d;
           linkDn = i;
-        }*/
+        }
       }
     }
   }
-  tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn + (int) bestD;
+  tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn;
 }
