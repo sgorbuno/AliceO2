@@ -89,6 +89,12 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     for (int k1 = binZmin; k1 <= binZmax; k1++) {
       int iMin = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmin];
       int iMax = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmax + 1];
+      float d = iMin+iMax;
+      if (d < bestD) {
+          bestD = d;
+          linkDn = k1;
+        }
+      /*
       for (int i = iMin; i < iMax; i++) {
         //HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
         float d = i;//hitDataDn.x + hitDataDn.y;
@@ -97,6 +103,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           linkDn = i;
         }
       }
+      */
     }
   }
   tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn;
