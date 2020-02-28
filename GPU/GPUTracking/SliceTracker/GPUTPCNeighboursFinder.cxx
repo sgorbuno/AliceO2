@@ -69,7 +69,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 #endif
 
   int linkDn = -1;
-  int bestD = 100000;
+  float bestD = 100000;
   const float kAreaSize = tracker.mConstantMem->param.rec.NeighboursSearchArea;
 
   for (int ih = iThread; ih < row.mNHits; ih += nThreads) {
@@ -98,14 +98,14 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
       }
       */
       for (int i = iMin; i < iMax; i++) {
-        //HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
-        int d = i; //hitDataDn.x + hitDataDn.y;
-        if (d < bestD) {
+        HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
+        bestD += hitDataDn.x + hitDataDn.y;
+        /*if (d < bestD) {
           bestD = d;
           linkDn = i;
-        }
+        }*/
       }
     }
   }
-  tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn;
+  tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn + (int) bestD;
 }
