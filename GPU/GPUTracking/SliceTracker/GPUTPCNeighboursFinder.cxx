@@ -87,8 +87,9 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     int nZ = reinterpret_cast<const GPUTPCRow&>(row).Grid().Nz();
     //continue;
     int d = 0;
-    //for (int k1 = binZmin; k1 <= binZmax; k1++) {
-    for (int k1 = 0; k1 <= nZ; k1++) {
+    for (int k1 = binZmin; k1 <= binZmax; k1++) {
+   //#pragma unroll(16)
+    //for (int k1 = 0; k1 <= nZ; k1++) {
       int iMin = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmin];
       int iMax = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmax + 1];
       d = iMin + iMax;
@@ -97,8 +98,9 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         linkDn = k1;
       }
 
-      /*
+      
       //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[0];
+      //#pragma unroll(1)
       for (int i = iMin; i < iMax; i++) {
         //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
         d = d + i;
@@ -108,7 +110,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           linkDn = i;
         }
       }
-      */
+      
     }
   }
   tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn;
