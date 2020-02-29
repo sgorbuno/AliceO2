@@ -101,7 +101,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
       
       //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[0];
-      #pragma unroll(64)
+      #pragma unroll(32)
       for (int i = iMin; i < iMax; i++) {
         //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
         d = d + i;
