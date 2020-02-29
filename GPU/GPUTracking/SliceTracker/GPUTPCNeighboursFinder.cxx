@@ -87,10 +87,10 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     int nZ = reinterpret_cast<const GPUTPCRow&>(row).Grid().Nz();
     //continue;
     int d = 0;
-   // #pragma unroll(1)
+    // #pragma unroll(1)
     for (int k1 = binZmin; k1 <= binZmax; k1++) {
-   //#pragma unroll(16)
-    //for (int k1 = 0; k1 <= nZ; k1++) {
+      //#pragma unroll(16)
+      // for (int k1 = 0; k1 <= nZ; k1++) {
       int iMin = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmin];
       int iMax = lFirstHitInBin[lFirstHitInBinOffset + k1 * nY + binYmax + 1];
       d = iMin + iMax;
@@ -99,19 +99,25 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         linkDn = k1;
       }
 
-      
       //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[0];
-     // #pragma unroll(2)
-      for (int i = iMin; i < iMax; i++) {
-        //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
-        d = d + i;
-        //hitDataDn.x + hitDataDn.y;
+      // #pragma unroll(2)      
+      for (int i = iMin-1; ++i < iMax; ) {
+      //int i = iMin;
+      //while (i < iMax) {
+        HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffset + i];
+        //d = d + i;
+        //i++;
+        d = hitDataDn.x + hitDataDn.y;
+        if (d < 1) {
+          //i++;
+          continue;
+        }
         if (d < bestD) {
           bestD = d;
           linkDn = i;
-        }
+        }        
+        //i++;
       }
-      
     }
   }
   tracker.mData.mLinkDownData[lHitNumberOffset + iThread] = linkDn;
