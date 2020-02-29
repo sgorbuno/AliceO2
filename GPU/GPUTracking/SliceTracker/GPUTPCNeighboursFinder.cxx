@@ -224,23 +224,34 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         }
         int bestDn = -1, bestUp = -1;
         float bestD = 1.e10f;
-
+        int j = 0;
         int nNeighDn = 0;
         for (int k1 = binZmin; k1 <= binZmax; k1++) {
+          //int k1 = binZmin;
+          //while (k1 <= binZmax) {
           int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
           int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
+
           for (int i = iMin; i < iMax; i++) {
+            //int i = iMin;
+            //while (i < iMax) {
+
             HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffsetDn + i];
             GPUTPCHit h;
             h.mY = y0Dn + (hitDataDn.x) * stepYDn;
             h.mZ = z0Dn + (hitDataDn.y) * stepZDn;
-            if (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ)
+            if (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ) {
+              j++;
               continue;
+            }
 
             nNeighDn++;
             float2 yzdn = CAMath::MakeFloat2(s.mUpDx * (h.Y() - y), s.mUpDx * (h.Z() - z));
 
             for (int iUp = 0; iUp < nNeighUp; iUp++) {
+              //int iUp = 0;
+              //while (iUp < nNeighUp) {
+
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
               float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP ? CAMath::MakeFloat2(yzUp[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP], yzUp2[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP]) : CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
 #elif GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == GPUCA_MAXN
@@ -256,9 +267,13 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
                 bestDn = i;
                 bestUp = iUp;
               }
-            }
-          }
-        }
+              //iUp++;
+            } // iUp
+            //}
+            //i++;
+          } // i
+          //k1++;
+        } // k1
 
         if (bestD <= chi2Cut) {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
@@ -268,7 +283,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 #else
           linkUp = neighUp[bestUp];
 #endif
-          linkDn = bestDn;
+          linkDn = bestDn + j;
         }
       }
     }
