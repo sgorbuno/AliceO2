@@ -87,6 +87,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     int nZ = reinterpret_cast<const GPUTPCRow&>(row).Grid().Nz();
     //continue;
     int d = 0;
+    #pragma unroll(1)
     for (int k1 = binZmin; k1 <= binZmax; k1++) {
    //#pragma unroll(16)
     //for (int k1 = 0; k1 <= nZ; k1++) {
@@ -100,7 +101,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
       
       //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[0];
-      //#pragma unroll(1)
+      #pragma unroll(1)
       for (int i = iMin; i < iMax; i++) {
         //HIPGPUglobalref() const cahit2 &hitDataDn = pHitData[lHitNumberOffset + i];
         d = d + i;
