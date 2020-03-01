@@ -228,7 +228,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
           int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
 
-#define testV 1
+#define testV 3
 
 #if testV == 1
           for (int i = iMin; i < iMax; i++) { // V1 original: 54,511 us
