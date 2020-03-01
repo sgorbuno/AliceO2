@@ -1222,7 +1222,7 @@ int GPUChainTracking::RunTPCTrackingSlices_internal()
       }
     }
 
-    runKernel<GPUTPCNeighboursCleaner>({GPUCA_ROW_COUNT, ThreadCount(), useStream}, {iSlice});
+    runKernel<GPUTPCNeighboursCleaner>({GPUCA_ROW_COUNT - 2, ThreadCount(), useStream}, {iSlice});
     DoDebugAndDump(RecoStep::TPCSliceTracking, 4, trk, &GPUTPCTracker::DumpLinks, mDebugFile);
 
     runKernel<GPUTPCStartHitsFinder>({GPUCA_ROW_COUNT - 6, ThreadCount(), useStream}, {iSlice});

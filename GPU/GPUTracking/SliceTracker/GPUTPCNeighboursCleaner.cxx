@@ -23,6 +23,7 @@ GPUdii() void GPUTPCNeighboursCleaner::Thread<0>(int /*nBlocks*/, int nThreads, 
   // * kill link to the neighbour if the neighbour is not pointed to the cluster
   // *
 
+/*
 {
     int iRow = iBlock;
     if (iRow < GPUCA_ROW_COUNT) {
@@ -39,6 +40,7 @@ GPUdii() void GPUTPCNeighboursCleaner::Thread<0>(int /*nBlocks*/, int nThreads, 
       return;
     }
   }
+  */
   
   if (iThread == 0) {
     s.mIRow = iBlock + 2;
