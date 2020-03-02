@@ -228,29 +228,36 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
           int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
 
-#define testV 1
+#define testLoopCase 1 // original value: 1
+#define testCallContinue 1 // original value: 1
 
-#if testV == 1
-          for (int i = iMin; i < iMax; i++) { // V1 original: 54,511 us
-#elif testV == 2
+#if testLoopCase == 1
+          for (int i = iMin; i < iMax; i++) { // Case1 & CallContinue (original): 56,045 us
+#elif testLoopCase == 2
           int i = iMin;
-          while (i < iMax) { // V2:  82,743 us
-#elif testV == 3
-          for (int i = iMin - 1; ++i < iMax;) { //V3: 82,773 us
+          while (i < iMax) { // Case2 & CallContinue:  82,743 us
+#elif testLoopCase == 3
+          for (int i = iMin - 1; ++i < iMax;) { // Case3 & CallContinue: 82,773 us
 #endif
             HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffsetDn + i];
             GPUTPCHit h;
             h.mY = y0Dn + (hitDataDn.x) * stepYDn;
             h.mZ = z0Dn + (hitDataDn.y) * stepZDn;
-            if (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ) {
-#if testV == 2
+            bool doContinue = (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ);
+#if testCallContinue == 1
+            if (doContinue) {
+#if testLoopCase == 2
               i++; // V2
 #endif
               continue;
             }
-            float2 yzdn = CAMath::MakeFloat2(s.mUpDx * (h.Y() - y), s.mUpDx * (h.Z() - z));
+#else // testCallContinue != 1
+            if (!doContinue) // Case1: 57,535 us  Case2: 57,039 us
+#endif // testCallContinue
 
-            { //if (!(h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ)) {
+            { // mark 1
+              float2 yzdn = CAMath::MakeFloat2(s.mUpDx * (h.Y() - y), s.mUpDx * (h.Z() - z));
+
               for (int iUp = 0; iUp < nNeighUp; iUp++) {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
                 float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP
@@ -270,9 +277,10 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
                   bestUp = iUp;
                 }
               } // iUp
-            }
-#if testV == 2
-            i++; //V2
+            } // mark 1
+
+#if testLoopCase == 2
+            i++; 
 #endif
           } // i
         }   // k1
