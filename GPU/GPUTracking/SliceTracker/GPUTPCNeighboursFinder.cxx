@@ -11,6 +11,39 @@
 /// \file GPUTPCNeighboursFinder.cxx
 /// \author Sergey Gorbunov, Ivan Kisel, David Rohr
 
+/*
+
+restrict
+
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58467 us
+Output Tracks: 69240 (4480113 / 4529961 / 5890002 / 7426830 clusters (fitted / attached / adjacent / total))
+
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      57053 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58586 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58091 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58074 us
+
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      56680 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      57005 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      55825 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      57866 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58837 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58636 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      54889 us
+
+no restrict
+
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      59623 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      60720 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58436 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      60899 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      60125 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      58622 us
+Execution Time: Task (K       36x):                             GPUTPCNeighboursFinder Time:      61035 us
+
+
+*/
+
 #include "GPUTPCHit.h"
 #include "GPUTPCNeighboursFinder.h"
 #include "GPUTPCTracker.h"
@@ -32,6 +65,8 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 {
   //* find neighbours
 
+#define doRestrict 1
+
 #ifdef GPUCA_GPUCODE
   for (unsigned int i = iThread; i < sizeof(MEM_PLAIN(GPUTPCRow)) / sizeof(int); i += nThreads) {
     ((int*)&ss.mRow)[i] = ((int*)&trackerX.SliceDataRows()[iBlock])[i];
@@ -43,14 +78,23 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   GPUbarrier();
 #endif
 
+#if doRestrict == 1
   HIPGPUsharedref() MEM_LOCAL(GPUSharedMemory) & GPUrestrict() s = (HIPGPUsharedref() MEM_LOCAL(GPUSharedMemory)&)ss;
   HIPGPUconstantref() processorType& GPUrestrict() tracker = (HIPGPUconstantref() processorType&)trackerX;
+#else
+  HIPGPUsharedref() MEM_LOCAL(GPUSharedMemory) & s = (HIPGPUsharedref() MEM_LOCAL(GPUSharedMemory)&)ss;
+  HIPGPUconstantref() processorType& tracker = (HIPGPUconstantref() processorType&)trackerX;
+#endif
 
   if (iThread == 0) {
     s.mIRow = iBlock;
     if (s.mIRow < GPUCA_ROW_COUNT) {
 #ifdef GPUCA_GPUCODE
+#if doRestrict == 1
       HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() row = s.mRow;
+#else
+      HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)& row = s.mRow;
+#endif
 #else
       HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = tracker.mData.mRows[s.mIRow];
 #endif
@@ -63,8 +107,13 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         // references to the rows above and below
 
 #ifdef GPUCA_GPUCODE
+#if doRestrict == 1
         HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() rowUp = s.mRowUp;
         HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() rowDn = s.mRowDown;
+#else
+        HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)& rowUp = s.mRowUp;
+        HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)& rowDn = s.mRowDown;
+#endif
 #else
         HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() rowUp = tracker.mData.mRows[s.mIRowUp];
         HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() rowDn = tracker.mData.mRows[s.mIRowDn];
@@ -88,7 +137,11 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
   if ((s.mIRow <= 1) || (s.mIRow >= GPUCA_ROW_COUNT - 2)) {
 #ifdef GPUCA_GPUCODE
+#if doRestrict == 1
     HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRow;
+#else
+   HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & row = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRow;
+#endif
 #else
     HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow)&)tracker.mData.mRows[s.mIRow];
 #endif
@@ -103,9 +156,15 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   const float chi2Cut = 3.f * 3.f * 4 * (s.mUpDx * s.mUpDx + s.mDnDx * s.mDnDx);
 // float chi2Cut = 3.*3.*(s.mUpDx*s.mUpDx + s.mDnDx*s.mDnDx ); //SG
 #ifdef GPUCA_GPUCODE
+#if doRestrict == 1
   HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRow;
   HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() rowUp = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRowUp;
   HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & GPUrestrict() rowDn = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRowDown;
+#else
+  HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & row = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRow;
+  HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & rowUp = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRowUp;
+  HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow) & rowDn = (HIPGPUsharedref() const MEM_LOCAL(GPUTPCRow)&)s.mRowDown;
+#endif
 #else
   HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = (HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow)&)tracker.mData.mRows[s.mIRow];
   HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() rowUp = (HIPGPUglobalref() const MEM_GLOBAL(GPUTPCRow)&)tracker.mData.mRows[s.mIRowUp];
@@ -116,6 +175,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   const float stepY = row.mHstepY;
   const float stepZ = row.mHstepZ;
 
+#if doRestrict == 1
   const long int lHitNumberOffset = row.mHitNumberOffset;
   const long int lHitNumberOffsetUp = rowUp.mHitNumberOffset;
   const long int lHitNumberOffsetDn = rowDn.mHitNumberOffset;
@@ -123,6 +183,8 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
   const int lFirstHitInBinOffsetDn = rowDn.mFirstHitInBinOffset;
   HIPGPUglobalref() const calink* GPUrestrict() lFirstHitInBin = (HIPGPUglobalref() const calink*)tracker.mData.mFirstHitInBin;
   HIPGPUglobalref() const cahit2* GPUrestrict() pHitData = (HIPGPUglobalref() const cahit2*)tracker.mData.mHitData;
+#endif
+
   const float y0Up = rowUp.mGrid.mYMin;
   const float z0Up = rowUp.mGrid.mZMin;
   const float stepYUp = rowUp.mHstepY;
@@ -137,7 +199,12 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
     int linkDn = -1;
 
     if (rowUp.mNHits > 0 && rowDn.mNHits > 0) {
+
+#if doRestrict == 1
       HIPGPUglobalref() const cahit2& hitData = pHitData[lHitNumberOffset + ih];
+#else
+      const cahit2 hitData = tracker.mData.mHitData[row.mHitNumberOffset + ih];
+#endif
       const float y = y0 + (hitData.x) * stepY;
       const float z = z0 + (hitData.y) * stepZ;
 
@@ -171,10 +238,19 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
       bool dobreak = false;
       for (int k1 = binZmin; k1 <= binZmax; k1++) {
+#if doRestrict == 1
         int iMin = lFirstHitInBin[lFirstHitInBinOffsetUp + k1 * nY + binYmin];
         int iMax = lFirstHitInBin[lFirstHitInBinOffsetUp + k1 * nY + binYmax + 1];
+#else
+        int iMin = tracker.mData.mFirstHitInBin[rowUp.mFirstHitInBinOffset + k1 * nY + binYmin];
+        int iMax = tracker.mData.mFirstHitInBin[rowUp.mFirstHitInBinOffset + k1 * nY + binYmax + 1];
+#endif
         for (int i = iMin; i < iMax; i++) {
+#if doRestrict == 1
           HIPGPUglobalref() const cahit2& hitDataUp = pHitData[lHitNumberOffsetUp + i];
+#else
+          const cahit2 hitDataUp = tracker.mData.mHitData[rowUp.mHitNumberOffset + i];
+#endif
           GPUTPCHit h;
           h.mY = y0Up + (hitDataUp.x) * stepYUp;
           h.mZ = z0Up + (hitDataUp.y) * stepZUp;
@@ -227,10 +303,19 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
         int nNeighDn = 0;
         for (int k1 = binZmin; k1 <= binZmax; k1++) {
+#if doRestrict == 1
           int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
           int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
+#else
+          int iMin = tracker.mData.mFirstHitInBin[rowDn.mFirstHitInBinOffset + k1 * nY + binYmin];
+          int iMax = tracker.mData.mFirstHitInBin[rowDn.mFirstHitInBinOffset + k1 * nY + binYmax + 1];
+#endif
           for (int i = iMin; i < iMax; i++) {
+#if doRestrict == 1
             HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffsetDn + i];
+#else
+            const cahit2 hitDataDn = tracker.mData.mHitData[rowDn.mHitNumberOffset + i];
+#endif
             GPUTPCHit h;
             h.mY = y0Dn + (hitDataDn.x) * stepYDn;
             h.mZ = z0Dn + (hitDataDn.y) * stepZDn;
@@ -242,7 +327,9 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 
             for (int iUp = 0; iUp < nNeighUp; iUp++) {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-              float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP ? CAMath::MakeFloat2(yzUp[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP], yzUp2[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP]) : CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
+              float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP
+                              ? CAMath::MakeFloat2(yzUp[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP], yzUp2[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP])
+                              : CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
 #elif GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == GPUCA_MAXN
               const float2 yzup = CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
 #else
@@ -272,8 +359,12 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         }
       }
     }
-
+#if doRestrict == 1
     tracker.mData.mLinkUpData[lHitNumberOffset + ih] = linkUp;
     tracker.mData.mLinkDownData[lHitNumberOffset + ih] = linkDn;
+#else
+    tracker.mData.mLinkUpData[row.mHitNumberOffset + ih] = linkUp;
+    tracker.mData.mLinkDownData[row.mHitNumberOffset + ih] = linkDn;
+#endif
   }
 }
