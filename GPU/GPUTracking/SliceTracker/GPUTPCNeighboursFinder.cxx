@@ -228,36 +228,57 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
           int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
 
-#define testLoopCase 1 // original value: 1
-#define testCallContinue 1 // original value: 1
+#define loopKind 1   // default: 1
+#define doContinue 1 // default: 1
+          //
+          // loopKind:
+          // 1 is for() loop
+          // 2 is while() loop
+          // 3 is a weird for() loop
+          //
+          // Kernel execution time when doContinue == 1
+          //
+          // loopKind 1: 56,045 us
+          // loopKind 2: 85,807 us
+          // loopKind 3: 86,219 us
+          //
+          // Kernel execution time when doContinue == 0
+          //
+          // loopKind 1: 57,535 us
+          // loopKind 2: 57,039 us
+          // loopKind 3: 57,827 us
+          //
 
-#if testLoopCase == 1
-          for (int i = iMin; i < iMax; i++) { // Case1 & CallContinue (original): 56,045 us
-#elif testLoopCase == 2
+#if loopKind == 1
+          for (int i = iMin; i < iMax; i++) {
+#elif loopKind == 2
           int i = iMin;
-          while (i < iMax) { // Case2 & CallContinue:  82,743 us
-#elif testLoopCase == 3
-          for (int i = iMin - 1; ++i < iMax;) { // Case3 & CallContinue: 82,773 us
+          while (i < iMax) {
+#elif loopKind == 3
+          for (int i = iMin - 1; ++i < iMax;) {
 #endif
             HIPGPUglobalref() const cahit2& hitDataDn = pHitData[lHitNumberOffsetDn + i];
             GPUTPCHit h;
             h.mY = y0Dn + (hitDataDn.x) * stepYDn;
             h.mZ = z0Dn + (hitDataDn.y) * stepZDn;
-            bool doContinue = (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ);
-#if testCallContinue == 1
-            if (doContinue) {
-#if testLoopCase == 2
-              i++; // V2
-#endif
+            bool skipHit = (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ);
+#if doContinue == 1 && loopKind != 2 // for() loop. just continue
+            if (skipHit) {
               continue;
             }
-#else // testCallContinue != 1
-            if (!doContinue) // Case1: 57,535 us  Case2: 57,039 us
-#endif // testCallContinue
+#endif
+#if doContinue == 1 && loopKind == 2 // while() loop. increment i and continue
+            if (skipHit) {
+              i++;
+              continue;
+            }
+#endif
 
-            { // mark 1
+#if doContinue != 1
+            if (!skipHit)
+#endif
+            { // process the hit
               float2 yzdn = CAMath::MakeFloat2(s.mUpDx * (h.Y() - y), s.mUpDx * (h.Z() - z));
-
               for (int iUp = 0; iUp < nNeighUp; iUp++) {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
                 float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP
@@ -277,10 +298,9 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
                   bestUp = iUp;
                 }
               } // iUp
-            } // mark 1
-
-#if testLoopCase == 2
-            i++; 
+            }   // process the hit
+#if loopKind == 2 
+            i++; // while() loop. increment i
 #endif
           } // i
         }   // k1
