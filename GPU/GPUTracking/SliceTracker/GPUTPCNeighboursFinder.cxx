@@ -225,7 +225,15 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         int bestDn = -1, bestUp = -1;
         float bestD = 1.e10f;
 
-        int nNeighDn = 0;
+#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
+        int sharedStoreEnd;
+        if (nNeighUp <= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP) {
+          sharedStoreEnd = nNeighUp;
+        } else {
+          sharedStoreEnd = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
+        }
+        int globalStoreEnd = nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
+#endif
         for (int k1 = binZmin; k1 <= binZmax; k1++) {
           int iMin = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmin];
           int iMax = lFirstHitInBin[lFirstHitInBinOffsetDn + k1 * nY + binYmax + 1];
@@ -237,19 +245,13 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
             if (h.mY < minY || h.mY > maxY || h.mZ < minZ || h.mZ > maxZ)
               continue;
 
-            nNeighDn++;
-            float2 yzdn = CAMath::MakeFloat2(s.mUpDx * (h.Y() - y), s.mUpDx * (h.Z() - z));
+            const float yDn = s.mUpDx * (h.Y() - y);
+            const float zDn = s.mUpDx * (h.Z() - z);
 
-            for (int iUp = 0; iUp < nNeighUp; iUp++) {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-              float2 yzup = iUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP ? CAMath::MakeFloat2(yzUp[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP], yzUp2[iUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP]) : CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
-#elif GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == GPUCA_MAXN
-              const float2 yzup = CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
-#else
-              const float2 yzup = CAMath::MakeFloat2(yzUp[iUp], yzUp2[iUp]);
-#endif
-              const float dy = yzdn.x - yzup.x;
-              const float dz = yzdn.y - yzup.y;
+            for (int iUp = 0; iUp < sharedStoreEnd; iUp++) {
+              const float dy = yDn - s.mA1[iUp][iThread];
+              const float dz = zDn - s.mA2[iUp][iThread];
               const float d = dy * dy + dz * dz;
               if (d < bestD) {
                 bestD = d;
@@ -257,9 +259,35 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
                 bestUp = iUp;
               }
             }
+            for (int iUp = 0; iUp < globalStoreEnd; iUp++) {
+              const float dy = yDn - yzUp[iUp];
+              const float dz = zDn - yzUp2[iUp];
+              const float d = dy * dy + dz * dz;
+              if (d < bestD) {
+                bestD = d;
+                bestDn = i;
+                bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+              }
+            }
+#else
+            for (int iUp = 0; iUp < nNeighUp; iUp++) {
+#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP == GPUCA_MAXN
+              const float2 yzup = CAMath::MakeFloat2(s.mA1[iUp][iThread], s.mA2[iUp][iThread]);
+#else
+              const float2 yzup = CAMath::MakeFloat2(yzUp[iUp], yzUp2[iUp]);
+#endif
+              const float dy = yDn - yzup.x;
+              const float dz = zDn - yzup.y;
+              const float d = dy * dy + dz * dz;
+              if (d < bestD) {
+                bestD = d;
+                bestDn = i;
+                bestUp = iUp;
+              }
+            }
+#endif
           }
         }
-
         if (bestD <= chi2Cut) {
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
           linkUp = bestUp >= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP ? neighUp[bestUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP] : s.mB[bestUp][iThread];

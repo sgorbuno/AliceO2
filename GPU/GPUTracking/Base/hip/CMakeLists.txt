@@ -21,6 +21,7 @@ string(REPLACE " -ggdb " " " CMAKE_CXX_FLAGS_${CMAKE_BUILT_TYPE} " ${CMAKE_CXX_F
 
 #setting flags as a global option for all HIP targets.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-gpu-rdc -Wno-invalid-command-line-argument -Wno-unused-command-line-argument -Wno-invalid-constexpr -Wno-ignored-optimization-argument -Wno-unused-private-field")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mllvm -unroll-runtime -fno-gpu-rdc -Wno-invalid-command-line-argument -Wno-unused-command-line-argument -Wno-invalid-constexpr -Wno-ignored-optimization-argument -Wno-unused-private-field")
 if(DEFINED HIP_AMDGPUTARGET)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --amdgpu-target=${HIP_AMDGPUTARGET}")
   set(TMP_TARGET "(GPU Target ${HIP_AMDGPUTARGET})")
