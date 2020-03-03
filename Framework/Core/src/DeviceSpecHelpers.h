@@ -76,8 +76,7 @@ struct DeviceSpecHelpers {
     std::vector<DataProcessorInfo> const& processorInfos,
     std::vector<DeviceSpec> const& deviceSpecs,
     std::vector<DeviceExecution>& deviceExecutions,
-    std::vector<DeviceControl>& deviceControls,
-    std::string const& uniqueWorkflowId);
+    std::vector<DeviceControl>& deviceControls);
 
   /// This takes the list of preprocessed edges of a graph
   /// and creates Devices and Channels which are related
