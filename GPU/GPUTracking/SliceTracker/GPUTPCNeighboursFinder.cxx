@@ -228,7 +228,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
         int sharedStoreEnd;
         if (nNeighUp <= GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP) {
-          sharedStoreEnd = nNeighUp;
+          sharedStoreEnd = nNeighUp;        
         } else {
           sharedStoreEnd = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
         }
