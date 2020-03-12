@@ -266,7 +266,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         }
         */
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0
-constexpr int tmpMaxUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
+        constexpr int tmpMaxUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
 #pragma unroll(tmpMaxUp)
         for (int iUp = 0; iUp < GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP; iUp++) {
           const float dy = yzdn.x - s.mA1[iUp][iThread];
@@ -281,54 +281,71 @@ constexpr int tmpMaxUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
 #endif
 
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
-        int N = nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
-        int N1 = (N / 4) * 4;
-        for (int iUp = 0; iUp < N1; iUp += 4) {
+        {
+          int N = nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
 #pragma unroll(4)
-          for (int k = 0; k < 4; k++) {
-            const float dy = yzdn.x - yzUp[iUp + k];
-            const float dz = yzdn.y - yzUp2[iUp + k];
+          for (int iUp = 0; iUp < N; iUp++) {
+            const float dy = yzdn.x - yzUp[iUp];
+            const float dz = yzdn.y - yzUp2[iUp];
             const float d = dy * dy + dz * dz;
             if (d < bestD) {
               bestD = d;
               bestDn = i;
-              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp + k;
+              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
             }
           }
         }
+#endif
 
-        if (N1 + 1 < N) {
-          int iUp = N1 + 1;
-          const float dy = yzdn.x - yzUp[iUp];
-          const float dz = yzdn.y - yzUp2[iUp];
-          const float d = dy * dy + dz * dz;
-          if (d < bestD) {
-            bestD = d;
-            bestDn = i;
-            bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+#if 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
+        {
+          int N = nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
+          int N1 = (N / 4) * 4;
+          for (int iUp = 0; iUp < N1; iUp += 4) {
+#pragma unroll(4)
+            for (int k = 0; k < 4; k++) {
+              const float dy = yzdn.x - yzUp[iUp + k];
+              const float dz = yzdn.y - yzUp2[iUp + k];
+              const float d = dy * dy + dz * dz;
+              if (d < bestD) {
+                bestD = d;
+                bestDn = i;
+                bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp + k;
+              }
+            }
           }
-        }
-
-        if (N1 + 2 < N) {
-          int iUp = N1 + 2;
-          const float dy = yzdn.x - yzUp[iUp];
-          const float dz = yzdn.y - yzUp2[iUp];
-          const float d = dy * dy + dz * dz;
-          if (d < bestD) {
-            bestD = d;
-            bestDn = i;
-            bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+          if (N1 + 1 < N) {
+            int iUp = N1 + 1;
+            const float dy = yzdn.x - yzUp[iUp];
+            const float dz = yzdn.y - yzUp2[iUp];
+            const float d = dy * dy + dz * dz;
+            if (d < bestD) {
+              bestD = d;
+              bestDn = i;
+              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+            }
           }
-        }
-        if (N1 + 3 < N) {
-          int iUp = N1 + 3;
-          const float dy = yzdn.x - yzUp[iUp];
-          const float dz = yzdn.y - yzUp2[iUp];
-          const float d = dy * dy + dz * dz;
-          if (d < bestD) {
-            bestD = d;
-            bestDn = i;
-            bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+          if (N1 + 2 < N) {
+            int iUp = N1 + 2;
+            const float dy = yzdn.x - yzUp[iUp];
+            const float dz = yzdn.y - yzUp2[iUp];
+            const float d = dy * dy + dz * dz;
+            if (d < bestD) {
+              bestD = d;
+              bestDn = i;
+              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+            }
+          }
+          if (N1 + 3 < N) {
+            int iUp = N1 + 3;
+            const float dy = yzdn.x - yzUp[iUp];
+            const float dz = yzdn.y - yzUp2[iUp];
+            const float d = dy * dy + dz * dz;
+            if (d < bestD) {
+              bestD = d;
+              bestDn = i;
+              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+            }
           }
         }
 #endif
