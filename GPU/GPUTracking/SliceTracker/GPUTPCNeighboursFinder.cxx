@@ -266,7 +266,8 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         }
         */
 #if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP > 0
-#pragma unroll
+constexpr int tmpMaxUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
+#pragma unroll(tmpMaxUp)
         for (int iUp = 0; iUp < GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP; iUp++) {
           const float dy = yzdn.x - s.mA1[iUp][iThread];
           const float dz = yzdn.y - s.mA2[iUp][iThread];
