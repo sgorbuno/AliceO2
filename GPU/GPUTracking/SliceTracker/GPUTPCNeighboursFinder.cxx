@@ -280,7 +280,7 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         }
 #endif
 
-#if GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
+#if 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
         {
           int N = nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
 #pragma unroll(4)
@@ -297,10 +297,11 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
         }
 #endif
 
-#if 0 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
+#if 1 && GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP < GPUCA_MAXN
         {
           int N = nNeighUp - GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP;
           int N1 = (N / 4) * 4;
+#pragma unroll(4)
           for (int iUp = 0; iUp < N1; iUp += 4) {
 #pragma unroll(4)
             for (int k = 0; k < 4; k++) {
