@@ -24,7 +24,7 @@ GPUdii() void GPUTPCNeighboursCleaner::Thread<0>(int /*nBlocks*/, int nThreads, 
   // *
 
 #ifdef GPUCA_GPUCODE
-  if (1) {
+  if (0) {
     if (iBlock == 0) {
       for (int iRow = 0; iRow < GPUCA_ROW_COUNT; iRow++) {
         GPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = tracker.Row(iRow);
