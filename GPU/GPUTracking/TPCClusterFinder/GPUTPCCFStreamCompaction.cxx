@@ -30,7 +30,7 @@ GPUdii() void GPUTPCCFStreamCompaction::Thread<GPUTPCCFStreamCompaction::nativeS
   nativeScanUpStartImpl(get_num_groups(0), get_local_size(0), get_group_id(0), get_local_id(0), smem, clusterer.mPisPeak, clusterer.mPbuf + (iBuf - 1) * clusterer.mBufSize, clusterer.mPbuf + iBuf * clusterer.mBufSize, nElems);
 }
 
-GPUd() void GPUTPCCFStreamCompaction::nativeScanUpStartImpl(int nBlocks, int nThreads, int iBlock, int iThread, GPUSharedMemory& smem,
+GPUdii() void GPUTPCCFStreamCompaction::nativeScanUpStartImpl(int nBlocks, int nThreads, int iBlock, int iThread, GPUSharedMemory& smem,
                                                             const uchar* predicate,
                                                             int* sums,
                                                             int* incr, int nElems)

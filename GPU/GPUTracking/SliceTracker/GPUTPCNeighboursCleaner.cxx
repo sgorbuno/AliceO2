@@ -23,6 +23,22 @@ GPUdii() void GPUTPCNeighboursCleaner::Thread<0>(int /*nBlocks*/, int nThreads, 
   // * kill link to the neighbour if the neighbour is not pointed to the cluster
   // *
 
+#ifdef GPUCA_GPUCODE
+  if (1) {
+    if (iBlock == 0) {
+      for (int iRow = 0; iRow < GPUCA_ROW_COUNT; iRow++) {
+        GPUglobalref() const MEM_GLOBAL(GPUTPCRow) & GPUrestrict() row = tracker.Row(iRow);
+        int nHits = row.NHits();
+        for (int ih = iThread; ih < nHits; ih += nThreads) {
+          tracker.SetHitLinkUpData(row, ih, CALINK_INVAL);
+          tracker.SetHitLinkDownData(row, ih, CALINK_INVAL);
+        }
+      }
+    }
+    return;
+  }
+#endif
+
   if (iThread == 0) {
     s.mIRow = iBlock + 2;
     if (s.mIRow <= GPUCA_ROW_COUNT - 3) {
