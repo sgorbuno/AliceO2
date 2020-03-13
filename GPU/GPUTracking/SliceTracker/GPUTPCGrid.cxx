@@ -46,8 +46,8 @@ GPUd() void MEM_LG(GPUTPCGrid)::Create(float yMin, float yMax, float zMin, float
   mStepYInv = 1.f / sy;
   mStepZInv = 1.f / sz;
 
-  mNy = static_cast<unsigned int>((yMax - mYMin) * mStepYInv + 1.f);
-  mNz = static_cast<unsigned int>((zMax - mZMin) * mStepZInv + 1.f);
+  mNy = static_cast< int>((yMax - mYMin) * mStepYInv + 1.f);
+  mNz = static_cast< int>((zMax - mZMin) * mStepZInv + 1.f);
 
   mN = mNy * mNz;
 
@@ -103,12 +103,12 @@ GPUd() void MEM_LG(GPUTPCGrid)::GetBin(float Y, float Z, int* const bY, int* con
   } else if (bbZ >= (int)mNz) {
     bbZ = mNz - 1;
   }
-  *bY = (unsigned int)bbY;
-  *bZ = (unsigned int)bbZ;
+  *bY = ( int)bbY;
+  *bZ = ( int)bbZ;
 }
-
+/*
 MEM_CLASS_PRE()
-GPUd() void MEM_LG(GPUTPCGrid)::GetBinArea(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const
+GPUdii() void MEM_LG(GPUTPCGrid)::GetBinArea(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const
 {
   Y -= mYMin;
   int by = (int)((Y - dy) * mStepYInv);
@@ -134,3 +134,4 @@ GPUd() void MEM_LG(GPUTPCGrid)::GetBinArea(float Y, float Z, float dy, float dz,
   }
   bin = bz * mNy + by;
 }
+*/

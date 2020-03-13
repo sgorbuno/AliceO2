@@ -275,7 +275,7 @@ GPUd() void GPUTPCTrackletConstructor::UpdateTracklet(int /*nBlocks*/, int /*nTh
         }
 
         int bin, ny, nz;
-        row.Grid().GetBinArea(fY, fZ + tParam.ZOffset(), 1.5f, 1.5f, bin, ny, nz);
+        row.Grid().GetBinArea1(fY, fZ + tParam.ZOffset(), 1.5f, 1.5f, bin, ny, nz);
         float ds = 1e6f;
 
 #ifdef __HIPCC__ // Todo: fixme!

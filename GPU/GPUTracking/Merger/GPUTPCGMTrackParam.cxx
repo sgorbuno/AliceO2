@@ -449,58 +449,66 @@ GPUd() void GPUTPCGMTrackParam::AttachClusters(const GPUTPCGMMerger* GPUrestrict
 
 GPUd() void GPUTPCGMTrackParam::AttachClusters(const GPUTPCGMMerger* GPUrestrict() Merger, int slice, int iRow, int iTrack, bool goodLeg, float Y, float Z)
 {
+  // 113 ms
+
   if (Merger->Param().rec.DisableRefitAttachment & 1) {
     return;
   }
+
+  const float zOffset = (Merger->OutputTracks()[iTrack].CSide() ^ (slice >= 18)) ? -mZOffset : mZOffset;
+  int myWeight = Merger->TrackOrderAttach()[iTrack] | GPUTPCGMMerger::attachAttached | GPUTPCGMMerger::attachTube;
+  if (goodLeg) {
+      myWeight |= GPUTPCGMMerger::attachGoodLeg;
+  }
+
   const GPUTPCTracker& GPUrestrict() tracker = *(Merger->SliceTrackers() + slice);
+ int idOffset = tracker.Data().ClusterIdOffset() ;
+  unsigned int *weights = Merger->ClusterAttachment() + idOffset;
+
+
   const GPUTPCRow& GPUrestrict() row = tracker.Row(iRow);
 #ifndef GPUCA_TEXTURE_FETCH_CONSTRUCTOR
   GPUglobalref() const cahit2* hits = tracker.HitData(row);
   GPUglobalref() const calink* firsthit = tracker.FirstHitInBin(row);
 #endif //! GPUCA_TEXTURE_FETCH_CONSTRUCTOR
-  if (row.NHits() == 0) {
-    return;
-  }
 
-  const float zOffset = (Merger->OutputTracks()[iTrack].CSide() ^ (slice >= 18)) ? -mZOffset : mZOffset;
+  //if (row.NHits() == 0) {
+    //return;
+  //}
+
   const float y0 = row.Grid().YMin();
   const float stepY = row.HstepY();
   const float z0 = row.Grid().ZMin() - zOffset; // We can use our own ZOffset, since this is only used temporarily anyway
   const float stepZ = row.HstepZ();
+
   int bin, ny, nz;
   const float tube = 2.5f;
-  row.Grid().GetBinArea(Y, Z + zOffset, tube, tube, bin, ny, nz);
-  float sy2 = tube * tube, sz2 = tube * tube;
-
-  int myWeight = Merger->TrackOrderAttach()[iTrack] | GPUTPCGMMerger::attachAttached | GPUTPCGMMerger::attachTube;
-  if (goodLeg) {
-      myWeight |= GPUTPCGMMerger::attachGoodLeg;
-  }
+  const float sy2 = tube * tube, sz2 = tube * tube;
+  row.Grid().GetBinArea1(Y, Z + zOffset, tube, tube, bin, ny, nz);  
+ 
   int nBinsY = row.Grid().Ny();
-  unsigned int *weights = Merger->ClusterAttachment();
-  int idOffset = tracker.Data().ClusterIdOffset() ;
   const int *ids = &(tracker.Data().ClusterDataIndex()[row.HitNumberOffset()]);
 
-  for (int k = 0; k <= nz; k++) {
+  // up to this point: 34 ms 
+
+  for (int k = 0; k <= nz; k++) { // 7 ms 
     int mybin = bin + k * nBinsY;
     unsigned int hitFst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin);
-    unsigned int hitLst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin + ny + 1);
-    for (unsigned int ih = hitFst; ih < hitLst; ih++) {      
-      int id = idOffset + ids[ih];
-      GPUAtomic(unsigned int) * GPUrestrict() weight = weights +id;      
-      if (*weight & GPUTPCGMMerger::attachGood) {
-        continue;
-      }
+    unsigned int hitLst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin + ny + 1);    
+    for (unsigned int ih = hitFst; ih < hitLst; ih++) { // 70 ms
+      //if (weights[ids[ih]] & GPUTPCGMMerger::attachGood) { // 20 ms
+        //continue;
+      //}      
       cahit2 hh = CA_TEXTURE_FETCH(cahit2, gAliTexRefu2, hits, ih);
       float y = y0 + hh.x * stepY;
       float z = z0 + hh.y * stepZ;
       float dy = y - Y;
       float dz = z - Z;
-      if (dy * dy < sy2 && dz * dz < sz2) {
+      if (dy * dy < sy2 && dz * dz < sz2 ) {
         // CADEBUG(printf("Found Y %f Z %f\n", y, z));
-        CAMath::AtomicMax(weight, myWeight);
-      }      
-    }
+        CAMath::AtomicMax(weights + ids[ih], myWeight);
+      }
+    }    
   }
 }
 
