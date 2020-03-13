@@ -41,8 +41,8 @@ class GPUTPCGrid
  */
   GPUd() int GetBinBounded(float Y, float Z) const;
   GPUd() void GetBin(float Y, float Z, int* const bY, int* const bZ) const;
-  //GPUd() void GetBinArea(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const;
- GPUd() void GetBinArea1(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const;
+  GPUd() void GetBinArea1(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const;
+ GPUd() void GetBinArea2(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const;
 
   GPUd()  int N() const { return mN; }
   GPUd()  int Ny() const { return mNy; }
@@ -69,7 +69,7 @@ class GPUTPCGrid
 };
 
 //MEM_CLASS_PRE()
-GPUdi() void MEM_LG(GPUTPCGrid)::GetBinArea1(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const
+GPUdi() void MEM_LG(GPUTPCGrid)::GetBinArea2(float Y, float Z, float dy, float dz, int& bin, int& ny, int& nz) const
 {
   Y -= mYMin;
   int by = (int)((Y - dy) * mStepYInv);
