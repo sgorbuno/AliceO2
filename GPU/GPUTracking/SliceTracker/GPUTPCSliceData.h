@@ -138,6 +138,7 @@ class GPUTPCSliceData
   GPUhdi() char* GPUTextureBaseConst() const { return ((char*)mGPUTextureBase); }
 
   GPUhdi() GPUglobalref() const GPUTPCClusterData* ClusterData() const { return mClusterData; }
+  GPUhdi() GPUglobalref() const int* ClusterDataIndex() const { return mClusterDataIndex; }
   float MaxZ() const { return mMaxZ; }
 
  private:
