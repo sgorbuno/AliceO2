@@ -472,30 +472,34 @@ GPUd() void GPUTPCGMTrackParam::AttachClusters(const GPUTPCGMMerger* GPUrestrict
   row.Grid().GetBinArea(Y, Z + zOffset, tube, tube, bin, ny, nz);
   float sy2 = tube * tube, sz2 = tube * tube;
 
+int myWeight = Merger->TrackOrderAttach()[iTrack] | GPUTPCGMMerger::attachAttached | GPUTPCGMMerger::attachTube;
+  if (goodLeg) {
+      myWeight |= GPUTPCGMMerger::attachGoodLeg;
+  }
+  int nBinsY = row.Grid().Ny();
+  unsigned int *weights = Merger->ClusterAttachment();
+  int idOffset = tracker.Data().ClusterIdOffset() ;
+  int * ids = &tracker.Data().mClusterDataIndex[row.HitNumberOffset()];
+
   for (int k = 0; k <= nz; k++) {
-    int nBinsY = row.Grid().Ny();
     int mybin = bin + k * nBinsY;
     unsigned int hitFst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin);
     unsigned int hitLst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin + ny + 1);
-    for (unsigned int ih = hitFst; ih < hitLst; ih++) {
-      cahit2 hh = CA_TEXTURE_FETCH(cahit2, gAliTexRefu2, hits, ih);
-      int id = tracker.Data().ClusterIdOffset() + tracker.Data().ClusterDataIndex(row, ih);
-      GPUAtomic(unsigned int) * GPUrestrict() weight = &Merger->ClusterAttachment()[id];
+    for (unsigned int ih = hitFst; ih < hitLst; ih++) {      
+      int id = idOffset + ids[ih];
+      GPUAtomic(unsigned int) * GPUrestrict() weight = weights +id;      
       if (*weight & GPUTPCGMMerger::attachGood) {
         continue;
       }
+      cahit2 hh = CA_TEXTURE_FETCH(cahit2, gAliTexRefu2, hits, ih);
       float y = y0 + hh.x * stepY;
       float z = z0 + hh.y * stepZ;
       float dy = y - Y;
       float dz = z - Z;
       if (dy * dy < sy2 && dz * dz < sz2) {
         // CADEBUG(printf("Found Y %f Z %f\n", y, z));
-        int myWeight = Merger->TrackOrderAttach()[iTrack] | GPUTPCGMMerger::attachAttached | GPUTPCGMMerger::attachTube;
-        if (goodLeg) {
-          myWeight |= GPUTPCGMMerger::attachGoodLeg;
-        }
         CAMath::AtomicMax(weight, myWeight);
-      }
+      }      
     }
   }
 }

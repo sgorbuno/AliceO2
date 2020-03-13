@@ -140,7 +140,7 @@ class GPUTPCSliceData
   GPUhdi() GPUglobalref() const GPUTPCClusterData* ClusterData() const { return mClusterData; }
   float MaxZ() const { return mMaxZ; }
 
- private:
+ public:
 #ifndef GPUCA_GPUCODE
   GPUTPCSliceData& operator=(const GPUTPCSliceData&) CON_DELETE; // ROOT 5 tries to use this if it is not private
   GPUTPCSliceData(const GPUTPCSliceData&) CON_DELETE;            //
