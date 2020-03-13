@@ -314,6 +314,17 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
               }
             }
           }
+          if (N1 < N) {
+            int iUp = N1;
+            const float dy = yzdn.x - yzUp[iUp];
+            const float dz = yzdn.y - yzUp2[iUp];
+            const float d = dy * dy + dz * dz;
+            if (d < bestD) {
+              bestD = d;
+              bestDn = i;
+              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
+            }
+          }
           if (N1 + 1 < N) {
             int iUp = N1 + 1;
             const float dy = yzdn.x - yzUp[iUp];
@@ -327,17 +338,6 @@ GPUdii() void GPUTPCNeighboursFinder::Thread<0>(int /*nBlocks*/, int nThreads, i
           }
           if (N1 + 2 < N) {
             int iUp = N1 + 2;
-            const float dy = yzdn.x - yzUp[iUp];
-            const float dz = yzdn.y - yzUp2[iUp];
-            const float d = dy * dy + dz * dz;
-            if (d < bestD) {
-              bestD = d;
-              bestDn = i;
-              bestUp = GPUCA_NEIGHBOURS_FINDER_MAX_NNEIGHUP + iUp;
-            }
-          }
-          if (N1 + 3 < N) {
-            int iUp = N1 + 3;
             const float dy = yzdn.x - yzUp[iUp];
             const float dz = yzdn.y - yzUp2[iUp];
             const float d = dy * dy + dz * dz;
