@@ -496,9 +496,9 @@ GPUd() void GPUTPCGMTrackParam::AttachClusters(const GPUTPCGMMerger* GPUrestrict
     unsigned int hitFst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin);
     unsigned int hitLst = CA_TEXTURE_FETCH(calink, gAliTexRefu, firsthit, mybin + ny + 1);    
     for (unsigned int ih = hitFst; ih < hitLst; ih++) { // 70 ms
-      //if (weights[ids[ih]] & GPUTPCGMMerger::attachGood) { // 20 ms
-        //continue;
-      //}      
+      if (weights[ids[ih]] & GPUTPCGMMerger::attachGood) { // 20 ms
+        continue;
+      }      
       cahit2 hh = CA_TEXTURE_FETCH(cahit2, gAliTexRefu2, hits, ih);
       float y = y0 + hh.x * stepY;
       float z = z0 + hh.y * stepZ;
