@@ -97,8 +97,8 @@ class GPUTPCGMMerger : public GPUProcessor
   GPUhd() unsigned int* TrackOrderProcess() const { return mTrackOrderProcess; }
   GPUd() unsigned int NSlowTracks() const { return mNSlowTracks; }
 
-  enum attachTypes { attachAttached = 0x20000000,
-                     attachGood = 0x40000000,
+  enum attachTypes { attachAttached = 0x40000000,
+                     attachGood = 0x20000000,
                      attachGoodLeg = 0x10000000,
                      attachTube = 0x08000000,
                      attachHighIncl = 0x04000000,
