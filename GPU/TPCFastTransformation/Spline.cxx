@@ -150,6 +150,7 @@ void SplineBase<DataT, isConsistentT>::recreate(
   const int numberOfKnots[/* mXdim */], const int* knots[/* mXdim */])
 {
   /// Constructor for an irregular spline
+  std::cout << "recreate.." << std::endl;
 
   FlatObject::startConstruction();
 
@@ -202,6 +203,7 @@ void SplineBase<DataT, isConsistentT>::recreate(
   } else {
     mFparameters = nullptr;
   }
+  std::cout << "..recreate" << std::endl;
 }
 
 template <typename DataT, bool isConsistentT>
