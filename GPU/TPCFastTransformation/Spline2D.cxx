@@ -58,7 +58,7 @@ void Spline2DBase<DataT, isConsistentT>::setActualBufferAddress(char* actualFlat
 
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
 
-  size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
+  const size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
   int parametersOffset = u2Offset;
   //int bufferSize = parametersOffset;
   mFparameters = nullptr;
@@ -148,7 +148,7 @@ void Spline2DBase<DataT, isConsistentT>::recreate(
   mGridU1.recreate(numberOfKnotsU1, knotsU1, 0);
   mGridU2.recreate(numberOfKnotsU2, knotsU2, 0);
 
-  size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
+  const size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
   int parametersOffset = u2Offset + mGridU2.getFlatBufferSize();
   int bufferSize = parametersOffset;
   mFparameters = nullptr;
@@ -182,7 +182,7 @@ void Spline2DBase<DataT, isConsistentT>::recreate(
 
   mGridU2.recreate(numberOfKnotsU2, 0);
 
-  size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
+  const size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
   int parametersOffset = u2Offset + mGridU2.getFlatBufferSize();
   int bufferSize = parametersOffset;
   mFparameters = nullptr;
@@ -491,15 +491,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
 
 #endif // GPUCA_GPUCODE
 
-//templateClassImp(GPUCA_NAMESPACE::gpu::Spline2D);
-
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<float, false>;
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<float, true>;
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<double, false>;
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<double, true>;
-/*
-template class GPUCA_NAMESPACE::gpu::Spline2D<float, 0, false>;
-template class GPUCA_NAMESPACE::gpu::Spline2D<float, 0, true>;
-template class GPUCA_NAMESPACE::gpu::Spline2D<double, 0, false>;
-template class GPUCA_NAMESPACE::gpu::Spline2D<double, 0, true>;
-*/

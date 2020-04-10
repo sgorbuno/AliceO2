@@ -83,8 +83,8 @@ void Spline1D<DataT>::setActualBufferAddress(char* actualFlatBufferPtr)
   //mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mUtoKnotMap);
   //mFparameters = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mFparameters);
 
-  int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
-  int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
+  const int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
+  const int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
   //int bufferSize = parametersOffset + getSizeOfParameters(mFdimensions);
 
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
@@ -146,9 +146,9 @@ void Spline1D<DataT>::recreate(int numberOfKnots, const int inputKnots[], int nF
   mXmin = 0.;
   mXtoUscale = 1.;
 
-  int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
-  int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
-  int bufferSize = parametersOffset + getSizeOfParameters(mFdimensions);
+  const int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
+  const int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
+  const int bufferSize = parametersOffset + getSizeOfParameters(mFdimensions);
 
   FlatObject::finishConstruction(bufferSize);
 
@@ -171,7 +171,7 @@ void Spline1D<DataT>::recreate(int numberOfKnots, const int inputKnots[], int nF
 
   int* map = getUtoKnotMap();
 
-  int iKnotMax = mNumberOfKnots - 2;
+  const int iKnotMax = mNumberOfKnots - 2;
 
   //
   // With iKnotMax=nKnots-2 we map the U==Umax coordinate to the last [nKnots-2, nKnots-1] segment.
@@ -317,7 +317,7 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
     // spline
 
     int nKnots = 4;
-    int uMax = nKnots * 3;
+    const int uMax = nKnots * 3;
 
     Spline1D spline1;
     int knotsU[nKnots];
