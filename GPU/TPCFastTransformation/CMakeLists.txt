@@ -13,8 +13,10 @@ set(MODULE TPCFastTransformation)
 set(SRCS
     Spline1D.cxx  
     Spline2D.cxx
+    Spline.cxx
     SplineHelper1D.cxx
     SplineHelper2D.cxx
+    SplineHelper.cxx
     devtools/IrregularSpline1D.cxx
     devtools/IrregularSpline2D3D.cxx
     devtools/SemiregularSpline2D3D.cxx

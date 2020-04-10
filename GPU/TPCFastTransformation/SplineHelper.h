@@ -35,7 +35,7 @@ namespace gpu
 ///
 /// The SplineHelper class is to initialize Spline* objects
 ///
-template <typename Tfloat>
+template <typename DataT>
 class SplineHelper
 {
  public:
@@ -56,36 +56,38 @@ class SplineHelper
   /// _______________  Main functionality  ________________________
 
   /// Create best-fit spline parameters for a given input function F
-  template <bool TisConsistent>
-  void approximateFunction(
-    SplineBase<Tfloat, TisConsistent>& spline,
-    Tfloat x1Min, Tfloat x1Max, Tfloat x2Min, Tfloat x2Max,
-    std::function<void(Tfloat x1, Tfloat x2, Tfloat f[/*spline.getFdimensions()*/])> F,
-    int nAxiliaryDataPointsU1 = 4, int nAxiliaryDataPointsU2 = 4);
+  template <bool isConsistentT>
+  void approximateFunction(SplineBase<DataT, isConsistentT>& spline,
+                           const DataT xMin[/* Xdim */], const DataT xMax[/* Xdim */],
+                           std::function<void(const DataT x[/* Xdim */], DataT f[/* Fdim */])> F,
+                           const int nAxiliaryDataPoints[/* Xdim */] = nullptr);
 
   /// _______________   Interface for a step-wise construction of the best-fit spline   ________________________
 
   /// precompute everything needed for the construction
-  template <bool TisConsistent>
-  int setSpline(const SplineBase<Tfloat, TisConsistent>& spline, int nAxiliaryPointsU1, int nAxiliaryPointsU2);
+  template <bool isConsistentT>
+  int setSpline(const SplineBase<DataT, isConsistentT>& spline, const int nAxiliaryPoints[/* Xdim */]);
 
   /// approximate std::function, output in Fparameters
   void approximateFunction(
-    Tfloat* Fparameters, Tfloat x1Min, Tfloat x1Max, Tfloat x2Min, Tfloat x2Max,
-    std::function<void(Tfloat x1, Tfloat x2, Tfloat f[/*spline.getFdimensions()*/])> F) const;
+    DataT* Fparameters, const DataT xMin[/* mXdimensions */], const DataT xMax[/* mXdimensions */],
+    std::function<void(const DataT x[/* mXdimensions */], DataT f[/* mFdimensions */])> F) const;
+
+  /// approximate std::function, output in Fparameters. F calculates values for a batch of points.
+  void approximateFunctionBatch(
+    DataT* Fparameters, const DataT xMin[/* mXdimensions */], const DataT xMax[/* mXdimensions */],
+    std::function<void(const std::vector<DataT> x[/* mXdimensions */], std::vector<DataT> f[/*mFdimensions*/])> F,
+    unsigned int batchsize) const;
 
   /// approximate a function given as an array of values at data points
   void approximateFunction(
-    Tfloat* Fparameters, const Tfloat DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
+    DataT* Fparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
 
-  int getNumberOfDataPointsU1() const { return mHelperU1.getNumberOfDataPoints(); }
+  int getNumberOfDataPoints(int dimX) const { return mHelpers[dimX].getNumberOfDataPoints(); }
 
-  int getNumberOfDataPointsU2() const { return mHelperU2.getNumberOfDataPoints(); }
+  int getNumberOfDataPoints() const { return mNumberOfDataPoints; }
 
-  int getNumberOfDataPoints() const { return getNumberOfDataPointsU1() * getNumberOfDataPointsU2(); }
-
-  const SplineHelper1D<Tfloat>& getHelperU1() const { return mHelperU1; }
-  const SplineHelper1D<Tfloat>& getHelperU2() const { return mHelperU2; }
+  const SplineHelper1D<DataT>& getHelper(int dimX) const { return mHelpers[dimX]; }
 
   /// _______________  Utilities   ________________________
 
@@ -96,45 +98,53 @@ class SplineHelper
   /// Stores an error message
   int storeError(Int_t code, const char* msg);
 
-  TString mError = ""; ///< error string
-  int mFdimensions;    ///< n of F dimensions
-  SplineHelper1D<Tfloat> mHelperU1;
-  SplineHelper1D<Tfloat> mHelperU2;
+  TString mError = "";     ///< error string
+  int mXdimensions;        ///< number of X dimensions
+  int mFdimensions;        ///< number of F dimensions
+  int mNumberOfParameters; ///< number of parameters
+  int mNumberOfDataPoints; ///< number of data points
+  std::vector<SplineHelper1D<DataT>> mHelpers;
 };
 
-template <typename Tfloat>
-template <bool TisConsistent>
-void SplineHelper<Tfloat>::approximateFunction(
-  SplineBase<Tfloat, TisConsistent>& spline,
-  Tfloat x1Min, Tfloat x1Max, Tfloat x2Min, Tfloat x2Max,
-  std::function<void(Tfloat x1, Tfloat x2, Tfloat f[/*spline.getFdimensions()*/])> F,
-  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
+template <typename DataT>
+template <bool isConsistentT>
+void SplineHelper<DataT>::approximateFunction(
+  SplineBase<DataT, isConsistentT>& spline,
+  const DataT xMin[/* Xdim */], const DataT xMax[/* Xdim */],
+  std::function<void(const DataT x[/* Xdim */], DataT f[/* Fdim */])> F,
+  const int nAxiliaryDataPoints[/* Xdim */])
 {
   /// Create best-fit spline parameters for a given input function F
   if (spline.isConsistent()) {
-    setSpline(spline, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
-    approximateFunction(spline.getFparameters(), x1Min, x1Max, x2Min, x2Max, F);
+    setSpline(spline, nAxiliaryDataPoints);
+    approximateFunction(spline.getFparameters(), xMin, xMax, F);
   }
-  spline.setXrange(x1Min, x1Max, x2Min, x2Max);
+  spline.setXrange(xMin, xMax);
 }
 
-template <typename Tfloat>
-template <bool TisConsistent>
-int SplineHelper<Tfloat>::setSpline(
-  const SplineBase<Tfloat, TisConsistent>& spline, int nAxiliaryPointsU, int nAxiliaryPointsV)
+template <typename DataT>
+template <bool isConsistentT>
+int SplineHelper<DataT>::setSpline(
+  const SplineBase<DataT, isConsistentT>& spline, const int nAxiliaryPoints[/* Xdim */])
 {
-  // Prepare creation of  irregular spline
+  // Prepare creation of an irregular spline
   // The should be at least one (better, two) axiliary measurements on each segnment between two knots and at least 2*nKnots measurements in total
   // Returns 0 when the spline can not be constructed with the given nAxiliaryPoints
 
   int ret = 0;
+  mXdimensions = spline.getXdimensions();
   mFdimensions = spline.getFdimensions();
-  if (mHelperU1.setSpline(spline.getGridU1(), mFdimensions, nAxiliaryPointsU) != 0) {
-    ret = storeError(-2, "SplineHelper::setSpline: error by setting U axis");
+  mNumberOfParameters = spline.getNumberOfParameters();
+  mNumberOfDataPoints = 1;
+  mHelpers.resize(mXdimensions);
+  for (int i = 0; i < mXdimensions; i++) {
+    int np = (nAxiliaryPoints != nullptr) ? nAxiliaryPoints[i] : 4;
+    if (mHelpers[i].setSpline(spline.getGrid(i), mFdimensions, np) != 0) {
+      ret = storeError(-2, "SplineHelper::setSpline: error by setting an axis");
+    }
+    mNumberOfDataPoints *= mHelpers[i].getNumberOfDataPoints();
   }
-  if (mHelperU2.setSpline(spline.getGridU2(), mFdimensions, nAxiliaryPointsV) != 0) {
-    ret = storeError(-3, "SplineHelper::setSpline: error by setting V axis");
-  }
+
   return ret;
 }
 
