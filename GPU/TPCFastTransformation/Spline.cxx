@@ -150,7 +150,6 @@ void SplineBase<DataT, isConsistentT>::recreate(
   const int numberOfKnots[/* mXdim */], const int* knots[/* mXdim */])
 {
   /// Constructor for an irregular spline
-  std::cout << "recreate.." << std::endl;
 
   FlatObject::startConstruction();
 
@@ -172,7 +171,7 @@ void SplineBase<DataT, isConsistentT>::recreate(
 
   for (int i = 0; i < mXdim; i++) {
     offset = alignSize(offset, vGrids[i].getBufferAlignmentBytes());
-    offset += mGrid[i].getFlatBufferSize();
+    offset += vGrids[i].getFlatBufferSize();
   }
 
   if (isConsistentT) {
@@ -197,13 +196,13 @@ void SplineBase<DataT, isConsistentT>::recreate(
     offset = alignSize(offset, getParameterAlignmentBytes());
     mFparameters = reinterpret_cast<DataT*>(mFlatBufferPtr + offset);
     offset += getSizeOfParameters();
+
     for (int i = 0; i < getNumberOfParameters(); i++) {
       mFparameters[i] = 0;
     }
   } else {
     mFparameters = nullptr;
   }
-  std::cout << "..recreate" << std::endl;
 }
 
 template <typename DataT, bool isConsistentT>
