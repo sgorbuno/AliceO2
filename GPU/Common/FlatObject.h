@@ -25,7 +25,7 @@
 #include <cassert>
 #endif
 
-#if !defined(GPUCA_ALIGPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
 #include "TFile.h"
 #endif
 
@@ -285,7 +285,7 @@ class FlatObject
     return (ptr != nullptr) ? reinterpret_cast<T*>(newBase + (reinterpret_cast<const char*>(ptr) - oldBase)) : nullptr;
   }
 
-#if !defined(GPUCA_ALIGPUCODE) // code invisible on GPU
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE) // code invisible on GPU
 
   /// write a child class object to the file
   template <class T>
@@ -451,7 +451,7 @@ inline void FlatObject::setFutureBufferAddress(char* futureFlatBufferPtr)
   mFlatBufferContainer = nullptr;
 }
 
-#if !defined(GPUCA_ALIGPUCODE) // code invisible on GPU
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE) // code invisible on GPU
 template <class T>
 inline int FlatObject::writeToFile(T& obj, TFile& outf, const char* name)
 {

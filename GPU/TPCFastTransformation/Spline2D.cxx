@@ -221,7 +221,7 @@ void Spline2DBase<DataT, isConsistentT>::approximateFunction(
 }
 #endif
 
-#if !defined(GPUCA_ALIGPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
 
 template <typename DataT, bool isConsistentT>
 int Spline2DBase<DataT, isConsistentT>::writeToFile(TFile& outf, const char* name)

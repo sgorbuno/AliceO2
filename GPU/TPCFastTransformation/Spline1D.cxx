@@ -238,7 +238,7 @@ void Spline1D<DataT>::approximateFunction(DataT xMin, DataT xMax,
 }
 #endif
 
-#if !defined(GPUCA_ALIGPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
 template <typename DataT>
 int Spline1D<DataT>::writeToFile(TFile& outf, const char* name)
 {

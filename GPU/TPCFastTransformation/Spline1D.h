@@ -170,7 +170,7 @@ class Spline1D : public FlatObject
 
   /// _______________  IO   ________________________
 
-#if !defined(GPUCA_ALIGPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
   /// write a class object to the file
   int writeToFile(TFile& outf, const char* name);
 
