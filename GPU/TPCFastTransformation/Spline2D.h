@@ -150,13 +150,13 @@ class Spline2DBase : public FlatObject
   /// _______________  Technical stuff  ________________________
 
   /// Get offset of GridU flat data in the flat buffer
-  size_t getGridU1Offset() const { return mGridU1.getFlatBufferPtr() - mFlatBufferPtr; }
+  GPUhd() size_t getGridU1Offset() const { return mGridU1.getFlatBufferPtr() - mFlatBufferPtr; }
 
   /// Get offset of GridU2 flat data in the flat buffer
-  size_t getGridU2Offset() const { return mGridU2.getFlatBufferPtr() - mFlatBufferPtr; }
+  GPUhd() size_t getGridU2Offset() const { return mGridU2.getFlatBufferPtr() - mFlatBufferPtr; }
 
   /// Set X range
-  void setXrange(DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max);
+  GPUhd() void setXrange(DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max);
 
   /// Print method
   void print() const;
