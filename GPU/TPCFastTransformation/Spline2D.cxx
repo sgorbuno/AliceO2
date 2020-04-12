@@ -28,6 +28,10 @@
 #include "TNtuple.h"
 #include "TFile.h"
 #include <cmath>
+#ifdef __APPLE__
+#define sincos(x, s, c) __sincos(x, s, c)
+#define sincosf(x, s, c) __sincosf(x, s, c)
+#endif
 
 templateClassImp(GPUCA_NAMESPACE::gpu::Spline2DBase);
 
@@ -261,10 +265,8 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
     double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
     double ui = 0, vi = 0;
     for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
-      sinu[i] = sin(ui);
-      cosu[i] = cos(ui);
-      sinv[i] = sin(vi);
-      cosv[i] = cos(vi);
+      sincos(ui, &sinu[i], &cosu[i]);
+      sincos(vi, &sinv[i], &cosv[i]);
     }
     for (int dim = 0; dim < Ndim; dim++) {
       double f = 0; // Fcoeff[dim][0]/2;
