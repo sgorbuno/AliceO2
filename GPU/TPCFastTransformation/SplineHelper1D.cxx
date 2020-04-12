@@ -467,7 +467,7 @@ void SplineHelper1D<DataT>::approximateDerivatives(
   }
 }
 
-template class SplineHelper1D<float>;
-template class SplineHelper1D<double>;
+template class GPUCA_NAMESPACE::gpu::SplineHelper1D<float>;
+template class GPUCA_NAMESPACE::gpu::SplineHelper1D<double>;
 
 #endif

@@ -31,6 +31,7 @@
 #include "TNtuple.h"
 #include "TH1.h"
 #include "TFile.h"
+#include <cmath>
 #endif
 
 using namespace GPUCA_NAMESPACE::gpu;
@@ -83,8 +84,8 @@ void Spline1D<DataT>::setActualBufferAddress(char* actualFlatBufferPtr)
   //mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mUtoKnotMap);
   //mFparameters = FlatObject::relocatePointer(mFlatBufferPtr, actualFlatBufferPtr, mFparameters);
 
-  int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
-  int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
+  const int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
+  const int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
   //int bufferSize = parametersOffset + getSizeOfParameters(mFdimensions);
 
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
@@ -146,9 +147,9 @@ void Spline1D<DataT>::recreate(int numberOfKnots, const int inputKnots[], int nF
   mXmin = 0.;
   mXtoUscale = 1.;
 
-  int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
-  int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
-  int bufferSize = parametersOffset + getSizeOfParameters(mFdimensions);
+  const int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
+  const int parametersOffset = uToKnotMapOffset + (mUmax + 1) * sizeof(int);
+  const int bufferSize = parametersOffset + getSizeOfParameters(mFdimensions);
 
   FlatObject::finishConstruction(bufferSize);
 
@@ -171,7 +172,7 @@ void Spline1D<DataT>::recreate(int numberOfKnots, const int inputKnots[], int nF
 
   int* map = getUtoKnotMap();
 
-  int iKnotMax = mNumberOfKnots - 2;
+  const int iKnotMax = mNumberOfKnots - 2;
 
   //
   // With iKnotMax=nKnots-2 we map the U==Umax coordinate to the last [nKnots-2, nKnots-1] segment.
@@ -224,19 +225,7 @@ void Spline1D<DataT>::print() const
   printf("\n");
 }
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
-
-template <typename DataT>
-void Spline1D<DataT>::approximateFunction(DataT xMin, DataT xMax,
-                                          std::function<void(DataT x, DataT f[/*mFdimensions*/])> F,
-                                          int nAxiliaryDataPoints)
-{
-  /// Approximate F with this spline
-  setXrange(xMin, xMax);
-  SplineHelper1D<DataT> helper;
-  helper.approximateFunction(*this, xMin, xMax, F, nAxiliaryDataPoints);
-}
-
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
 template <typename DataT>
 int Spline1D<DataT>::writeToFile(TFile& outf, const char* name)
 {
@@ -249,6 +238,20 @@ Spline1D<DataT>* Spline1D<DataT>::readFromFile(TFile& inpf, const char* name)
 {
   /// read a class object from the file
   return FlatObject::readFromFile<Spline1D<DataT>>(inpf, name);
+}
+#endif
+
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
+
+template <typename DataT>
+void Spline1D<DataT>::approximateFunction(DataT xMin, DataT xMax,
+                                          std::function<void(DataT x, DataT f[/*mFdimensions*/])> F,
+                                          int nAxiliaryDataPoints)
+{
+  /// Approximate F with this spline
+  setXrange(xMin, xMax);
+  SplineHelper1D<DataT> helper;
+  helper.approximateFunction(*this, xMin, xMax, F, nAxiliaryDataPoints);
 }
 
 template <typename DataT>
@@ -263,12 +266,16 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
   double Fcoeff[Ndim][2 * (Fdegree + 1)];
 
   auto F = [&](DataT x, DataT f[]) -> void {
-    double xx = x;
+    double cosx[Fdegree + 1], sinx[Fdegree + 1];
+    double xi = 0;
+    for (int i = 0; i <= Fdegree; i++, xi += x) {
+      sinx[i] = sin(xi);
+      cosx[i] = cos(xi);
+    }
     for (int dim = 0; dim < Ndim; dim++) {
       f[dim] = 0; // Fcoeff[0]/2;
       for (int i = 1; i <= Fdegree; i++) {
-        f[dim] += Fcoeff[dim][2 * i] * TMath::Cos(i * xx) +
-                  Fcoeff[dim][2 * i + 1] * TMath::Sin(i * xx);
+        f[dim] += Fcoeff[dim][2 * i] * cosx[i] + Fcoeff[dim][2 * i + 1] * sinx[i];
       }
     }
   };
@@ -317,7 +324,7 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
     // spline
 
     int nKnots = 4;
-    int uMax = nKnots * 3;
+    const int uMax = nKnots * 3;
 
     Spline1D spline1;
     int knotsU[nKnots];
@@ -500,7 +507,7 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
   return 0;
 }
 
-#endif // GPUCA_GPUCODE
+#endif // GPUCA_ALIGPUCODE
 
 template class GPUCA_NAMESPACE::gpu::Spline1D<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<double>;

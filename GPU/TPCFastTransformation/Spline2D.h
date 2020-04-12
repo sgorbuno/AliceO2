@@ -89,7 +89,9 @@ class Spline2DBase : public FlatObject
 
   /// Constructor for an irregular spline
   void recreate(int numberOfKnotsU1, const int knotsU1[], int numberOfKnotsU2, const int knotsU2[]);
+#endif
 
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
   /// approximate a function F with this spline.
   void approximateFunction(DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
                            std::function<void(DataT x1, DataT x2, DataT f[])> F,
@@ -98,7 +100,7 @@ class Spline2DBase : public FlatObject
 
   /// _______________  IO   ________________________
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
+#if !defined(ALIGPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
   /// write a class object to the file
   int writeToFile(TFile& outf, const char* name);
 
@@ -150,18 +152,18 @@ class Spline2DBase : public FlatObject
   /// _______________  Technical stuff  ________________________
 
   /// Get offset of GridU flat data in the flat buffer
-  size_t getGridU1Offset() const { return mGridU1.getFlatBufferPtr() - mFlatBufferPtr; }
+  GPUhd() size_t getGridU1Offset() const { return mGridU1.getFlatBufferPtr() - mFlatBufferPtr; }
 
   /// Get offset of GridU2 flat data in the flat buffer
-  size_t getGridU2Offset() const { return mGridU2.getFlatBufferPtr() - mFlatBufferPtr; }
+  GPUhd() size_t getGridU2Offset() const { return mGridU2.getFlatBufferPtr() - mFlatBufferPtr; }
 
   /// Set X range
-  void setXrange(DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max);
+  GPUhd() void setXrange(DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max);
 
   /// Print method
   void print() const;
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
   /// Test the class functionality
   static int test(const bool draw = 0, const bool drawDataPoints = 1);
 #endif
@@ -255,7 +257,7 @@ class Spline2D : public Spline2DBase<DataT, isConsistentT>
 
   /// _______________  IO   ________________________
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
   /// write a class object to the file
   using TBase::writeToFile;
 
