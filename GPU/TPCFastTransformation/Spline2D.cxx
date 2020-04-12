@@ -27,6 +27,11 @@
 #include "TCanvas.h"
 #include "TNtuple.h"
 #include "TFile.h"
+#include <cmath>
+#ifdef __APPLE__
+#define sincos(x, s, c) __sincos(x, s, c)
+#define sincosf(x, s, c) __sincosf(x, s, c)
+#endif
 
 templateClassImp(GPUCA_NAMESPACE::gpu::Spline2DBase);
 
@@ -37,7 +42,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT, bool isConsistentT>
 Spline2DBase<DataT, isConsistentT>::Spline2DBase(int nDim)
-  : mFdim(nDim), FlatObject(), mGridU1(), mGridU2(), mFparameters(nullptr)
+  : FlatObject(), mFdim(nDim), mGridU1(), mGridU2(), mFparameters(nullptr)
 {
   recreate(2, 2);
 }
@@ -207,18 +212,7 @@ void Spline2DBase<DataT, isConsistentT>::recreate(
 
 #endif
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
-
-template <typename DataT, bool isConsistentT>
-void Spline2DBase<DataT, isConsistentT>::approximateFunction(
-  DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-  std::function<void(DataT x1, DataT x2, DataT f[])> F,
-  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
-{
-  /// approximate a function F with this spline
-  SplineHelper2D<DataT> helper;
-  helper.approximateFunction(*this, x1Min, x1Max, x2Min, x2Max, F, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
-}
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
 
 template <typename DataT, bool isConsistentT>
 int Spline2DBase<DataT, isConsistentT>::writeToFile(TFile& outf, const char* name)
@@ -234,6 +228,20 @@ Spline2DBase<DataT, isConsistentT>* Spline2DBase<DataT, isConsistentT>::readFrom
   /// read a class object from the file
   return FlatObject::readFromFile<Spline2DBase<DataT, isConsistentT>>(inpf, name);
 }
+#endif
+
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+
+template <typename DataT, bool isConsistentT>
+void Spline2DBase<DataT, isConsistentT>::approximateFunction(
+  DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
+  std::function<void(DataT x1, DataT x2, DataT f[])> F,
+  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
+{
+  /// approximate a function F with this spline
+  SplineHelper2D<DataT> helper;
+  helper.approximateFunction(*this, x1Min, x1Max, x2Min, x2Max, F, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
+}
 
 template <typename DataT, bool isConsistentT>
 int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataPoints)
@@ -246,26 +254,29 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
 
   double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
 
-  int nKnots = 4;
-  const int nAxiliaryPoints = 1;
-  int uMax = nKnots * 3;
+  constexpr int nKnots = 4;
+  constexpr int nAxiliaryPoints = 1;
+  constexpr int uMax = nKnots * 3;
 
   auto F = [&](DataT u, DataT v, DataT Fuv[]) {
-    double uu = u * TMath::Pi() / uMax;
-    double vv = v * TMath::Pi() / uMax;
+    constexpr double scale = TMath::Pi() / uMax;
+    double uu = u * scale;
+    double vv = v * scale;
+    double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
+    double ui = 0, vi = 0;
+    for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
+      sincos(ui, &sinu[i], &cosu[i]);
+      sincos(vi, &sinv[i], &cosv[i]);
+    }
     for (int dim = 0; dim < Ndim; dim++) {
       double f = 0; // Fcoeff[dim][0]/2;
       for (int i = 1; i <= Fdegree; i++) {
-        double cosu = TMath::Cos(i * uu);
-        double sinu = TMath::Sin(i * uu);
         for (int j = 1; j <= Fdegree; j++) {
           double* c = &(Fcoeff[dim][4 * (i * Fdegree + j)]);
-          double cosv = TMath::Cos(j * vv);
-          double sinv = TMath::Sin(j * vv);
-          f += c[0] * cosu * cosv;
-          f += c[1] * cosu * sinv;
-          f += c[2] * sinu * cosv;
-          f += c[3] * sinu * sinv;
+          f += c[0] * cosu[i] * cosv[j];
+          f += c[1] * cosu[i] * sinv[j];
+          f += c[2] * sinu[i] * cosv[j];
+          f += c[3] * sinu[i] * sinv[j];
         }
       }
       Fuv[dim] = f;
@@ -489,7 +500,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
   return 0;
 }
 
-#endif // GPUCA_GPUCODE
+#endif // GPUCA_ALIGPUCODE
 
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<float, false>;
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<float, true>;

@@ -31,6 +31,14 @@
 #include "TNtuple.h"
 #include "TH1.h"
 #include "TFile.h"
+#include <cmath>
+#ifdef __APPLE__
+#define sincos(x, s, c) __sincos(x, s, c)
+#define sincosf(x, s, c) __sincosf(x, s, c)
+#endif
+
+templateClassImp(GPUCA_NAMESPACE::gpu::Spline1D);
+
 #endif
 
 using namespace GPUCA_NAMESPACE::gpu;
@@ -224,19 +232,7 @@ void Spline1D<DataT>::print() const
   printf("\n");
 }
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
-
-template <typename DataT>
-void Spline1D<DataT>::approximateFunction(DataT xMin, DataT xMax,
-                                          std::function<void(DataT x, DataT f[/*mFdimensions*/])> F,
-                                          int nAxiliaryDataPoints)
-{
-  /// Approximate F with this spline
-  setXrange(xMin, xMax);
-  SplineHelper1D<DataT> helper;
-  helper.approximateFunction(*this, xMin, xMax, F, nAxiliaryDataPoints);
-}
-
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
 template <typename DataT>
 int Spline1D<DataT>::writeToFile(TFile& outf, const char* name)
 {
@@ -249,6 +245,20 @@ Spline1D<DataT>* Spline1D<DataT>::readFromFile(TFile& inpf, const char* name)
 {
   /// read a class object from the file
   return FlatObject::readFromFile<Spline1D<DataT>>(inpf, name);
+}
+#endif
+
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
+
+template <typename DataT>
+void Spline1D<DataT>::approximateFunction(DataT xMin, DataT xMax,
+                                          std::function<void(DataT x, DataT f[/*mFdimensions*/])> F,
+                                          int nAxiliaryDataPoints)
+{
+  /// Approximate F with this spline
+  setXrange(xMin, xMax);
+  SplineHelper1D<DataT> helper;
+  helper.approximateFunction(*this, xMin, xMax, F, nAxiliaryDataPoints);
 }
 
 template <typename DataT>
@@ -263,12 +273,15 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
   double Fcoeff[Ndim][2 * (Fdegree + 1)];
 
   auto F = [&](DataT x, DataT f[]) -> void {
-    double xx = x;
+    double cosx[Fdegree + 1], sinx[Fdegree + 1];
+    double xi = 0;
+    for (int i = 0; i <= Fdegree; i++, xi += x) {
+      sincos(xi, &sinx[i], &cosx[i]);
+    }
     for (int dim = 0; dim < Ndim; dim++) {
       f[dim] = 0; // Fcoeff[0]/2;
       for (int i = 1; i <= Fdegree; i++) {
-        f[dim] += Fcoeff[dim][2 * i] * TMath::Cos(i * xx) +
-                  Fcoeff[dim][2 * i + 1] * TMath::Sin(i * xx);
+        f[dim] += Fcoeff[dim][2 * i] * cosx[i] + Fcoeff[dim][2 * i + 1] * sinx[i];
       }
     }
   };
@@ -500,7 +513,7 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
   return 0;
 }
 
-#endif // GPUCA_GPUCODE
+#endif // GPUCA_ALIGPUCODE
 
 template class GPUCA_NAMESPACE::gpu::Spline1D<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<double>;

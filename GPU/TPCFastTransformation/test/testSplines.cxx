@@ -35,11 +35,6 @@ BOOST_AUTO_TEST_CASE(Spline_test1)
   o2::gpu::Spline2D<float, 1> s2;
   int err2 = s2.test(0);
   BOOST_CHECK_MESSAGE(err2 == 0, "test of GPU/TPCFastTransform/Spline2D failed with the error code " << err2);
-
-  o2::gpu::Spline2D<float, 1, 1> s;
-  int err = s.test(0);
-  BOOST_CHECK_MESSAGE(err == 0, "test of GPU/TPCFastTransform/Spline failed with the error code " << err);
 }
-
 } // namespace gpu
 } // namespace o2

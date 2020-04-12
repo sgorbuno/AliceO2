@@ -54,8 +54,8 @@ class SplineHelper1D
   /// Default constructor
   SplineHelper1D();
 
-  /// Copy constructor
-  SplineHelper1D(const SplineHelper1D&) CON_DEFAULT;
+  /// Copy constructor: disabled
+  SplineHelper1D(const SplineHelper1D&) CON_DELETE;
 
   /// Assignment operator: disabled
   SplineHelper1D& operator=(const SplineHelper1D&) CON_DELETE;
