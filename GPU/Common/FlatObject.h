@@ -498,6 +498,7 @@ inline T* FlatObject::readFromFile(TFile& inpf, const char* name)
   pobj->setActualBufferAddress(pobj->mFlatBufferContainer);
   return pobj;
 }
+#endif
 
 #if !defined(GPUCA_GPUCODE) // code invisible on GPU
 
