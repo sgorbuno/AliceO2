@@ -37,7 +37,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT, bool isConsistentT>
 Spline2DBase<DataT, isConsistentT>::Spline2DBase(int nDim)
-  : mFdim(nDim), FlatObject(), mGridU1(), mGridU2(), mFparameters(nullptr)
+  : FlatObject(), mFdim(nDim), mGridU1(), mGridU2(), mFparameters(nullptr)
 {
   recreate(2, 2);
 }
