@@ -25,7 +25,7 @@
 #include <cassert>
 #endif
 
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
 #include "TFile.h"
 #endif
 
@@ -285,7 +285,7 @@ class FlatObject
     return (ptr != nullptr) ? reinterpret_cast<T*>(newBase + (reinterpret_cast<const char*>(ptr) - oldBase)) : nullptr;
   }
 
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE) // code invisible on GPU
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU
 
   /// write a child class object to the file
   template <class T>
@@ -294,6 +294,9 @@ class FlatObject
   /// read a child class object from the file
   template <class T>
   static T* readFromFile(TFile& inpf, const char* name);
+#endif
+
+#if !defined(GPUCA_GPUCODE) // code invisible on GPU
 
   /// Test the flat object functionality for a child class T
   template <class T>
@@ -451,7 +454,7 @@ inline void FlatObject::setFutureBufferAddress(char* futureFlatBufferPtr)
   mFlatBufferContainer = nullptr;
 }
 
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE) // code invisible on GPU
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU
 template <class T>
 inline int FlatObject::writeToFile(T& obj, TFile& outf, const char* name)
 {
@@ -495,6 +498,8 @@ inline T* FlatObject::readFromFile(TFile& inpf, const char* name)
   pobj->setActualBufferAddress(pobj->mFlatBufferContainer);
   return pobj;
 }
+
+#if !defined(GPUCA_GPUCODE) // code invisible on GPU
 
 template <class T>
 inline std::string FlatObject::stressTest(T& obj)

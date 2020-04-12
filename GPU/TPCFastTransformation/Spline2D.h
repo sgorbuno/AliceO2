@@ -255,7 +255,7 @@ class Spline2D : public Spline2DBase<DataT, isConsistentT>
 
   /// _______________  IO   ________________________
 
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
   /// write a class object to the file
   using TBase::writeToFile;
 

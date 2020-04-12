@@ -207,21 +207,7 @@ void Spline2DBase<DataT, isConsistentT>::recreate(
 
 #endif
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
-
-template <typename DataT, bool isConsistentT>
-void Spline2DBase<DataT, isConsistentT>::approximateFunction(
-  DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-  std::function<void(DataT x1, DataT x2, DataT f[])> F,
-  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
-{
-  /// approximate a function F with this spline
-  SplineHelper2D<DataT> helper;
-  helper.approximateFunction(*this, x1Min, x1Max, x2Min, x2Max, F, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
-}
-#endif
-
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_GPUCODE)
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
 
 template <typename DataT, bool isConsistentT>
 int Spline2DBase<DataT, isConsistentT>::writeToFile(TFile& outf, const char* name)
@@ -236,6 +222,20 @@ Spline2DBase<DataT, isConsistentT>* Spline2DBase<DataT, isConsistentT>::readFrom
 {
   /// read a class object from the file
   return FlatObject::readFromFile<Spline2DBase<DataT, isConsistentT>>(inpf, name);
+}
+#endif
+
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+
+template <typename DataT, bool isConsistentT>
+void Spline2DBase<DataT, isConsistentT>::approximateFunction(
+  DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
+  std::function<void(DataT x1, DataT x2, DataT f[])> F,
+  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
+{
+  /// approximate a function F with this spline
+  SplineHelper2D<DataT> helper;
+  helper.approximateFunction(*this, x1Min, x1Max, x2Min, x2Max, F, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
 }
 
 template <typename DataT, bool isConsistentT>
