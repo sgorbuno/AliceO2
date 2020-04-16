@@ -123,6 +123,7 @@ set(HDRS_INSTALL
     Base/GPUO2FakeClasses.h
     Base/GPUParam.inc
     Merger/GPUTPCGMMergerTypes.h
+    dEdx/TPCdEdxCalibrationSplines.h
 )
 
 # Sources only for O2
@@ -168,6 +169,7 @@ if(ALIGPU_BUILD_TYPE STREQUAL "O2" OR CONFIG_O2_EXTENSIONS)
                      Interface/GPUO2InterfaceConfiguration.h
                      ITS/GPUITSTrack.h
                      dEdx/GPUdEdxInfo.h
+	             dEdx/TPCdEdxCalibrationSplines.h
                      TPCClusterFinder/Array2D.h
                      TPCClusterFinder/CfConsts.h
                      TPCClusterFinder/CfUtils.h
