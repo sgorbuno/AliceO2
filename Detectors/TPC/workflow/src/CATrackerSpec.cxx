@@ -34,6 +34,7 @@
 #include "TPCReconstruction/TPCFastTransformHelperO2.h"
 #include "TPCBase/Digit.h"
 #include "TPCFastTransform.h"
+#include "TPCdEdxCalibrationSplines.h"
 #include "DPLUtils/DPLRawParser.h"
 #include "DetectorsBase/MatLayerCylSet.h"
 #include "DetectorsRaw/HBFUtils.h"
@@ -81,6 +82,7 @@ DataProcessorSpec getCATrackerSpec(ca::Config const& config, std::vector<int> co
     std::unique_ptr<o2::tpc::GPUCATracking> tracker;
     std::unique_ptr<o2::gpu::GPUDisplayBackend> displayBackend;
     std::unique_ptr<TPCFastTransform> fastTransform;
+    std::unique_ptr<o2::gpu::TPCdEdxCalibrationSplines> dEdxSplines;
     int verbosity = 1;
     std::vector<int> inputIds;
     bool readyToQuit = false;
@@ -115,6 +117,7 @@ DataProcessorSpec getCATrackerSpec(ca::Config const& config, std::vector<int> co
       bool readTransformationFromFile = false;   // Read the TPC transformation from the file
       char tpcTransformationFileName[1024] = ""; // A file with the TPC transformation
       char matBudFileName[1024] = "";            // Material budget file name
+      char dEdxSplinesFile[1024] = "";           // File containing dEdx splines
 
       const auto grp = o2::parameters::GRPObject::loadFrom("o2sim_grp.root");
       if (grp) {
@@ -176,6 +179,10 @@ DataProcessorSpec getCATrackerSpec(ca::Config const& config, std::vector<int> co
             int len = std::min(optLen - 11, 1023);
             memcpy(matBudFileName, optPtr + 11, len);
             matBudFileName[len] = 0;
+          } else if (optLen > 8 && strncmp(optPtr, "dEdxFile=", 9) == 0) {
+            int len = std::min(optLen - 9, 1023);
+            memcpy(dEdxSplinesFile, optPtr + 9, len);
+            dEdxSplinesFile[len] = 0;
           } else if (optLen > 15 && strncmp(optPtr, "transformation=", 15) == 0) {
             int len = std::min(optLen - 15, 1023);
             memcpy(tpcTransformationFileName, optPtr + 15, len);
@@ -254,6 +261,13 @@ DataProcessorSpec getCATrackerSpec(ca::Config const& config, std::vector<int> co
       if (strlen(matBudFileName)) {
         config.configCalib.matLUT = o2::base::MatLayerCylSet::loadFromFile(matBudFileName, "MatBud");
       }
+      processAttributes->dEdxSplines.reset(new TPCdEdxCalibrationSplines);
+      if (strlen(dEdxSplinesFile)) {
+        TFile dEdxFile(dEdxSplinesFile);
+        processAttributes->dEdxSplines->setSplinesFromFile(dEdxFile);
+      }
+      config.configCalib.dEdxSplines = processAttributes->dEdxSplines.get();
+
       // Sample code what needs to be done for the TRD Geometry, when we extend this to TRD tracking.
       /*o2::base::GeometryManager::loadGeometry();
       o2::trd::TRDGeometry gm;
