@@ -36,7 +36,7 @@ class TPCdEdxCalibrationSplines : public FlatObject
   /// _____________  Constructors / destructors __________________________
 
   /// Default constructor: creates an empty uninitialized object
-  TPCdEdxCalibrationSplines();
+  TPCdEdxCalibrationSplines() CON_DEFAULT;
 
   /// Copy constructor: disabled to avoid ambiguity.
   TPCdEdxCalibrationSplines(const TPCdEdxCalibrationSplines&) CON_DELETE;
@@ -45,7 +45,10 @@ class TPCdEdxCalibrationSplines : public FlatObject
   TPCdEdxCalibrationSplines& operator=(const TPCdEdxCalibrationSplines&) CON_DELETE;
 
   /// Destructor
-  ~TPCdEdxCalibrationSplines();
+  ~TPCdEdxCalibrationSplines() CON_DEFAULT;
+
+  void setActualBufferAddress(char* actualFlatBufferPtr);
+  void setFutureBufferAddress(char* futureFlatBufferPtr);
 
   /// Gives pointer to a spline
   GPUd() const SplineType& getSpline(int chargeType, int region) const;

@@ -8,16 +8,14 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file GPUTrackingLinkDef_O2.h
-/// \author David Rohr
+/// \file  dEdxCalibrationSplines.cxx
+/// \brief Definition of dEdxCalibrationSplines class
+///
+/// \author  Matthias Kleiner <matthias.kleiner@cern.ch>
 
-#ifdef __CLING__
+#include "TPCdEdxCalibrationSplines.h"
 
-#pragma link off all globals;
-#pragma link off all classes;
-#pragma link off all functions;
+using namespace o2::gpu;
 
-#pragma link C++ class o2::gpu::GPUTPCO2Interface + ;
-#pragma link C++ class o2::gpu::TPCdEdxCalibrationSplines + ;
-
-#endif
+void TPCdEdxCalibrationSplines::setActualBufferAddress(char* actualFlatBufferPtr){}
+void TPCdEdxCalibrationSplines::setFutureBufferAddress(char* futureFlatBufferPtr){}
