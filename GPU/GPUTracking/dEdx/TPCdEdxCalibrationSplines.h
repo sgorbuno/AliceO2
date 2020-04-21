@@ -35,26 +35,53 @@ class TPCdEdxCalibrationSplines : public FlatObject
 
   /// _____________  Constructors / destructors __________________________
 
-  /// Default constructor: creates an empty uninitialized object
-  TPCdEdxCalibrationSplines() CON_DEFAULT;
+#if !defined(GPUCA_GPUCODE)
+  /// Default constructor
+  TPCdEdxCalibrationSplines();
 
-  /// Copy constructor: disabled to avoid ambiguity.
+  /// Copy constructor
+  TPCdEdxCalibrationSplines(const TPCdEdxCalibrationSplines&);
+
+  /// Assignment operator
+  TPCdEdxCalibrationSplines& operator=(const TPCdEdxCalibrationSplines&);
+
+  void recreate(int nKnotsU1[], int nKnotsU2[]);
+#else
+  /// Disable constructors for the GPU implementation
+
+  TPCdEdxCalibrationSplines() CON_DELETE;
   TPCdEdxCalibrationSplines(const TPCdEdxCalibrationSplines&) CON_DELETE;
-
-  /// Assignment operator: disabled to avoid ambiguity.
   TPCdEdxCalibrationSplines& operator=(const TPCdEdxCalibrationSplines&) CON_DELETE;
+#endif
 
   /// Destructor
   ~TPCdEdxCalibrationSplines() CON_DEFAULT;
 
+  /// _____________  FlatObject functionality, see FlatObject class for description  ____________
+
+  using FlatObject::getBufferAlignmentBytes;
+  using FlatObject::getClassAlignmentBytes;
+
+#if !defined(GPUCA_GPUCODE)
+  void cloneFromObject(const TPCdEdxCalibrationSplines& obj, char* newFlatBufferPtr);
+  void moveBufferTo(char* newBufferPtr);
+#endif
+
+  using FlatObject::releaseInternalBuffer;
+
+  void destroy();
   void setActualBufferAddress(char* actualFlatBufferPtr);
   void setFutureBufferAddress(char* futureFlatBufferPtr);
+
+  /// ______________
 
   /// Gives pointer to a spline
   GPUd() const SplineType& getSpline(int chargeType, int region) const;
 
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
   /// sets the splines from an input file
   void setSplinesFromFile(TFile& inpf);
+#endif
 
   /// returns the number of splines stored in the calibration object
   GPUd() unsigned int getFSplines() const
@@ -84,6 +111,9 @@ class TPCdEdxCalibrationSplines : public FlatObject
 
     /// _______________  IO   ________________________
 #if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
+  /// write a class object to the file
+  int writeToFile(TFile& outf, const char* name);
+
   /// read a class object from the file
   static TPCdEdxCalibrationSplines* readFromFile(TFile& inpf, const char* name);
 #endif
@@ -98,20 +128,37 @@ class TPCdEdxCalibrationSplines : public FlatObject
 
 #if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
 
-TPCdEdxCalibrationSplines* TPCdEdxCalibrationSplines::readFromFile(
-  TFile& inpf, const char* name)
+inline void TPCdEdxCalibrationSplines::setSplinesFromFile(TFile& inpf)
 {
-  /// read a class object from the file
-  return FlatObject::readFromFile<TPCdEdxCalibrationSplines>(inpf, name);
-}
+  FlatObject::startConstruction();
 
-void TPCdEdxCalibrationSplines::setSplinesFromFile(TFile& inpf)
-{
-  for (int ireg = 0; ireg <= 9; ++ireg) {
+  int buffSize = 0;
+  int offsets1[mFSplines];
+  int offsets2[mFSplines];
+
+  for (int ireg = 0; ireg < mFSplines; ++ireg) {
     o2::gpu::Spline2D<float, 1>* splineTmpqMax = o2::gpu::Spline2D<float, 1>::readFromFile(inpf, Form("spline_qMax_region%d", ireg));
-    o2::gpu::Spline2D<float, 1>* splineTmpqTot = o2::gpu::Spline2D<float, 1>::readFromFile(inpf, Form("spline_qTot_region%d", ireg));
     mCalibSplinesqMax[ireg] = *splineTmpqMax;
+    buffSize = alignSize(buffSize, mCalibSplinesqMax[ireg].getBufferAlignmentBytes());
+    offsets1[ireg] = buffSize;
+    buffSize += mCalibSplinesqMax[ireg].getFlatBufferSize();
+  }
+
+  for (int ireg = 0; ireg < mFSplines; ++ireg) {
+    o2::gpu::Spline2D<float, 1>* splineTmpqTot = o2::gpu::Spline2D<float, 1>::readFromFile(inpf, Form("spline_qTot_region%d", ireg));
     mCalibSplinesqTot[ireg] = *splineTmpqTot;
+    buffSize = alignSize(buffSize, mCalibSplinesqTot[ireg].getBufferAlignmentBytes());
+    offsets2[ireg] = buffSize;
+    buffSize += mCalibSplinesqTot[ireg].getFlatBufferSize();
+  }
+
+  FlatObject::finishConstruction(buffSize);
+
+  for (int i = 0; i < mFSplines; i++) {
+    mCalibSplinesqMax[i].moveBufferTo(mFlatBufferPtr + offsets1[i]);
+  }
+  for (int i = 0; i < mFSplines; i++) {
+    mCalibSplinesqTot[i].moveBufferTo(mFlatBufferPtr + offsets2[i]);
   }
 }
 
