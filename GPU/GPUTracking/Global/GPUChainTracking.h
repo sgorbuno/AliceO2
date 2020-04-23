@@ -88,8 +88,8 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
     std::unique_ptr<GPUTPCClusterData[]> clusterData[NSLICES];
     std::unique_ptr<AliHLTTPCRawCluster[]> rawClusters[NSLICES];
     std::unique_ptr<o2::tpc::ClusterNative[]> clustersNative;
-    std::unique_ptr<GPUTPCTrack[]> sliceOutTracks[NSLICES];
-    std::unique_ptr<GPUTPCHitId[]> sliceOutClusters[NSLICES];
+    std::unique_ptr<GPUTPCTrack[]> sliceTracks[NSLICES];
+    std::unique_ptr<GPUTPCHitId[]> sliceClusters[NSLICES];
     std::unique_ptr<AliHLTTPCClusterMCLabel[]> mcLabelsTPC;
     std::unique_ptr<GPUTPCMCInfo[]> mcInfosTPC;
     std::unique_ptr<GPUTPCGMMergedTrack[]> mergedTracks;
@@ -226,6 +226,7 @@ class GPUChainTracking : public GPUChain, GPUReconstructionHelpers::helperDelega
  private:
   int RunTPCTrackingSlices_internal();
   void RunTPCClusterizer_compactPeaks(GPUTPCClusterFinder& clusterer, GPUTPCClusterFinder& clustererShadow, int stage, bool doGPU, int lane);
+  unsigned int TPCClusterizerDecodeZSCount(unsigned int iSlice, unsigned int minTime, unsigned int maxTime);
   std::atomic_flag mLockAtomic = ATOMIC_FLAG_INIT;
 
   int HelperReadEvent(int iSlice, int threadId, GPUReconstructionHelpers::helperParam* par);
