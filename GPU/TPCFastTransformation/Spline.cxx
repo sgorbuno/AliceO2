@@ -19,7 +19,7 @@
 #include <iostream>
 #endif
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 #include "TRandom.h"
 #include "Riostream.h"
 #include "TMath.h"
@@ -214,7 +214,7 @@ void SplineBase<DataT, isConsistentT>::recreate(
 }
 #endif
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 
 template <typename DataT, bool isConsistentT>
 void SplineBase<DataT, isConsistentT>::

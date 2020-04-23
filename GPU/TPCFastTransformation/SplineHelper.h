@@ -136,6 +136,7 @@ int SplineHelper<DataT>::setSpline(
   mFdimensions = spline.getFdimensions();
   mNumberOfParameters = spline.getNumberOfParameters();
   mNumberOfDataPoints = 1;
+  mHelpers.clear();
   mHelpers.resize(mXdimensions);
   for (int i = 0; i < mXdimensions; i++) {
     int np = (nAxiliaryPoints != nullptr) ? nAxiliaryPoints[i] : 4;
