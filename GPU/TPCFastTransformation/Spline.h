@@ -92,7 +92,7 @@ class SplineBase : public FlatObject
   void recreate(const int numberOfKnots[/* mXdim */]);
 
   /// Constructor for an irregular spline
-  void recreate(const int numberOfKnots[/* mXdim */], const int* knots[/* mXdim */]);
+  void recreate(const int numberOfKnots[/* mXdim */], const int* const knots[/* mXdim */]);
 
   /// approximate a function F with this spline.
   void approximateFunction(const DataT xMin[/* mXdim */], const DataT xMax[/* mXdim */],
@@ -213,7 +213,7 @@ class Spline : public SplineBase<DataT, isConsistentT>
   Spline(const int numberOfKnots[] = nullptr);
 
   /// Constructor for an irregular spline
-  Spline(const int numberOfKnots[], const int* knots[]);
+  Spline(const int numberOfKnots[], const int* const knots[]);
 
   /// Copy constructor
   Spline(const Spline&);
@@ -322,7 +322,7 @@ GPUhdi() Spline<DataT, nXdimT, nFdimT, isConsistentT>::
 
 template <typename DataT, int nXdimT, int nFdimT, bool isConsistentT>
 GPUhdi() Spline<DataT, nXdimT, nFdimT, isConsistentT>::
-  Spline(const int numberOfKnots[], const int* knots[])
+  Spline(const int numberOfKnots[], const int* const knots[])
   : SplineBase<DataT, isConsistentT>(nXdimT, nFdimT)
 {
   this->recreate(numberOfKnots, knots);

@@ -147,7 +147,7 @@ void SplineBase<DataT, isConsistentT>::moveBufferTo(char* newFlatBufferPtr)
 
 template <typename DataT, bool isConsistentT>
 void SplineBase<DataT, isConsistentT>::recreate(
-  const int numberOfKnots[/* mXdim */], const int* knots[/* mXdim */])
+  const int numberOfKnots[/* mXdim */], const int* const knots[/* mXdim */])
 {
   /// Constructor for an irregular spline
 
