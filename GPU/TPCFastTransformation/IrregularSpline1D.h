@@ -19,7 +19,7 @@
 #include "GPUCommonDef.h"
 #include "FlatObject.h"
 #include "GPUCommonDef.h"
-
+#include <iostream>
 #ifndef __OPENCL__
 #include <cstddef>
 #include <memory>

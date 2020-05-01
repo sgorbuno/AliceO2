@@ -79,7 +79,6 @@ bool askStep()
 
 int SplineDemo()
 {
-
   const int nAxiliaryPoints = 10;
 
   using namespace GPUCA_NAMESPACE::gpu;
@@ -107,7 +106,7 @@ int SplineDemo()
     helper.setSpline(spline, nAxiliaryPoints);
 
     std::unique_ptr<float[]> parameters = helper.constructParameters(1, F, 0., spline.getUmax());
-
+    
     Spline1D splineClassic(nKnots);
     helper.setSpline(splineClassic, nAxiliaryPoints);
 
@@ -134,15 +133,15 @@ int SplineDemo()
 
     for (int i = 0; i < nKnots; i++) {
       double u = splineClassic.getKnot(i).u;
-      double fs = splineClassic.interpolate1D(parametersClassic.get(), u);
+      double fs = splineClassic.interpolate1D(parametersClassic.get(), u);    
       knots->Fill(1, u, fs);
     }
 
     for (int i = 0; i < nKnots; i++) {
-      double u = spline.getKnot(i).u;
-      double fs = spline.interpolate1D(parameters.get(), u);
+      /*campact*/double u = spline.getKnot(i).u;
+      /*campact*/double fs = spline.interpolate1D(parameters.get(), u);
       knots->Fill(2, u, fs);
-      if (i < nKnots - 1) {
+      /*if (i < nKnots - 1) {
         double u1 = spline.getKnot(i + 1).u;
         int nax = nAxiliaryPoints;
         double du = (u1 - u) / (nax + 1);
@@ -151,7 +150,7 @@ int SplineDemo()
           double ff = spline.interpolate1D(parameters.get(), uu);
           knots->Fill(3, uu, ff);
         }
-      }
+      }*/
     }
 
     for (int i = 0; i < splineLocal.getNumberOfKnots(); i++) {

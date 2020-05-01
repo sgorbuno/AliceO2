@@ -14,6 +14,8 @@
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
 #include "Spline2D.h"
+#include <iostream>
+#include <chrono>
 
 #if !defined(GPUCA_GPUCODE)
 #include <iostream>
@@ -152,6 +154,7 @@ void Spline2D::print() const
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 
+
 int Spline2D::test(bool draw)
 {
   using namespace std;
@@ -162,7 +165,7 @@ int Spline2D::test(bool draw)
 
   double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
 
-  int nKnots = 4;
+  int nKnots = 8/*4*/;
   const int nAxiliaryPoints = 5;
   int uMax = nKnots * 3;
 
@@ -207,7 +210,7 @@ int Spline2D::test(bool draw)
   int nTries = 10;
 
   if (draw) {
-    canv = new TCanvas("cQA", "Spline1D  QA", 2000, 1000);
+    canv = new TCanvas("cQA", "Spline1D  QA", 1200, 600);
     nTries = 10000;
   }
 
@@ -336,13 +339,186 @@ int Spline2D::test(bool draw)
       nt->SetMarkerSize(.5);
       nt->SetMarkerColor(kBlue);
       nt->Draw("s:u:v", "", "same");
+      
+      const Vc::short_v te;
+      double u;
+      double v;
+      float s[Ndim];
+      Vc::float_v sVec[Ndim];
+      Vc::float_v uVec;
+      Vc::float_v vVec;
+      float sum = 0;
+      int c;
+      auto cache = Vc::int_v::IndexType::IndexesFromZero();
 
+      /*
+      std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
       for (int i = 0; i < nKnots; i++) {
         for (int j = 0; j < nKnots; j++) {
+          u = spline.getGridU().getKnot(i).u;
+          v = spline.getGridV().getKnot(j).u;
+          spline.interpolate(Ndim, parameters.get(), u, v, s);
+          sum += s[0];
+        }}}
+      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now(); 
+      std::cout << sum << "\n";
+      sum = 0;
+      
+      std::chrono::steady_clock::time_point beginVecHor = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j+=Vc::float_v::size()) {
+          uVec = spline.getGridU().getKnot(Vc::int_v(i)).u;
+          vVec = spline.getGridV().getKnot(cache + j).u;
+          spline.interpolateVecHorizontal(Ndim, parameters.get(), uVec, vVec, sVec);
+          for(size_t k = 0; k < Vc::float_v::size(); k++)
+          { 
+            sum += sVec[0][k];
+          }
+        }}}
+      std::chrono::steady_clock::time_point endVecHor = std::chrono::steady_clock::now();     
+      std::cout << sum << "\n";
+      sum = 0;
+      
+      std::chrono::steady_clock::time_point beginVecHorV2 = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j+=Vc::float_v::size()) {
+          uVec = spline.getGridU().getKnot(Vc::int_v(i)).u;
+          vVec = spline.getGridV().getKnot(cache + j).u;
+          spline.interpolateVecHorizontalV2(Ndim, parameters.get(), uVec, vVec, sVec);
+          for(size_t k = 0; k < Vc::float_v::size(); k++)
+          { 
+            sum += sVec[0][k];
+          }
+        }}}
+      std::chrono::steady_clock::time_point endVecHorV2 = std::chrono::steady_clock::now();     
+      std::cout << sum << "\n";
+      sum = 0;
+      
+      std::chrono::steady_clock::time_point beginVecHorV3 = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j+=Vc::float_v::size()) {
+          uVec = spline.getGridU().getKnot(Vc::int_v(i)).u;
+          vVec = spline.getGridV().getKnot(cache + j).u;
+          spline.interpolateVecHorizontalV3(Ndim, parameters.get(), uVec, vVec, sVec);
+          for(size_t k = 0; k < Vc::float_v::size(); k++)
+          { 
+            sum += sVec[0][k];
+          }
+        }}}
+      std::chrono::steady_clock::time_point endVecHorV3 = std::chrono::steady_clock::now();     
+      std::cout << sum << "\n";
+      sum = 0;
+      
+      std::chrono::steady_clock::time_point beginVecAoV = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          u = spline.getGridU().getKnot(i).u;
+          v = spline.getGridV().getKnot(j).u;
+          spline.interpolateVecVerticalAoV(Ndim, parameters.get(), u, v, s);
+          sum += s[0];
+        }}}
+      std::chrono::steady_clock::time_point endVecAoV = std::chrono::steady_clock::now();     
+      std::cout << sum << "\n";
+      sum = 0;
+      
+      std::chrono::steady_clock::time_point beginVecSingleVector = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          u = spline.getGridU().getKnot(i).u;
+          v = spline.getGridV().getKnot(j).u;
+          spline.interpolateVecVerticalSingleVector(Ndim, parameters.get(), u, v, s);
+          sum += s[0];
+        }}}
+      std::chrono::steady_clock::time_point endVecSingleVector = std::chrono::steady_clock::now();
+      std::cout << sum << "\n";
+      sum = 0;
+      */
+      std::chrono::steady_clock::time_point beginVec = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          u = spline.getGridU().getKnot(i).u;
+          v = spline.getGridV().getKnot(j).u;
+          spline.interpolateVecVertical(Ndim, parameters.get(), u, v, s);
+          sum += s[0];
+        }}}
+      std::chrono::steady_clock::time_point endVec = std::chrono::steady_clock::now();
+      std::cout << sum << "\n";
+      sum = 0;
+      /*
+      std::chrono::steady_clock::time_point beginVecTest = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          u = spline.getGridU().getKnot(i).u;
+          v = spline.getGridV().getKnot(j).u;
+          spline.interpolateVecVerticalTest(Ndim, parameters.get(), u, v, s);
+          sum += s[0];
+        }}}
+      std::chrono::steady_clock::time_point endVecTest = std::chrono::steady_clock::now();
+      std::cout << sum << "\n";
+      sum = 0;
+
+      std::chrono::steady_clock::time_point beginOpti = std::chrono::steady_clock::now();
+      for(size_t x = 0; x < 10000; x++){
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          u = spline.getGridU().getKnot(i).u;
+          v = spline.getGridV().getKnot(j).u;
+          spline.interpolateOptimizedScalar(Ndim, parameters.get(), u, v, s);
+          sum += s[0];
+        }}}
+      std::chrono::steady_clock::time_point endOpti = std::chrono::steady_clock::now(); 
+      std::cout << sum << "\n";
+      */
+      //std::cout << "Time Scalar = " << std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count() << "[µs]" << std::endl;
+      //std::cout << "Time Scalar-Opti = " << std::chrono::duration_cast<std::chrono::microseconds> (endOpti - beginOpti).count() << "[µs]" << std::endl;
+      //std::cout << "Time Vec-Ver-AoV = " << std::chrono::duration_cast<std::chrono::microseconds> (endVecAoV - beginVecAoV).count() << "[µs]" << std::endl;
+      //std::cout << "Time Vec-Ver-SingleVector = " << std::chrono::duration_cast<std::chrono::microseconds> (endVecSingleVector - beginVecSingleVector).count() << "[µs]" << std::endl;
+      std::cout << "Time Vec-Ver-4Interpolations = " << std::chrono::duration_cast<std::chrono::microseconds> (endVec - beginVec).count() << "[µs]" << std::endl;
+      //std::cout << "Time Vec-Ver-Test = " << std::chrono::duration_cast<std::chrono::microseconds> (endVecTest - beginVecTest).count() << "[µs]" << std::endl;
+      //std::cout << "Time Vec-Hor = " << std::chrono::duration_cast<std::chrono::microseconds> (endVecHor - beginVecHor).count() << "[µs]" << std::endl;
+      //std::cout << "Time Vec-HorV2 = " << std::chrono::duration_cast<std::chrono::microseconds> (endVecHorV2 - beginVecHorV2).count() << "[µs]" << std::endl;
+      //std::cout << "Time Vec-HorV3 = " << std::chrono::duration_cast<std::chrono::microseconds> (endVecHorV3 - beginVecHorV3).count() << "[µs]" << std::endl;
+    
+     int counter = 0;
+     Vc::float_v sVecHor[Ndim * 4];
+     Vc::float_v sVecHorV3[Ndim * 4];
+     for (int i = 0; i < nKnots; i++) {
+       for (int j = 0; j < nKnots; j++) {
+          if (counter ==  Vc::float_v::size())
+            counter = 0;
           double u = spline.getGridU().getKnot(i).u;
           double v = spline.getGridV().getKnot(j).u;
+          if(!counter)
+          {
+            uVec = spline.getGridU().getKnot(Vc::int_v(i)).u;
+            vVec = spline.getGridU().getKnot(cache + j).u;
+          }
           float s[Ndim];
+          float sVecVertical[Ndim]; 
+          float sVecVerticalTest[Ndim]; 
           spline.interpolate(Ndim, parameters.get(), u, v, s);
+          spline.interpolateVecVertical(Ndim, parameters.get(), u, v, sVecVertical);
+          spline.interpolateVecVerticalTest(Ndim, parameters.get(), u, v, sVecVerticalTest);
+          if(!counter)
+          {
+            spline.interpolateVecHorizontal(Ndim, parameters.get(), uVec, vVec, sVecHor);
+            spline.interpolateVecHorizontalV3(Ndim, parameters.get(), uVec, vVec, sVecHorV3);
+          }
+          std::cout << "Interpolate:                  u = " << u << " v = " << v << " s = " << s[0] << "\n";
+          std::cout << "InterpolateVecVertical:       u = " << u << " v = " << v << " s = " << sVecVertical[0] << "\n";
+          std::cout << "InterpolateVecVerticalTest:   u = " << u << " v = " << v << " s = " << sVecVerticalTest[0] << "\n";
+          std::cout << "InterpolateVecHorizontal:     u = " << uVec[counter] << " v = " << vVec[counter] << " s = " << sVecHor[0][counter] << "\n";
+          std::cout << "InterpolateVecHorizontalV3:   u = " << uVec[counter] << " v = " << vVec[counter] << " s = " << sVecHorV3[0][counter] << "\n";
+
+          counter++;
           knots->Fill(1, u, v, s[0]);
           /*
           int naxU = 0, naxV = 0;

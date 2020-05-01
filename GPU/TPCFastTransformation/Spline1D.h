@@ -19,6 +19,10 @@
 #include "GPUCommonDef.h"
 #include "FlatObject.h"
 
+/*Abdel*/#include <iostream>
+/*Abdel*/#include <Vc/Vc>
+/*Abdel*/#include <Vc/vector.h>
+/*Abdel*/#include <vector>
 namespace GPUCA_NAMESPACE
 {
 namespace gpu
@@ -116,7 +120,13 @@ class Spline1D : public FlatObject
     float u;  ///< u coordinate of the knot i (an integer number in float format)
     float Li; ///< inverse length of the [knot_i, knot_{i+1}] segment ( == 1.f/ a (small) integer number)
   };
-
+  // 
+  /*Abdel*/
+  struct KnotV  	// Struct of Arrays, im Prinzip aber Array of Struct of Arrays 
+  {
+    Vc::float_v u;
+    Vc::float_v Li;
+  };
   /// _____________  Version control __________________________
 
   /// Version number
@@ -175,6 +185,24 @@ class Spline1D : public FlatObject
                                  GPUgeneric() const T Sr[/*Ndim*/], GPUgeneric() const T Dr[/*Ndim*/],
                                  float u, GPUgeneric() T Su[/*Ndim*/]);
 
+  template <typename T>
+  GPUd() static void interpolate(const Spline1D::Knot& knotL,
+                                 GPUgeneric() const T Sl, GPUgeneric() const T Dl,
+                                 GPUgeneric() const T Sr, GPUgeneric() const T Dr,
+                                 float u, GPUgeneric() T& Su);
+
+  template <typename T>
+  GPUdi() static void interpolate(int Ndim, const Spline1D::KnotV knotL, 
+                                   GPUgeneric() const Vc::float_v Sl[/*Ndim*/], GPUgeneric() const Vc::float_v Dl[/*Ndim*/],
+                                   GPUgeneric() const Vc::float_v Sr[/*Ndim*/], GPUgeneric() const Vc::float_v Dr[/*Ndim*/],
+                                   Vc::float_v u, GPUgeneric() Vc::float_v Su[/*Ndim*/]);
+  
+  template <typename T>
+  GPUdi() static void interpolate(const Spline1D::KnotV knotL, 
+                                   GPUgeneric() const Vc::float_v Sl, GPUgeneric() const Vc::float_v Dl,
+                                   GPUgeneric() const Vc::float_v Sr, GPUgeneric() const Vc::float_v Dr,
+                                   Vc::float_v u, GPUgeneric() Vc::float_v& Su);
+
   /// Get interpolated value for F(u) using spline parameters with a border check
   template <typename T>
   GPUd() void interpolate(int Ndim, GPUgeneric() const T parameters[], float u, GPUgeneric() T Su[/*Ndim*/]) const;
@@ -226,8 +254,27 @@ class Spline1D : public FlatObject
   /// Get i-th knot
   GPUd() const Spline1D::Knot& getKnot(int i) const { return getKnots()[i < 0 ? 0 : (i >= mNumberOfKnots ? mNumberOfKnots - 1 : i)]; }
 
+  /*Abdel*/ 
+  GPUd() const Spline1D::KnotV getKnot(Vc::int_v i) const 
+  {
+    Vc::int_m mask = (i < 0);
+    i(mask) = 0;
+    mask = (i >= mNumberOfKnots);
+    i(mask) = mNumberOfKnots - 1;
+    mask = (i < mNumberOfKnots);
+    i(mask) = i;
+    /**///i = Vc::max(i, Vc::int_v::Zero());
+    /**///i = Vc::min(i, Vc::int_v(mNumberOfKnots)); 
+    /**///i = Vc::min(i, Vc::int_v(mNumberOfKnots-1));
+    Spline1D::KnotV retVal;
+    retVal.u = Vc::float_v::IndexesFromZero().apply([&](int index){return getKnots()[i[index]].u;});
+    retVal.Li = Vc::float_v::IndexesFromZero().apply([&](int index){return getKnots()[i[index] ].Li;});
+    return retVal;
+  }
+
   /// Get index of an associated knot for a given U coordinate. Performs a border check.
   GPUd() int getKnotIndex(float u) const;
+  /*Abdel*/ GPUd() Vc::int_v getKnotIndex(Vc::float_v u) const;
 
   /// _______________  Getters with no border check   ________________________
 
@@ -307,13 +354,30 @@ GPUdi() int Spline1D::getKnotIndexNonSafe(float u) const
 GPUdi() int Spline1D::getKnotIndex(float u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) interval
-  /// when u is otside of [0, mUmax], return the edge intervals
+  /// when u is outside of [0, mUmax], return the edge intervals
   int iu = (int)u;
   if (iu < 0)
     iu = 0;
   if (iu > mUmax)
     iu = mUmax;
   return getUtoKnotMap()[iu];
+}
+
+/*Abdel*/ // Vectorized version of GPUdi() int Spline1D::getKnotIndex(float u) const
+/*Abdel*/ // Is used to vectorize Spline2D horizontally
+GPUdi() Vc::int_v Spline1D::getKnotIndex(Vc::float_v u) const
+{
+  /// Get i: u is in [knot_i, knot_{i+1}) interval
+  /// when u is outside of [0, mUmax], return the edge intervals
+  Vc::int_v iu = simd_cast<Vc::int_v>(u);
+  //iu = Vc::max(iu, Vc::int_v::Zero()); 
+  //iu = Vc::min(iu, Vc::int_v(mUmax));
+  Vc::int_v retVal(Vc::IndexesFromZero);
+  /**/Vc::int_m mask = (iu < 0);
+  /**/iu(mask) = 0;
+  /**/mask = (iu > mUmax);
+  /**/iu(mask) = mUmax;
+  return retVal.apply([&](int index){return getUtoKnotMap()[iu[index]];});
 }
 
 template <typename T>
@@ -326,17 +390,19 @@ GPUdi() void Spline1D::interpolate(int Ndim, const Spline1D::Knot& knotL,
   /// Gives interpolated value of N-dimensional S(u) at u
   /// input: Sl,Dl,Sr,Dr[Ndim] - N-dim function values and slopes at knots {knotL,knotR}
   /// output: Su[Ndim] - N-dim interpolated value for S(u)
-
   T uu = T(u - knotL.u);
   T li = T(knotL.Li);
   T x = uu * li; // scaled u
+  std::cout << "u: " << u << "\n";
+  std::cout << "x: " << x << "\n";
+  #pragma unroll(1)
   for (int dim = 0; dim < Ndim; ++dim) {
     T df = (Sr[dim] - Sl[dim]) * li;
     T a = Dl[dim] + Dr[dim] - df - df;
     T b = df - Dl[dim] - a;
     Su[dim] = ((a * x + b) * x + Dl[dim]) * uu + Sl[dim];
+    std::cout << ((a * x + b) * x + Dl[dim]) * uu + Sl[dim] << "\n";
   }
-
   /* another way to calculate f(u):
   T uu = T(u - knotL.u);
   T x = uu * T(knotL.Li); // scaled u
@@ -349,6 +415,58 @@ GPUdi() void Spline1D::interpolate(int Ndim, const Spline1D::Knot& knotL,
   return cSl*Sl + cSr*Sr + cDl*Dl + cDr*Dr;
   */
 }
+
+// Abdel Anfang 
+template <typename T>
+GPUdi() void Spline1D::interpolate(const Spline1D::Knot& knotL,
+                                   GPUgeneric() const T Sl, GPUgeneric() const T Dl,
+                                   GPUgeneric() const T Sr, GPUgeneric() const T Dr,
+                                   float u, GPUgeneric() T& Su)
+{
+  float uu = float(u - knotL.u);
+  float li = float(knotL.Li);
+  float x = uu * li; // scaled u
+
+  T df = (Sr - Sl) * li;
+  T a = Dl + Dr - df - df;
+  T b = df - Dl - a;
+  Su = ((a * x + b) * x + Dl) * uu + Sl;
+}
+
+template <typename T>
+GPUdi() void Spline1D::interpolate(int Ndim, const Spline1D::KnotV knotL, 
+                                   GPUgeneric() const Vc::float_v Sl[/*Ndim*/], GPUgeneric() const Vc::float_v Dl[/*Ndim*/],
+                                   GPUgeneric() const Vc::float_v Sr[/*Ndim*/], GPUgeneric() const Vc::float_v Dr[/*Ndim*/],
+                                   Vc::float_v u, GPUgeneric() Vc::float_v Su[/*Ndim*/])
+{
+  auto uu = u - knotL.u;
+  auto li = knotL.Li;
+  auto x = uu * li; 
+  for (int dim = 0; dim < Ndim; ++dim) {
+    auto df = (Sr[dim] - Sl[dim]) * li;
+    auto a = Dl[dim] + Dr[dim] - df - df;
+    auto b = df - Dl[dim] - a;
+    Su[dim] = ((a * x + b) * x + Dl[dim]) * uu + Sl[dim];
+  }
+}
+
+template <typename T>
+GPUdi() void Spline1D::interpolate(const Spline1D::KnotV knotL, 
+                                   GPUgeneric() const Vc::float_v Sl, GPUgeneric() const Vc::float_v Dl,
+                                   GPUgeneric() const Vc::float_v Sr, GPUgeneric() const Vc::float_v Dr,
+                                   Vc::float_v u, GPUgeneric() Vc::float_v& Su)
+{
+  auto uu = u - knotL.u;
+  auto li = knotL.Li;
+  auto x = uu * li; // scaled u
+
+  T df = (Sr - Sl) * li;
+  T a = Dl + Dr - df - df;
+  T b = df - Dl - a;
+  Su = ((a * x + b) * x + Dl) * uu + Sl;
+}
+
+// Abdel Ende
 
 template <typename T>
 GPUdi() void Spline1D::interpolate(int Ndim, GPUgeneric() const T parameters[], float u, GPUgeneric() T Su[/*Ndim*/]) const
@@ -367,6 +485,7 @@ GPUdi() void Spline1D::interpolateNonSafe(int Ndim, GPUgeneric() const T paramet
   /// Get interpolated value for f(u) using parameters[Ndim*2*getNumberOfKnots()].
   /// parameters = { {Sx,Sy,Sz,Dx,Dy,Dz}_0, ... ,{Sx,Sy,Sz,Dx,Dy,Dz}_{n-1} } for f:u->{x,y,z} case
   /// Non-safe calculation of the knot index.
+
   int iknot = getKnotIndexNonSafe(u);
   GPUgeneric() const T* d = parameters + (2 * Ndim) * iknot;
   return interpolate<T>(Ndim, getKnotNonSafe(iknot), d[0], d[Ndim], d[2 * Ndim], d[3 * Ndim], u, Su);

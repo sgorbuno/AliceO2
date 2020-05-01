@@ -20,6 +20,9 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+/*Abdel*/#include <chrono>
+/*Abdel*/#include <unistd.h>
+/*Abdel*/#include <Vc/Vc>
 #endif
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
@@ -91,7 +94,6 @@ void Spline1D::construct(int numberOfKnots, const int inputKnots[])
   /// \param numberOfKnots     Number of knots in knots[] array
   /// \param knots             Array of knot positions (integer values)
   ///
-
   FlatObject::startConstruction();
 
   std::vector<int> knotU;
@@ -118,7 +120,7 @@ void Spline1D::construct(int numberOfKnots, const int inputKnots[])
   int uToKnotMapOffset = mNumberOfKnots * sizeof(Spline1D::Knot);
 
   FlatObject::finishConstruction(uToKnotMapOffset + (mUmax + 1) * sizeof(int));
-
+ 
   mUtoKnotMap = reinterpret_cast<int*>(mFlatBufferPtr + uToKnotMapOffset);
 
   Spline1D::Knot* s = getKnotsNonConst();
@@ -158,7 +160,6 @@ void Spline1D::constructRegular(int numberOfKnots)
   /// Constructor for a regular spline
   /// \param numberOfKnots     Number of knots
   ///
-
   if (numberOfKnots < 2)
     numberOfKnots = 2;
 
@@ -186,6 +187,7 @@ void Spline1D::print() const
 }
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+
 
 int Spline1D::test(bool draw)
 {
@@ -231,7 +233,7 @@ int Spline1D::test(bool draw)
   int nTries = 100;
 
   if (draw) {
-    canv = new TCanvas("cQA", "Spline1D  QA", 2000, 1000);
+    canv = new TCanvas("cQA", "Spline1D  QA", 1200, 600);
     nTries = 10000;
   }
 
