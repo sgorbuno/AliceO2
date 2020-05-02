@@ -393,8 +393,8 @@ GPUdi() void Spline1D::interpolate(int Ndim, const Spline1D::Knot& knotL,
   T uu = T(u - knotL.u);
   T li = T(knotL.Li);
   T x = uu * li; // scaled u
-  std::cout << "u: " << u << "\n";
-  std::cout << "x: " << x << "\n";
+  //std::cout << "u: " << u << "\n";
+  //std::cout << "x: " << x << "\n";
   #pragma unroll(1)
   for (int dim = 0; dim < Ndim; ++dim) {
     T df = (Sr[dim] - Sl[dim]) * li;

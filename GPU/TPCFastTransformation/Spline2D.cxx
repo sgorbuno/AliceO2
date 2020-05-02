@@ -165,7 +165,7 @@ int Spline2D::test(bool draw)
 
   double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
 
-  int nKnots = 8/*4*/;
+  int nKnots = 16/*4*/;
   const int nAxiliaryPoints = 5;
   int uMax = nKnots * 3;
 
