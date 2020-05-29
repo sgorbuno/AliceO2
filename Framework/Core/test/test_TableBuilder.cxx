@@ -19,7 +19,6 @@
 #include "Framework/DataAllocator.h"
 #include "Framework/OutputRoute.h"
 #include <arrow/table.h>
-#include "Framework/ArrowCompatibility.h"
 #include <ROOT/RDataFrame.hxx>
 #include <ROOT/RArrowDS.hxx>
 #include "Framework/RCombinedDS.h"
@@ -88,7 +87,7 @@ BOOST_AUTO_TEST_CASE(TestTableBuilderArray)
   BOOST_REQUIRE_EQUAL(table->num_rows(), 3);
   BOOST_REQUIRE_EQUAL(table->schema()->field(0)->name(), "pos");
   BOOST_REQUIRE_EQUAL(table->schema()->field(0)->type()->id(), arrow::fixed_size_binary(12)->id());
-  auto data = getBackendColumnData(table->column(0))->chunk(0)->data();
+  auto data = table->column(0)->chunk(0)->data();
   BOOST_REQUIRE_EQUAL(data->GetValues<int>(1)[0], 1);
   BOOST_REQUIRE_EQUAL(data->GetValues<int>(1)[1], 10);
   BOOST_REQUIRE_EQUAL(data->GetValues<int>(1)[2], 300);
@@ -168,7 +167,7 @@ BOOST_AUTO_TEST_CASE(TestTableBuilderBulk)
   BOOST_REQUIRE_EQUAL(table->schema()->field(1)->type()->id(), arrow::int32()->id());
 
   for (size_t i = 0; i < 8; ++i) {
-    auto p = std::dynamic_pointer_cast<arrow::NumericArray<arrow::Int32Type>>(getBackendColumnData(table->column(0))->chunk(0));
+    auto p = std::dynamic_pointer_cast<arrow::NumericArray<arrow::Int32Type>>(table->column(0)->chunk(0));
     BOOST_CHECK_EQUAL(p->Value(i), i);
   }
 }
@@ -201,47 +200,47 @@ BOOST_AUTO_TEST_CASE(TestTableBuilderMore)
 }
 
 // Use RDataFrame to build the table
-BOOST_AUTO_TEST_CASE(TestRDataFrame)
-{
-  using namespace o2::framework;
-  TableBuilder builder;
-  ROOT::RDataFrame rdf(100);
-  auto t = rdf.Define("x", "1")
-             .Define("y", "2")
-             .Define("z", "x+y");
-  t.ForeachSlot(builder.persist<int, int>({"x", "z"}), {"x", "z"});
-
-  auto table = builder.finalize();
-  BOOST_REQUIRE_EQUAL(table->num_rows(), 100);
-  BOOST_REQUIRE_EQUAL(table->num_columns(), 2);
-  BOOST_REQUIRE_EQUAL(table->column(0)->type()->id(), arrow::int32()->id());
-  BOOST_REQUIRE_EQUAL(table->column(1)->type()->id(), arrow::int32()->id());
-
-  /// Writing to a stream
-  std::shared_ptr<arrow::io::BufferOutputStream> stream;
-  auto streamOk = arrow::io::BufferOutputStream::Create(100000, arrow::default_memory_pool(), &stream);
-  BOOST_REQUIRE_EQUAL(streamOk.ok(), true);
-  std::shared_ptr<arrow::ipc::RecordBatchWriter> writer;
-  auto outBatch = arrow::ipc::RecordBatchStreamWriter::Open(stream.get(), table->schema(), &writer);
-  auto outStatus = writer->WriteTable(*table);
-  BOOST_REQUIRE_EQUAL(writer->Close().ok(), true);
-
-  std::shared_ptr<arrow::Buffer> inBuffer;
-  BOOST_REQUIRE_EQUAL(stream->Finish(&inBuffer).ok(), true);
-
-  BOOST_REQUIRE_EQUAL(outStatus.ok(), true);
-
-  /// Reading back from the stream
-  TableConsumer consumer(inBuffer->data(), inBuffer->size());
-  std::shared_ptr<arrow::Table> inTable = consumer.asArrowTable();
-
-  BOOST_REQUIRE_EQUAL(inTable->num_columns(), 2);
-  BOOST_REQUIRE_EQUAL(inTable->num_rows(), 100);
-
-  auto source = std::make_unique<ROOT::RDF::RArrowDS>(inTable, std::vector<std::string>{});
-  ROOT::RDataFrame finalDF{std::move(source)};
-  BOOST_REQUIRE_EQUAL(*finalDF.Count(), 100);
-}
+//BOOST_AUTO_TEST_CASE(TestRDataFrame)
+//{
+//  using namespace o2::framework;
+//  TableBuilder builder;
+//  ROOT::RDataFrame rdf(100);
+//  auto t = rdf.Define("x", "1")
+//             .Define("y", "2")
+//             .Define("z", "x+y");
+//  t.ForeachSlot(builder.persist<int, int>({"x", "z"}), {"x", "z"});
+//
+//  auto table = builder.finalize();
+//  BOOST_REQUIRE_EQUAL(table->num_rows(), 100);
+//  BOOST_REQUIRE_EQUAL(table->num_columns(), 2);
+//  BOOST_REQUIRE_EQUAL(table->column(0)->type()->id(), arrow::int32()->id());
+//  BOOST_REQUIRE_EQUAL(table->column(1)->type()->id(), arrow::int32()->id());
+//
+//  /// Writing to a stream
+//  std::shared_ptr<arrow::io::BufferOutputStream> stream;
+//  auto streamOk = arrow::io::BufferOutputStream::Create(100000, arrow::default_memory_pool(), &stream);
+//  BOOST_REQUIRE_EQUAL(streamOk.ok(), true);
+//  std::shared_ptr<arrow::ipc::RecordBatchWriter> writer;
+//  auto outBatch = arrow::ipc::RecordBatchStreamWriter::Open(stream.get(), table->schema(), &writer);
+//  auto outStatus = writer->WriteTable(*table);
+//  BOOST_REQUIRE_EQUAL(writer->Close().ok(), true);
+//
+//  std::shared_ptr<arrow::Buffer> inBuffer;
+//  BOOST_REQUIRE_EQUAL(stream->Finish(&inBuffer).ok(), true);
+//
+//  BOOST_REQUIRE_EQUAL(outStatus.ok(), true);
+//
+//  /// Reading back from the stream
+//  TableConsumer consumer(inBuffer->data(), inBuffer->size());
+//  std::shared_ptr<arrow::Table> inTable = consumer.asArrowTable();
+//
+//  BOOST_REQUIRE_EQUAL(inTable->num_columns(), 2);
+//  BOOST_REQUIRE_EQUAL(inTable->num_rows(), 100);
+//
+//  auto source = std::make_unique<ROOT::RDF::RArrowDS>(inTable, std::vector<std::string>{});
+//  ROOT::RDataFrame finalDF{std::move(source)};
+//  BOOST_REQUIRE_EQUAL(*finalDF.Count(), 100);
+//}
 
 BOOST_AUTO_TEST_CASE(TestCombinedDS)
 {
@@ -262,7 +261,7 @@ BOOST_AUTO_TEST_CASE(TestCombinedDS)
   BOOST_REQUIRE_EQUAL(table2->num_columns(), 2);
   BOOST_REQUIRE_EQUAL(table2->num_rows(), 8);
   for (size_t i = 0; i < 8; ++i) {
-    auto p2 = std::dynamic_pointer_cast<arrow::NumericArray<arrow::Int32Type>>(getBackendColumnData(table2->column(0))->chunk(0));
+    auto p2 = std::dynamic_pointer_cast<arrow::NumericArray<arrow::Int32Type>>(table2->column(0)->chunk(0));
     BOOST_CHECK_EQUAL(p2->Value(i), i);
   }
 

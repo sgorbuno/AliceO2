@@ -23,7 +23,7 @@
 #include "Framework/InputRecordWalker.h"
 #include "Framework/WorkflowSpec.h"
 #include "TPCBase/Sector.h"
-#include "TPCBase/Digit.h"
+#include "DataFormatsTPC/Digit.h"
 #include "TPCSimulation/CommonMode.h"
 #include <SimulationDataFormat/MCCompLabel.h>
 #include <SimulationDataFormat/MCTruthContainer.h>
@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <gsl/gsl>
 
 using namespace o2::framework;
 using namespace o2::header;
@@ -64,7 +65,7 @@ TBranch* getOrMakeBranch(TTree& tree, std::string basename, int sector, T* ptr)
 /// create the processor spec
 /// describing a processor aggregating digits for various TPC sectors and writing them to file
 /// MC truth information is also aggregated and written out
-DataProcessorSpec getTPCDigitRootWriterSpec(std::vector<int> const& laneConfiguration)
+DataProcessorSpec getTPCDigitRootWriterSpec(std::vector<int> const& laneConfiguration, bool mctruth)
 {
   auto initFunction = [](InitContext& ic) {
     // get the option from the init context
@@ -117,7 +118,13 @@ DataProcessorSpec getTPCDigitRootWriterSpec(std::vector<int> const& laneConfigur
         if (!sectorHeader) {
           throw std::runtime_error("Missing sector header in TPC data");
         }
-        return sectorHeader->sector;
+        // the TPCSectorHeader now allows to transport information for more than one sector,
+        // e.g. for transporting clusters in one single data block. The digitization is however
+        // only on sector level
+        if (sectorHeader->sector() >= TPCSectorHeader::NSectors) {
+          throw std::runtime_error("Digitizer can only work on single sectors");
+        }
+        return sectorHeader->sector();
       };
 
       // read the trigger data first
@@ -150,7 +157,7 @@ DataProcessorSpec getTPCDigitRootWriterSpec(std::vector<int> const& laneConfigur
           LOG(INFO) << "HAVE DIGIT DATA FOR SECTOR " << sector << " ON CHANNEL " << dh->subSpecification;
           if (sector >= 0) {
             // the digits
-            auto digiData = pc.inputs().get<std::vector<o2::tpc::Digit>>(ref);
+            auto digiData = pc.inputs().get<gsl::span<o2::tpc::Digit>>(ref);
             LOG(INFO) << "DIGIT SIZE " << digiData.size();
             const auto& trigS = (*trigP2Sect.get())[sector];
             if (!trigS.size()) {
@@ -166,11 +173,14 @@ DataProcessorSpec getTPCDigitRootWriterSpec(std::vector<int> const& laneConfigur
             {
               if (trigS.size() == 1) { // just 1 entry (continous mode?), use digits directly
                 // connect this to a particular branch
-                auto digP = &digiData;
+                // the input data span is directly using the raw buffer, we need to copy to
+                // the object we want to write, maybe we can avoid this with some tricks
+                std::vector<o2::tpc::Digit> writeObj(digiData.begin(), digiData.end());
+                auto digP = &writeObj;
                 auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, digP);
                 br->Fill();
                 br->ResetAddress();
-              } else {                                // triggered mode (>1 entrie will be written)
+              } else {                                // triggered mode (>1 entries will be written)
                 std::vector<o2::tpc::Digit> digGroup; // group of digits related to single trigger
                 auto digGroupPtr = &digGroup;
                 auto br = getOrMakeBranch(*outputtree.get(), "TPCDigit", sector, digGroupPtr);
@@ -273,9 +283,12 @@ DataProcessorSpec getTPCDigitRootWriterSpec(std::vector<int> const& laneConfigur
   std::vector<InputSpec> inputs = {
     {"digitinput", "TPC", "DIGITS", 0, Lifetime::Timeframe},        // digit input
     {"triggerinput", "TPC", "DIGTRIGGERS", 0, Lifetime::Timeframe}, // groupping in triggers
-    {"labelinput", "TPC", "DIGITSMCTR", 0, Lifetime::Timeframe},
     {"commonmodeinput", "TPC", "COMMONMODE", 0, Lifetime::Timeframe},
   };
+  if (mctruth) {
+    inputs.emplace_back("labelinput", "TPC", "DIGITSMCTR", 0, Lifetime::Timeframe);
+  }
+
   auto amendInput = [&laneConfiguration](InputSpec& spec, size_t index) {
     spec.binding += std::to_string(laneConfiguration[index]);
     DataSpecUtils::updateMatchingSubspec(spec, laneConfiguration[index]);

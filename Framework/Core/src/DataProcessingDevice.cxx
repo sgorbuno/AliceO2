@@ -18,6 +18,7 @@
 #include "Framework/DispatchControl.h"
 #include "Framework/EndOfStreamContext.h"
 #include "Framework/FairOptionsRetriever.h"
+#include "ConfigurationOptionsRetriever.h"
 #include "Framework/FairMQDeviceProxy.h"
 #include "Framework/CallbackService.h"
 #include "Framework/TMessageSerializer.h"
@@ -34,6 +35,8 @@
 #include <fairmq/FairMQParts.h>
 #include <fairmq/FairMQSocket.h>
 #include <options/FairMQProgOptions.h>
+#include <Configuration/ConfigurationInterface.h>
+#include <Configuration/ConfigurationFactory.h>
 #include <Monitoring/Monitoring.h>
 #include <TMessage.h>
 #include <TClonesArray.h>
@@ -48,6 +51,7 @@ using Key = o2::monitoring::tags::Key;
 using Value = o2::monitoring::tags::Value;
 using Metric = o2::monitoring::Metric;
 using Monitoring = o2::monitoring::Monitoring;
+using ConfigurationInterface = o2::configuration::ConfigurationInterface;
 using DataHeader = o2::header::DataHeader;
 
 constexpr unsigned int MONITORING_QUEUE_SIZE = 100;
@@ -119,8 +123,37 @@ void DataProcessingDevice::Init()
       }
     }
   }
-  auto optionsRetriever(std::make_unique<FairOptionsRetriever>(mSpec.options, GetConfig()));
-  mConfigRegistry = std::move(std::make_unique<ConfigParamRegistry>(std::move(optionsRetriever)));
+  // If available use the ConfigurationInterface, otherwise go for
+  // the command line options.
+  bool hasConfiguration = false;
+  bool hasOverrides = false;
+  if (mServiceRegistry.active<ConfigurationInterface>()) {
+    auto& cfg = mServiceRegistry.get<ConfigurationInterface>();
+    hasConfiguration = true;
+    try {
+      cfg.getRecursive(mSpec.name);
+      hasOverrides = true;
+    } catch (...) {
+      // No overrides...
+    }
+  }
+  // We only use the configuration file if we have a stanza for the given
+  // dataprocessor
+  std::vector<std::unique_ptr<ParamRetriever>> retrievers;
+  if (hasConfiguration && hasOverrides) {
+    auto& cfg = mServiceRegistry.get<ConfigurationInterface>();
+    retrievers.emplace_back(std::make_unique<ConfigurationOptionsRetriever>(&cfg, mSpec.name));
+  } else {
+    retrievers.emplace_back(std::make_unique<FairOptionsRetriever>(GetConfig()));
+  }
+  auto configStore = std::move(std::make_unique<ConfigParamStore>(mSpec.options, std::move(retrievers)));
+  configStore->preload();
+  configStore->activate();
+  /// Dump the configuration so that we can get it from the driver.
+  for (auto& entry : configStore->store()) {
+    LOG(INFO) << "[CONFIG] " << entry.first << "=" << configStore->store().get<std::string>(entry.first) << " 1 " << configStore->provenance(entry.first.c_str());
+  }
+  mConfigRegistry = std::make_unique<ConfigParamRegistry>(std::move(configStore));
 
   mExpirationHandlers.clear();
 
@@ -162,6 +195,20 @@ void DataProcessingDevice::Init()
     } else if (name.find("from_internal-dpl-ccdb-backend") == 0) {
       mState.inputChannelInfos[ci].state = InputChannelState::Pull;
     }
+  }
+}
+
+void DataProcessingDevice::InitTask()
+{
+  for (auto& channel : fChannels) {
+    channel.second.at(0).Transport()->SubscribeToRegionEvents([& pendingRegionInfos = mPendingRegionInfos](FairMQRegionInfo info) {
+      LOG(debug) << ">>> Region info event" << info.event;
+      LOG(debug) << "id: " << info.id;
+      LOG(debug) << "ptr: " << info.ptr;
+      LOG(debug) << "size: " << info.size;
+      LOG(debug) << "flags: " << info.flags;
+      pendingRegionInfos.push_back(info);
+    });
   }
 }
 
@@ -250,6 +297,13 @@ bool DataProcessingDevice::ConditionalRun()
   auto now = std::chrono::high_resolution_clock::now();
   mBeginIterationTimestamp = (uint64_t)std::chrono::duration<double, std::milli>(now.time_since_epoch()).count();
 
+  if (mPendingRegionInfos.empty() == false) {
+    std::vector<FairMQRegionInfo> toBeNotified;
+    toBeNotified.swap(mPendingRegionInfos); // avoid any MT issue.
+    for (auto const& info : toBeNotified) {
+      mServiceRegistry.get<CallbackService>()(CallbackService::Id::RegionInfoCallback, info);
+    }
+  }
   mServiceRegistry.get<CallbackService>()(CallbackService::Id::ClockTick);
   // Whether or not we had something to do.
   bool active = false;
@@ -623,9 +677,7 @@ bool DataProcessingDevice::tryDispatchComputation()
   auto forwardInputs = [&reportError, &forwards, &device, &currentSetOfInputs](TimesliceSlot slot, InputRecord& record) {
     assert(record.size() == currentSetOfInputs.size());
     // we collect all messages per forward in a map and send them together
-    // because the forwards are stable during this function, we use the pointer
-    // to channel string as key to avoid string allocation in the map
-    std::unordered_map<const std::string*, FairMQParts> forwardedParts;
+    std::unordered_map<std::string, FairMQParts> forwardedParts;
     for (size_t ii = 0, ie = record.size(); ii < ie; ++ii) {
       DataRef input = record.getByPos(ii);
 
@@ -676,9 +728,8 @@ bool DataProcessingDevice::tryDispatchComputation()
             LOG(ERROR) << "Forwarded data does not have a DataHeader";
             continue;
           }
-          const std::string* key = &(forward.channel);
-          forwardedParts[key].AddPart(std::move(header));
-          forwardedParts[key].AddPart(std::move(payload));
+          forwardedParts[forward.channel].AddPart(std::move(header));
+          forwardedParts[forward.channel].AddPart(std::move(payload));
         }
       }
     }
@@ -689,7 +740,7 @@ bool DataProcessingDevice::tryDispatchComputation()
       assert(channelParts.Size() % 2 == 0);
       assert(o2::header::get<DataProcessingHeader*>(channelParts.At(0)->GetData()));
       // in DPL we are using subchannel 0 only
-      device.Send(channelParts, *channelName, 0);
+      device.Send(channelParts, channelName, 0);
     }
   };
 

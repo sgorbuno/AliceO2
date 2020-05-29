@@ -71,11 +71,26 @@ int GPUReconstructionCPUBackend::runKernelBackend(krnlSetup& _xyz, const Args&..
   }
   unsigned int num = y.num == 0 || y.num == -1 ? 1 : y.num;
   for (unsigned int k = 0; k < num; k++) {
-    for (unsigned int iB = 0; iB < x.nBlocks; iB++) {
-      typename T::GPUSharedMemory smem;
-      T::template Thread<I>(x.nBlocks, 1, iB, 0, smem, T::Processor(*mHostConstantMem)[y.start + k], args...);
+    if (mDeviceProcessingSettings.ompKernels) {
+      GPUCA_OPENMP(parallel for num_threads(mDeviceProcessingSettings.nThreads))
+      for (unsigned int iB = 0; iB < x.nBlocks; iB++) {
+        typename T::GPUSharedMemory smem;
+        T::template Thread<I>(x.nBlocks, 1, iB, 0, smem, T::Processor(*mHostConstantMem)[y.start + k], args...);
+      }
+    } else {
+      for (unsigned int iB = 0; iB < x.nBlocks; iB++) {
+        typename T::GPUSharedMemory smem;
+        T::template Thread<I>(x.nBlocks, 1, iB, 0, smem, T::Processor(*mHostConstantMem)[y.start + k], args...);
+      }
     }
   }
+  return 0;
+}
+
+template <>
+int GPUReconstructionCPUBackend::runKernelBackend<GPUMemClean16, 0>(krnlSetup& _xyz, void* const& ptr, unsigned long const& size)
+{
+  memset(ptr, 0, size);
   return 0;
 }
 
@@ -86,8 +101,8 @@ GPUReconstruction::krnlProperties GPUReconstructionCPUBackend::getKernelProperti
 }
 
 size_t GPUReconstructionCPU::TransferMemoryInternal(GPUMemoryResource* res, int stream, deviceEvent* ev, deviceEvent* evList, int nEvents, bool toGPU, const void* src, void* dst) { return 0; }
-size_t GPUReconstructionCPU::GPUMemCpy(void* dst, const void* src, size_t size, int stream, bool toGPU, deviceEvent* ev, deviceEvent* evList, int nEvents) { return 0; }
-size_t GPUReconstructionCPU::GPUMemCpyAlways(bool onGpu, void* dst, const void* src, size_t size, int stream, bool toGPU, deviceEvent* ev, deviceEvent* evList, int nEvents)
+size_t GPUReconstructionCPU::GPUMemCpy(void* dst, const void* src, size_t size, int stream, int toGPU, deviceEvent* ev, deviceEvent* evList, int nEvents) { return 0; }
+size_t GPUReconstructionCPU::GPUMemCpyAlways(bool onGpu, void* dst, const void* src, size_t size, int stream, int toGPU, deviceEvent* ev, deviceEvent* evList, int nEvents)
 {
   memcpy(dst, src, size);
   return 0;
@@ -146,6 +161,9 @@ int GPUReconstructionCPU::InitDevice()
     mHostMemoryPermanent = mHostMemoryBase;
     ClearAllocatedMemory();
   }
+  if (mDeviceProcessingSettings.ompKernels) {
+    mBlockCount = getOMPMaxThreads();
+  }
   mThreadId = GetThread();
   return 0;
 }
@@ -198,6 +216,7 @@ int GPUReconstructionCPU::RunChains()
   }
   timerTotal.Stop();
 
+  mStatWallTime = (timerTotal.GetElapsedTime() * 1000000. / mStatNEvents);
   if (GetDeviceProcessingSettings().debugLevel >= 1) {
     double kernelTotal = 0;
     std::vector<double> kernelStepTimes(N_RECO_STEPS);
@@ -214,10 +233,6 @@ int GPUReconstructionCPU::RunChains()
           timer.Reset();
         }
       }
-      unsigned int count = mTimers[i]->count;
-      if (mDeviceProcessingSettings.resetTimers) {
-        mTimers[i]->count = 0;
-      }
 
       char type = mTimers[i]->type;
       if (type == 0) {
@@ -226,7 +241,15 @@ int GPUReconstructionCPU::RunChains()
         kernelStepTimes[stepNum] += time;
       }
       type = type == 0 ? 'K' : 'C';
-      printf("Execution Time: Task (%c %8ux): %50s Time: %'10d us\n", type, count, mTimers[i]->name.c_str(), (int)(time * 1000000 / mStatNEvents));
+      char bandwidth[256] = "";
+      if (mTimers[i]->memSize && mStatNEvents && time != 0.) {
+        snprintf(bandwidth, 256, " (%6.3f GB/s - %'14lu bytes)", mTimers[i]->memSize / time * 1e-9, (unsigned long)(mTimers[i]->memSize / mStatNEvents));
+      }
+      printf("Execution Time: Task (%c %8ux): %50s Time: %'10d us%s\n", type, mTimers[i]->count, mTimers[i]->name.c_str(), (int)(time * 1000000 / mStatNEvents), bandwidth);
+      if (mDeviceProcessingSettings.resetTimers) {
+        mTimers[i]->count = 0;
+        mTimers[i]->memSize = 0;
+      }
     }
     for (int i = 0; i < N_RECO_STEPS; i++) {
       if (kernelStepTimes[i] != 0.) {
@@ -250,10 +273,10 @@ int GPUReconstructionCPU::RunChains()
       }
     }
     mStatKernelTime = kernelTotal * 1000000 / mStatNEvents;
-    printf("Execution Time: Total   : %50s Time: %'10d us\n", "Total kernel time", (int)mStatKernelTime);
-    printf("Execution Time: Total   : %50s Time: %'10d us\n", "Total time", (int)(timerTotal.GetElapsedTime() * 1000000. / mStatNEvents));
+    printf("Execution Time: Total   : %50s Time: %'10d us\n", "Total Kernel", (int)mStatKernelTime);
+    printf("Execution Time: Total   : %50s Time: %'10d us\n", "Total Wall", (int)mStatWallTime);
   } else if (GetDeviceProcessingSettings().debugLevel >= 0) {
-    printf("Total Time: %'d us\n", (int)(timerTotal.GetElapsedTime() * 1000000 / mStatNEvents));
+    printf("Total Wall Time: %'d us\n", (int)mStatWallTime);
   }
   if (mDeviceProcessingSettings.resetTimers) {
     mStatNEvents = 0;
@@ -295,7 +318,7 @@ GPUReconstructionCPU::timerMeta* GPUReconstructionCPU::insertTimer(unsigned int 
     if (J >= 0) {
       name += std::to_string(J);
     }
-    mTimers[id].reset(new timerMeta{std::unique_ptr<HighResTimer[]>{new HighResTimer[num]}, name, num, type, 1u, step});
+    mTimers[id].reset(new timerMeta{std::unique_ptr<HighResTimer[]>{new HighResTimer[num]}, name, num, type, 1u, step, (size_t)0});
   }
   timerMeta* retVal = mTimers[id].get();
   timerFlag.clear();

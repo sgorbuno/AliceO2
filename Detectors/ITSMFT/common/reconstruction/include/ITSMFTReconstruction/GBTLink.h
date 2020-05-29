@@ -25,6 +25,7 @@
 #include "ITSMFTReconstruction/RUDecodeData.h"
 #include "ITSMFTReconstruction/RUInfo.h"
 #include "Headers/RAWDataHeader.h"
+#include "DetectorsRaw/RDHUtils.h"
 #include "CommonDataFormat/InteractionRecord.h"
 
 #define GBTLINK_DECODE_ERRORCHECK(what) \
@@ -108,17 +109,31 @@ struct GBTTrigger;
 
 /// support for the GBT single link data
 struct GBTLink {
-  enum CollectedDataStatus { None, // set before starting collectROFCableData
-                             AbortedOnError,
-                             StoppedOnEndOfData,
-                             DataSeen };
-  enum ErrorType { NoError,
-                   Warning,
-                   Abort };
-  using RDH = o2::header::RAWDataHeader;
 
-  int8_t verbosity = 0;
+  enum Format : int8_t { OldFormat,
+                         NewFormat,
+                         NFormats };
+
+  enum CollectedDataStatus : int8_t { None,
+                                      AbortedOnError,
+                                      StoppedOnEndOfData,
+                                      DataSeen }; // None is set before starting collectROFCableData
+
+  enum ErrorType : int8_t { NoError,
+                            Warning,
+                            Abort };
+
+  enum Verbosity : int8_t { Silent = -1,
+                            VerboseErrors,
+                            VerboseHeaders,
+                            VerboseData };
+
+  using RDH = o2::header::RDHAny;
+  using RDHUtils = o2::raw::RDHUtils;
+
   CollectedDataStatus status = None;
+  Format format = NewFormat;
+  Verbosity verbosity = VerboseErrors;
   uint8_t idInRU = 0;     // link ID within the RU
   uint8_t idInCRU = 0;    // link ID within the CRU
   uint8_t endPointID = 0; // endpoint ID of the CRU
@@ -166,7 +181,7 @@ struct GBTLink {
   }
 
  private:
-  void printRDH(const RDH* rdh);
+  void printRDH(const RDH& rdh);
   void discardData() { rawData.setDone(); }
   void printTrigger(const GBTTrigger* gbtTrg);
   void printHeader(const GBTDataHeader* gbtH);
@@ -174,12 +189,12 @@ struct GBTLink {
   bool nextCRUPage();
 
 #ifndef _RAW_READER_ERROR_CHECKS_ // define dummy inline check methods, will be compiled out
-  bool checkErrorsRDH(const RDH* rdh) const
+  bool checkErrorsRDH(const RDH& rdh) const
   {
     return true;
   }
-  ErrorType checkErrorsRDHStop(const RDH* rdh) const { return NoError; }
-  ErrorType checkErrorsRDHStopPageEmpty(const RDH* rdh) const { return NoError; }
+  ErrorType checkErrorsRDHStop(const RDH& rdh) const { return NoError; }
+  ErrorType checkErrorsRDHStopPageEmpty(const RDH& rdh) const { return NoError; }
   ErrorType checkErrorsTriggerWord(const GBTTrigger* gbtTrg) const { return NoError; }
   ErrorType checkErrorsHeaderWord(const GBTDataHeader* gbtH) const { return NoError; }
   ErrorType checkErrorsActiveLanes(int cables) const { return NoError; }
@@ -188,9 +203,9 @@ struct GBTLink {
   ErrorType checkErrorsPacketDoneMissing(const GBTDataTrailer* gbtT, bool notEnd) const { return NoError; }
   ErrorType checkErrorsLanesStops() const { return NoError; }
 #else
-  ErrorType checkErrorsRDH(const RDH* rdh);
-  ErrorType checkErrorsRDHStop(const RDH* rdh);
-  ErrorType checkErrorsRDHStopPageEmpty(const RDH* rdh);
+  ErrorType checkErrorsRDH(const RDH& rdh);
+  ErrorType checkErrorsRDHStop(const RDH& rdh);
+  ErrorType checkErrorsRDHStopPageEmpty(const RDH& rdh);
   ErrorType checkErrorsTriggerWord(const GBTTrigger* gbtTrg);
   ErrorType checkErrorsHeaderWord(const GBTDataHeader* gbtH);
   ErrorType checkErrorsActiveLanes(int cables);
@@ -221,12 +236,12 @@ GBTLink::CollectedDataStatus GBTLink::collectROFCableData(const Mapping& chmap)
     }
     if (!dataOffset) { // here we always start with the RDH
       const auto* rdh = reinterpret_cast<const RDH*>(&currRawPiece->data[dataOffset]);
-      if (verbosity) {
-        printRDH(rdh);
+      if (verbosity >= VerboseHeaders) {
+        printRDH(*rdh);
       }
-      GBTLINK_DECODE_ERRORCHECK(checkErrorsRDH(rdh));              // make sure we are dealing with RDH
-      GBTLINK_DECODE_ERRORCHECK(checkErrorsRDHStop(rdh));          // if new HB starts, the lastRDH must have stop
-      GBTLINK_DECODE_ERRORCHECK(checkErrorsRDHStopPageEmpty(rdh)); // end of HBF should be an empty page with stop
+      GBTLINK_DECODE_ERRORCHECK(checkErrorsRDH(*rdh));              // make sure we are dealing with RDH
+      GBTLINK_DECODE_ERRORCHECK(checkErrorsRDHStop(*rdh));          // if new HB starts, the lastRDH must have stop
+      GBTLINK_DECODE_ERRORCHECK(checkErrorsRDHStopPageEmpty(*rdh)); // end of HBF should be an empty page with stop
       lastRDH = rdh;
       statistics.nPackets++;
       dataOffset += sizeof(RDH);
@@ -235,27 +250,30 @@ GBTLink::CollectedDataStatus GBTLink::collectROFCableData(const Mapping& chmap)
 
     ruPtr->nCables = ruPtr->ruInfo->nCables; // RSTODO is this needed? TOREMOVE
 
-    // data must start with GBT trigger word
-    auto gbtTrg = reinterpret_cast<const GBTTrigger*>(&currRawPiece->data[dataOffset]); // process GBT trigger
-    dataOffset += GBTPaddedWordLength;
-    if (verbosity) {
-      printTrigger(gbtTrg);
+    // data must start with GBT trigger word (unless we work with old format)
+    const GBTTrigger* gbtTrg = nullptr;
+    if (format == NewFormat) {
+      gbtTrg = reinterpret_cast<const GBTTrigger*>(&currRawPiece->data[dataOffset]); // process GBT trigger
+      dataOffset += GBTPaddedWordLength;
+      if (verbosity >= VerboseHeaders) {
+        printTrigger(gbtTrg);
+      }
+      GBTLINK_DECODE_ERRORCHECK(checkErrorsTriggerWord(gbtTrg));
     }
-    GBTLINK_DECODE_ERRORCHECK(checkErrorsTriggerWord(gbtTrg));
+
     // next the GBTHeader must come
     auto gbtH = reinterpret_cast<const GBTDataHeader*>(&currRawPiece->data[dataOffset]); // process GBT header
     dataOffset += GBTPaddedWordLength;
-    if (verbosity) {
+    if (verbosity >= VerboseHeaders) {
       printHeader(gbtH);
     }
     GBTLINK_DECODE_ERRORCHECK(checkErrorsHeaderWord(gbtH));
     lanesActive = gbtH->activeLanes; // TODO do we need to update this for every page?
     GBTLINK_DECODE_ERRORCHECK(checkErrorsActiveLanes(chmap.getCablesOnRUType(ruPtr->ruInfo->ruType)));
-    //    if (!lastRDH->pageCnt) { // RSTODO reset flags in case of 1st page of new ROF (old format: judge by RDH)
-    //      lanesStop = 0;
-    //      lanesWithData = 0;
-    //    }
-    if (gbtH->packetIdx == 0) { // reset flags in case of 1st page of new ROF (new format: judge by header)
+    if (format == OldFormat && RDHUtils::getPageCounter(*lastRDH)) { // RSTODO reset flags in case of 1st page of new ROF (old format: judge by RDH)
+      lanesStop = 0;
+      lanesWithData = 0;
+    } else if (gbtH->packetIdx == 0) { // reset flags in case of 1st page of new ROF (new format: judge by header)
       lanesStop = 0;
       lanesWithData = 0;
     }
@@ -263,7 +281,7 @@ GBTLink::CollectedDataStatus GBTLink::collectROFCableData(const Mapping& chmap)
     while (!gbtD->isDataTrailer()) { // start reading real payload
       nw++;
       int cableHW = gbtD->getCableID(), cableSW = chmap.cableHW2SW(ruPtr->ruInfo->ruType, cableHW);
-      if (verbosity > 1) {
+      if (verbosity >= VerboseData) {
         gbtD->printX();
       }
       GBTLINK_DECODE_ERRORCHECK(checkErrorsGBTData(cableHW, cableSW));
@@ -277,7 +295,7 @@ GBTLink::CollectedDataStatus GBTLink::collectROFCableData(const Mapping& chmap)
 
     auto gbtT = reinterpret_cast<const o2::itsmft::GBTDataTrailer*>(&currRawPiece->data[dataOffset]); // process GBT trailer
     dataOffset += GBTPaddedWordLength;
-    if (verbosity) {
+    if (verbosity >= VerboseHeaders) {
       printTrailer(gbtT);
     }
     GBTLINK_DECODE_ERRORCHECK(checkErrorsTrailerWord(gbtT));
@@ -290,9 +308,14 @@ GBTLink::CollectedDataStatus GBTLink::collectROFCableData(const Mapping& chmap)
     // accumulate packet states
     statistics.packetStates[gbtT->getPacketState()]++;
     // before quitting, store the trigger and IR
-    ir.bc = gbtTrg->bc;
-    ir.orbit = gbtTrg->orbit;
-    trigger = gbtTrg->triggerType;
+    if (format == NewFormat) {
+      ir.bc = gbtTrg->bc;
+      ir.orbit = gbtTrg->orbit;
+      trigger = gbtTrg->triggerType;
+    } else {
+      ir = RDHUtils::getTriggerIR(lastRDH);
+      trigger = RDHUtils::getTriggerType(lastRDH);
+    }
     return (status = DataSeen);
   }
 

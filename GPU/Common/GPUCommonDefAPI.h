@@ -28,6 +28,9 @@
   #define GPUdi() inline                            // to-be-inlined device function
   #define GPUdii()                                  // Only on GPU to-be-inlined device function
   #define GPUh()                                    // Host-only function
+  // NOTE: All GPUd*() functions are also compiled on the host during GCC compilation.
+  // The GPUh*() macros are for the rare cases of functions that you want to compile for the host during GPU compilation.
+  // Usually, you do not need the GPUh*() versions. If in doubt, use GPUd*()!
   #define GPUhi() inline                            // to-be-inlined host-only function
   #define GPUhd()                                   // Host and device function, inlined during GPU compilation to avoid symbol clashes in host code
   #define GPUhdi() inline                           // Host and device function, to-be-inlined on host and device
@@ -107,6 +110,8 @@
     #define GPUCA_USE_TEMPLATE_ADDRESS_SPACES // TODO: check if we can make this (partially, where it is already implemented) compatible with OpenCL CPP
     #define GPUsharedref() GPUshared()
     #define GPUglobalref() GPUglobal()
+    #undef GPUgeneric()
+    #define GPUgeneric()
   #endif
   #if (!defined(__OPENCLCPP__) || !defined(GPUCA_NO_CONSTANT_MEMORY))
     #define GPUconstantref() GPUconstant()
@@ -180,7 +185,7 @@
 #define GPUconstexprref()
 #endif
 
-#define GPUrestrict() // We don't use restrict at the moment, could try at a later time
+#define GPUrestrict() __restrict__
 
 // Macros for GRID dimension
 #if defined(__CUDACC__) || defined(__HIPCC__)

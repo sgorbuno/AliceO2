@@ -17,8 +17,7 @@
 #include "Framework/CompilerBuiltins.h"
 #include "Framework/Traits.h"
 #include "Framework/Expressions.h"
-#include "Framework/Kernels.h"
-#include "Framework/ArrowCompatibility.h"
+#include "Framework/ArrowTypes.h"
 #include <arrow/table.h>
 #include <arrow/array.h>
 #include <arrow/util/variant.h>
@@ -30,7 +29,6 @@
 namespace o2::soa
 {
 
-using BackendColumnType = framework::BackendColumnType;
 using SelectionVector = std::vector<int64_t>;
 
 template <typename, typename = void>
@@ -94,69 +92,6 @@ constexpr auto make_originals_from_type()
   }
 }
 
-template <typename T>
-struct arrow_array_for {
-};
-template <>
-struct arrow_array_for<bool> {
-  using type = arrow::BooleanArray;
-};
-template <>
-struct arrow_array_for<int8_t> {
-  using type = arrow::Int8Array;
-};
-template <>
-struct arrow_array_for<uint8_t> {
-  using type = arrow::UInt8Array;
-};
-template <>
-struct arrow_array_for<int16_t> {
-  using type = arrow::Int16Array;
-};
-template <>
-struct arrow_array_for<uint16_t> {
-  using type = arrow::UInt16Array;
-};
-template <>
-struct arrow_array_for<int32_t> {
-  using type = arrow::Int32Array;
-};
-template <>
-struct arrow_array_for<int64_t> {
-  using type = arrow::Int64Array;
-};
-template <>
-struct arrow_array_for<uint32_t> {
-  using type = arrow::UInt32Array;
-};
-template <>
-struct arrow_array_for<uint64_t> {
-  using type = arrow::UInt64Array;
-};
-template <>
-struct arrow_array_for<float> {
-  using type = arrow::FloatArray;
-};
-template <>
-struct arrow_array_for<double> {
-  using type = arrow::DoubleArray;
-};
-template <int N>
-struct arrow_array_for<float[N]> {
-  using type = arrow::FixedSizeBinaryArray;
-};
-template <int N>
-struct arrow_array_for<int[N]> {
-  using type = arrow::FixedSizeBinaryArray;
-};
-template <int N>
-struct arrow_array_for<double[N]> {
-  using type = arrow::FixedSizeBinaryArray;
-};
-
-template <typename T>
-using arrow_array_for_t = typename arrow_array_for<T>::type;
-
 /// Policy class for columns which are chunked. This
 /// will make the compiler take the most generic (and
 /// slow approach).
@@ -181,17 +116,16 @@ class ColumnIterator : ChunkingPolicy
 
  public:
   /// Constructor of the column iterator. Notice how it takes a pointer
-  /// to the BackendColumnType (for the data store) and to the index inside
+  /// to the ChunkedArray (for the data store) and to the index inside
   /// it. This means that a ColumnIterator is actually only available
   /// as part of a RowView.
-  ColumnIterator(BackendColumnType const* column)
+  ColumnIterator(arrow::ChunkedArray const* column)
     : mColumn{column},
       mCurrentPos{nullptr},
       mFirstIndex{0},
       mCurrentChunk{0}
   {
-    auto chunks = framework::getBackendColumnPtrData<BackendColumnType>(mColumn);
-    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(chunks->chunk(mCurrentChunk));
+    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(mColumn->chunk(mCurrentChunk));
     mCurrent = reinterpret_cast<T const*>(array->values()->data()) + array->offset();
     mLast = mCurrent + array->length();
   }
@@ -206,22 +140,20 @@ class ColumnIterator : ChunkingPolicy
   /// Move the iterator to the next chunk.
   void nextChunk() const
   {
-    auto chunks = framework::getBackendColumnPtrData<BackendColumnType>(mColumn);
-    auto previousArray = std::static_pointer_cast<arrow_array_for_t<T>>(chunks->chunk(mCurrentChunk));
+    auto previousArray = std::static_pointer_cast<arrow_array_for_t<T>>(mColumn->chunk(mCurrentChunk));
     mFirstIndex += previousArray->length();
     mCurrentChunk++;
-    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(chunks->chunk(mCurrentChunk));
+    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(mColumn->chunk(mCurrentChunk));
     mCurrent = reinterpret_cast<T const*>(array->values()->data()) + array->offset() - (mFirstIndex >> SCALE_FACTOR);
     mLast = mCurrent + array->length() + (mFirstIndex >> SCALE_FACTOR);
   }
 
   void prevChunk() const
   {
-    auto chunks = framework::getBackendColumnPtrData<BackendColumnType>(mColumn);
-    auto previousArray = std::static_pointer_cast<arrow_array_for_t<T>>(chunks->chunk(mCurrentChunk));
+    auto previousArray = std::static_pointer_cast<arrow_array_for_t<T>>(mColumn->chunk(mCurrentChunk));
     mFirstIndex -= previousArray->length();
     mCurrentChunk--;
-    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(chunks->chunk(mCurrentChunk));
+    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(mColumn->chunk(mCurrentChunk));
     mCurrent = reinterpret_cast<T const*>(array->values()->data()) + array->offset() - (mFirstIndex >> SCALE_FACTOR);
     mLast = mCurrent + array->length() + (mFirstIndex >> SCALE_FACTOR);
   }
@@ -242,9 +174,8 @@ class ColumnIterator : ChunkingPolicy
   /// Move the iterator to the end of the column.
   void moveToEnd()
   {
-    auto chunks = framework::getBackendColumnPtrData<BackendColumnType>(mColumn);
-    mCurrentChunk = chunks->num_chunks() - 1;
-    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(chunks->chunk(mCurrentChunk));
+    mCurrentChunk = mColumn->num_chunks() - 1;
+    auto array = std::static_pointer_cast<arrow_array_for_t<T>>(mColumn->chunk(mCurrentChunk));
     assert(array.get());
     mFirstIndex = mColumn->length() - array->length();
     mCurrent = reinterpret_cast<T const*>(array->values()->data()) + array->offset() - (mFirstIndex >> SCALE_FACTOR);
@@ -295,7 +226,7 @@ class ColumnIterator : ChunkingPolicy
   mutable T const* mCurrent;
   int64_t const* mCurrentPos;
   mutable T const* mLast;
-  BackendColumnType const* mColumn;
+  arrow::ChunkedArray const* mColumn;
   mutable int mFirstIndex;
   mutable int mCurrentChunk;
 };
@@ -317,7 +248,7 @@ struct Column {
 
   using persistent = std::true_type;
   using type = T;
-  static constexpr const char* const& label() { return INHERIT::mLabel; }
+  static constexpr const char* const& columnLabel() { return INHERIT::mLabel; }
   ColumnIterator<T> const& getIterator() const
   {
     return mColumnIterator;
@@ -334,7 +265,7 @@ struct DynamicColumn {
   using inherited_t = INHERIT;
 
   using persistent = std::false_type;
-  static constexpr const char* const& label() { return INHERIT::mLabel; }
+  static constexpr const char* const& columnLabel() { return INHERIT::mLabel; }
 };
 
 template <typename INHERIT>
@@ -342,7 +273,7 @@ struct IndexColumn {
   using inherited_t = INHERIT;
 
   using persistent = std::false_type;
-  static constexpr const char* const& label() { return INHERIT::mLabel; }
+  static constexpr const char* const& columnLabel() { return INHERIT::mLabel; }
 };
 
 template <int64_t START = 0, int64_t END = -1>
@@ -358,7 +289,7 @@ struct Index : o2::soa::IndexColumn<Index<START, END>> {
   Index& operator=(Index const&) = default;
   Index& operator=(Index&&) = default;
 
-  Index(BackendColumnType const*)
+  Index(arrow::ChunkedArray const*)
   {
   }
 
@@ -625,6 +556,14 @@ struct FilteredIndexPolicy : IndexPolicyBase {
 template <typename... C>
 class Table;
 
+/// Similar to a pair but not a pair, to avoid
+/// exposing the second type everywhere.
+template <typename C>
+struct ColumnDataHolder {
+  C* first;
+  arrow::ChunkedArray* second;
+};
+
 template <typename IP, typename... C>
 struct RowViewCore : public IP, C... {
  public:
@@ -636,9 +575,9 @@ struct RowViewCore : public IP, C... {
   constexpr inline static bool has_index_v = !std::is_same_v<index_columns_t, framework::pack<>>;
   using external_index_columns_t = framework::selected_pack<is_external_index_t, C...>;
 
-  RowViewCore(std::tuple<std::pair<C*, BackendColumnType*>...> const& columnIndex, IP&& policy)
+  RowViewCore(std::tuple<ColumnDataHolder<C>...> const& columnIndex, IP&& policy)
     : IP{policy},
-      C(std::get<std::pair<C*, BackendColumnType*>>(columnIndex).second)...
+      C(std::get<ColumnDataHolder<C>>(columnIndex).second)...
   {
     bindIterators(persistent_columns_t{});
     bindAllDynamicColumns(dynamic_columns_t{});
@@ -828,7 +767,7 @@ class Table
     using parent_t = Parent;
     using originals = originals_pack_t<T...>;
 
-    RowViewBase(std::tuple<std::pair<C*, BackendColumnType*>...> const& columnIndex, IP&& policy)
+    RowViewBase(std::tuple<ColumnDataHolder<C>...> const& columnIndex, IP&& policy)
       : RowViewCore<IP, C...>(columnIndex, std::forward<decltype(policy)>(policy))
     {
     }
@@ -851,6 +790,12 @@ class Table
 
     RowViewBase& operator=(RowViewBase const&) = default;
     RowViewBase& operator=(RowViewBase&&) = default;
+
+    RowViewBase& operator=(RowViewSentinel const& other)
+    {
+      this->mRowIndex = other.index;
+      return *this;
+    }
 
     using RowViewCore<IP, C...>::operator++;
 
@@ -885,15 +830,20 @@ class Table
   using filtered_iterator = RowViewFiltered<table_t, table_t>;
   using filtered_const_iterator = RowViewFiltered<table_t, table_t>;
 
+  using column_index_t = std::tuple<ColumnDataHolder<C>...>;
+
   Table(std::shared_ptr<arrow::Table> table, uint64_t offset = 0)
     : mTable(table),
-      mColumnIndex{
-        std::pair<C*, BackendColumnType*>{nullptr,
-                                          lookupColumn<C>()}...},
-      mBegin(mColumnIndex, {table->num_rows(), offset}),
       mEnd{static_cast<uint64_t>(table->num_rows())},
       mOffset(offset)
   {
+    if (mTable->num_rows() == 0) {
+      mColumnIndex = column_index_t{ColumnDataHolder<C>{nullptr, nullptr}...};
+      mBegin = mEnd;
+    } else {
+      mColumnIndex = column_index_t{ColumnDataHolder<C>{nullptr, lookupColumn<C>()}...};
+      mBegin = unfiltered_iterator{mColumnIndex, {table->num_rows(), offset}};
+    }
   }
 
   /// FIXME: this is to be able to construct a Filtered without explicit Join
@@ -960,10 +910,10 @@ class Table
 
  private:
   template <typename T>
-  BackendColumnType* lookupColumn()
+  arrow::ChunkedArray* lookupColumn()
   {
     if constexpr (T::persistent::value) {
-      auto label = T::label();
+      auto label = T::columnLabel();
       auto index = mTable->schema()->GetFieldIndex(label);
       if (index == -1) {
         throw std::runtime_error(std::string("Unable to find column with label ") + label);
@@ -975,7 +925,7 @@ class Table
   }
   std::shared_ptr<arrow::Table> mTable;
   /// This is a cached lookup of the column index in a given
-  std::tuple<std::pair<C*, BackendColumnType*>...>
+  std::tuple<ColumnDataHolder<C>...>
     mColumnIndex;
   /// Cached begin iterator for this table.
   unfiltered_iterator mBegin;
@@ -1013,7 +963,7 @@ template <typename INHERIT>
 class TableMetadata
 {
  public:
-  static constexpr char const* const label() { return INHERIT::mLabel; }
+  static constexpr char const* const tableLabel() { return INHERIT::mLabel; }
   static constexpr char const (&origin())[4] { return INHERIT::mOrigin; }
   static constexpr char const (&description())[16] { return INHERIT::mDescription; }
 };
@@ -1032,7 +982,7 @@ class TableMetadata
     using base = o2::soa::Column<_Type_, _Name_>;                              \
     using type = _Type_;                                                       \
     using column_t = _Name_;                                                   \
-    _Name_(o2::soa::BackendColumnType const* column)                           \
+    _Name_(arrow::ChunkedArray const* column)                                  \
       : o2::soa::Column<_Type_, _Name_>(o2::soa::ColumnIterator<type>(column)) \
     {                                                                          \
     }                                                                          \
@@ -1072,7 +1022,7 @@ class TableMetadata
     using type = _Type_;                                                           \
     using column_t = _Name_##Id;                                                   \
     using binding_t = _Table_;                                                     \
-    _Name_##Id(o2::soa::BackendColumnType const* column)                           \
+    _Name_##Id(arrow::ChunkedArray const* column)                                  \
       : o2::soa::Column<_Type_, _Name_##Id>(o2::soa::ColumnIterator<type>(column)) \
     {                                                                              \
     }                                                                              \
@@ -1153,7 +1103,7 @@ class TableMetadata
     using callable_t = helper::callable_t;                                                                                 \
     using callback_t = callable_t::type;                                                                                   \
                                                                                                                            \
-    _Name_(o2::soa::BackendColumnType const*)                                                                              \
+    _Name_(arrow::ChunkedArray const*)                                                                                     \
     {                                                                                                                      \
     }                                                                                                                      \
     _Name_() = default;                                                                                                    \
@@ -1394,26 +1344,6 @@ template <typename T>
 auto filter(T&& t, framework::expressions::Filter const& expr)
 {
   return Filtered<T>(t.asArrowTable(), expr);
-}
-
-template <typename T>
-std::vector<std::decay_t<T>> slice(T&& t, std::string const& columnName)
-{
-  arrow::compute::FunctionContext ctx;
-  std::vector<arrow::compute::Datum> splittedDatums;
-  std::vector<std::decay_t<T>> splittedTables;
-  std::vector<uint64_t> offsets;
-  auto status = framework::sliceByColumn(&ctx, columnName, arrow::compute::Datum(t.asArrowTable()), &splittedDatums, &offsets);
-  if (status.ok() == false) {
-    throw std::runtime_error("Unable to slice table");
-  }
-  splittedTables.reserve(splittedDatums.size());
-  for (size_t ti = 0; ti < splittedDatums.size(); ++ti) {
-    auto table = arrow::util::get<std::shared_ptr<arrow::Table>>(splittedDatums[ti].value);
-    auto offset = offsets[ti];
-    splittedTables.emplace_back(table, offset);
-  }
-  return splittedTables;
 }
 
 } // namespace o2::soa

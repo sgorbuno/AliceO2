@@ -25,7 +25,7 @@
 #include "TPCBase/ParameterElectronics.h"
 #include "TPCBase/ParameterGas.h"
 #include "TPCBase/Sector.h"
-#include "TPCBase/Digit.h"
+#include "DataFormatsTPC/Digit.h"
 #include "DetectorsRaw/HBFUtils.h"
 
 #include "GPUO2Interface.h"
@@ -33,8 +33,6 @@
 #include "GPUTPCGMMergedTrack.h"
 #include "GPUTPCGMMergedTrackHit.h"
 #include "GPUHostDataTypes.h"
-
-#include "Digit.h"
 
 using namespace o2::gpu;
 using namespace o2::tpc;
@@ -61,7 +59,7 @@ void GPUCATracking::deinitialize()
   mTrackingCAO2Interface.reset();
 }
 
-int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data)
+int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data, GPUInterfaceOutputs* outputs)
 {
   if ((int)(data->tpcZS != nullptr) + (int)(data->o2Digits != nullptr) + (int)(data->clusters != nullptr) != 1) {
     return 0;
@@ -83,7 +81,7 @@ int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data)
   Mapper& mapper = Mapper::instance();
 
   const ClusterNativeAccess* clusters;
-  std::vector<deprecated::PackedDigit> gpuDigits[Sector::MAXSECTOR];
+  std::vector<o2::tpc::Digit> gpuDigits[Sector::MAXSECTOR];
   GPUTrackingInOutDigits gpuDigitsMap;
   GPUTPCDigitsMCInput gpuDigitsMC;
   GPUTrackingInOutPointers ptrs;
@@ -99,14 +97,11 @@ int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data)
       gpuDigits[i].reserve(d.size());
       gpuDigitsMap.tpcDigits[i] = gpuDigits[i].data();
       for (int j = 0; j < d.size(); j++) {
-        if (d[j].getTimeStamp() >= 4000) {
-          throw std::runtime_error("Digits with time bin >= 4000 not yet supported in GPUCF");
-        }
         if (d[j].getTimeStamp() >= maxContTimeBin) {
           throw std::runtime_error("Digit time bin exceeds time frame length");
         }
         if (d[j].getChargeFloat() >= zsThreshold) {
-          gpuDigits[i].emplace_back(deprecated::PackedDigit{d[j].getChargeFloat(), (Timestamp)d[j].getTimeStamp(), (Pad)d[j].getPad(), (Row)d[j].getRow()});
+          gpuDigits[i].emplace_back(d[j]);
         }
       }
       gpuDigitsMap.nTPCDigits[i] = gpuDigits[i].size();
@@ -123,7 +118,7 @@ int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data)
     ptrs.clustersNative = clusters;
     ptrs.tpcPackedDigits = nullptr;
   }
-  int retVal = mTrackingCAO2Interface->RunTracking(&ptrs);
+  int retVal = mTrackingCAO2Interface->RunTracking(&ptrs, outputs);
   if (data->o2Digits || data->tpcZS) {
     clusters = ptrs.clustersNative;
   }
@@ -309,4 +304,14 @@ void GPUCATracking::GetClusterErrors2(int row, float z, float sinPhi, float DzDs
     return;
   }
   mTrackingCAO2Interface->GetClusterErrors2(row, z, sinPhi, DzDs, clusterState, ErrY2, ErrZ2);
+}
+
+int GPUCATracking::registerMemoryForGPU(const void* ptr, size_t size)
+{
+  return mTrackingCAO2Interface->registerMemoryForGPU(ptr, size);
+}
+
+int GPUCATracking::unregisterMemoryForGPU(const void* ptr)
+{
+  return mTrackingCAO2Interface->unregisterMemoryForGPU(ptr);
 }

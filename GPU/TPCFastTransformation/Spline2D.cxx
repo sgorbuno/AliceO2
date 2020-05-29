@@ -13,6 +13,10 @@
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+#include "Rtypes.h"
+#endif
+
 #include "Spline2D.h"
 
 #if !defined(GPUCA_GPUCODE)
@@ -208,7 +212,7 @@ void Spline2DBase<DataT, isConsistentT>::recreate(
 
 #endif
 
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE)
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) && !defined(GPUCA_ALIROOT_LIB) // code invisible on GPU and in the standalone compilation and in AliRoot
 
 template <typename DataT, bool isConsistentT>
 int Spline2DBase<DataT, isConsistentT>::writeToFile(TFile& outf, const char* name)
@@ -224,9 +228,6 @@ Spline2DBase<DataT, isConsistentT>* Spline2DBase<DataT, isConsistentT>::readFrom
   /// read a class object from the file
   return FlatObject::readFromFile<Spline2DBase<DataT, isConsistentT>>(inpf, name);
 }
-#endif
-
-#if !defined(GPUCA_ALIGPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 
 template <typename DataT, bool isConsistentT>
 void Spline2DBase<DataT, isConsistentT>::approximateFunction(
@@ -255,7 +256,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
   constexpr int uMax = nKnots * 3;
 
   auto F = [&](DataT u, DataT v, DataT Fuv[]) {
-    constexpr double scale = TMath::Pi() / uMax;
+    const double scale = TMath::Pi() / uMax;
     double uu = u * scale;
     double vv = v * scale;
     double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
@@ -496,7 +497,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
   return 0;
 }
 
-#endif // GPUCA_ALIGPUCODE
+#endif // GPUCA_GPUCODE
 
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<float, false>;
 template class GPUCA_NAMESPACE::gpu::Spline2DBase<float, true>;

@@ -217,9 +217,8 @@ void BareElinkDecoder<CHARGESUM>::clear(int checkpoint)
 template <typename CHARGESUM>
 void BareElinkDecoder<CHARGESUM>::findSync()
 {
-  const uint64_t sync = sampaSync().uint64();
   assert(mState == State::LookingForSync);
-  if (mBitBuffer != sync) {
+  if (mBitBuffer != sampaSyncWord) {
     mBitBuffer >>= 1;
     mMask /= 2;
     return;
@@ -302,7 +301,7 @@ void BareElinkDecoder<CHARGESUM>::handleReadSample()
   }
   oneLess10BitWord();
   if (mNofSamples) {
-    handleReadData();
+    changeToReadingData();
   } else {
     sendCluster();
     if (mNof10BitsWordsToRead) {
@@ -423,7 +422,7 @@ void BareElinkDecoder<ChargeSumMode>::sendCluster()
   if (mSampaChannelHandler) {
     mSampaChannelHandler(mDsId,
                          channelNumber64(mSampaHeader),
-                         SampaCluster(mTimestamp, mClusterSum));
+                         SampaCluster(mTimestamp, mSampaHeader.bunchCrossingCounter(), mClusterSum));
   }
 }
 
@@ -433,7 +432,7 @@ void BareElinkDecoder<SampleMode>::sendCluster()
   if (mSampaChannelHandler) {
     mSampaChannelHandler(mDsId,
                          channelNumber64(mSampaHeader),
-                         SampaCluster(mTimestamp, mSamples));
+                         SampaCluster(mTimestamp, mSampaHeader.bunchCrossingCounter(), mSamples));
   }
   mSamples.clear();
 }

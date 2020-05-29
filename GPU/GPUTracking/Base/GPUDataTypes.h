@@ -34,10 +34,8 @@ namespace o2
 namespace tpc
 {
 struct ClusterNativeAccess;
-template <class T>
-struct CompressedClustersPtrs_helper;
-struct CompressedClustersCounters;
-using CompressedClusters = CompressedClustersPtrs_helper<CompressedClustersCounters>;
+struct CompressedClustersFlat;
+class Digit;
 } // namespace tpc
 } // namespace o2
 #endif
@@ -64,18 +62,8 @@ namespace GPUCA_NAMESPACE
 {
 namespace gpu
 {
-namespace deprecated
-{
-struct PackedDigit;
-}
-} // namespace gpu
-} // namespace GPUCA_NAMESPACE
-
-namespace GPUCA_NAMESPACE
-{
-namespace gpu
-{
 class TPCFastTransform;
+class TPCdEdxCalibrationSplines;
 } // namespace gpu
 } // namespace GPUCA_NAMESPACE
 
@@ -171,6 +159,7 @@ struct GPUCalibObjectsTemplate {
   typename S<TPCFastTransform>::type* fastTransform = nullptr;
   typename S<o2::base::MatLayerCylSet>::type* matLUT = nullptr;
   typename S<o2::trd::TRDGeometryFlat>::type* trdGeometry = nullptr;
+  typename S<TPCdEdxCalibrationSplines>::type* dEdxSplines = nullptr;
 };
 typedef GPUCalibObjectsTemplate<DefaultPtr> GPUCalibObjects;
 typedef GPUCalibObjectsTemplate<ConstPtr> GPUCalibObjectsConst;
@@ -195,7 +184,7 @@ struct GPUTrackingInOutZS {
 
 struct GPUTrackingInOutDigits {
   static constexpr unsigned int NSLICES = GPUDataTypes::NSLICES;
-  const deprecated::PackedDigit* tpcDigits[NSLICES] = {nullptr};
+  const o2::tpc::Digit* tpcDigits[NSLICES] = {nullptr};
   size_t nTPCDigits[NSLICES] = {0};
   GPUTPCDigitsMCInput* tpcDigitsMC;
 };
@@ -224,7 +213,7 @@ struct GPUTrackingInOutPointers {
   unsigned int nMergedTracks = 0;
   const GPUTPCGMMergedTrackHit* mergedTrackHits = nullptr;
   unsigned int nMergedTrackHits = 0;
-  const o2::tpc::CompressedClusters* tpcCompressedClusters = nullptr;
+  const o2::tpc::CompressedClustersFlat* tpcCompressedClusters = nullptr;
   const GPUTRDTrackletWord* trdTracklets = nullptr;
   unsigned int nTRDTracklets = 0;
   const GPUTRDTrackletLabels* trdTrackletsMC = nullptr;

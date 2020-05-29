@@ -1164,7 +1164,8 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
     mMaxClusterZ = 0;
     for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
       int row = 0;
-      for (unsigned int i = 0; i < ioptrs().nClusterData[iSlice]; i++) {
+      unsigned int nCls = mMerger.Param().earlyTpcTransform ? ioptrs().nClusterData[iSlice] : ioptrs().clustersNative->nClustersSector[iSlice];
+      for (unsigned int i = 0; i < nCls; i++) {
         int cid;
         if (mMerger.Param().earlyTpcTransform) {
           const auto& cl = ioptrs().clusterData[iSlice][i];
@@ -1539,21 +1540,20 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         mGlDLFinal[iSlice].resize(mNCollissions);
       }
     }
-#ifdef WITH_OPENMP
-#pragma omp parallel num_threads(mChain->GetDeviceProcessingSettings().nThreads)
+    GPUCA_OPENMP(parallel num_threads(mChain->GetDeviceProcessingSettings().nThreads))
     {
+#ifdef WITH_OPENMP
       int numThread = omp_get_thread_num();
       int numThreads = omp_get_num_threads();
-#pragma omp for
 #else
-    {
       int numThread = 0, numThreads = 1;
 #endif
+      GPUCA_OPENMP(for)
       for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
         GPUTPCTracker& tracker = (GPUTPCTracker&)sliceTracker(iSlice);
-        tracker.Data().SetPointersScratch(tracker.LinkTmpMemory());
+        tracker.SetPointersDataLinks(tracker.LinkTmpMemory());
         mGlDLLines[iSlice][tINITLINK] = DrawLinks(tracker, tINITLINK, true);
-        tracker.Data().SetPointersScratch(mChain->rec()->Res(tracker.MemoryResLinksScratch()).Ptr());
+        tracker.SetPointersDataLinks(mChain->rec()->Res(tracker.MemoryResLinks()).Ptr());
       }
       GPUTPCGMPropagator prop;
       const float kRho = 1.025e-3;  // 0.9e-3;
@@ -1563,10 +1563,8 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
       prop.SetPolynomialField(&mMerger.Param().polynomialField);
       prop.SetToyMCEventsFlag(mMerger.Param().ToyMCEventsFlag);
 
-#ifdef WITH_OPENMP
-#pragma omp barrier
-#pragma omp for
-#endif
+      GPUCA_OPENMP(barrier)
+      GPUCA_OPENMP(for)
       for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
         const GPUTPCTracker& tracker = sliceTracker(iSlice);
 
@@ -1577,18 +1575,14 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         mGlDLGrid[iSlice] = DrawGrid(tracker);
       }
 
-#ifdef WITH_OPENMP
-#pragma omp barrier
-#pragma omp for
-#endif
+      GPUCA_OPENMP(barrier)
+      GPUCA_OPENMP(for)
       for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
         const GPUTPCTracker& tracker = sliceTracker(iSlice);
         mGlDLLines[iSlice][tGLOBALTRACK] = DrawTracks(tracker, 1);
       }
 
-#ifdef WITH_OPENMP
-#pragma omp barrier
-#endif
+      GPUCA_OPENMP(barrier)
       mThreadTracks[numThread].resize(mNCollissions);
       for (int i = 0; i < mNCollissions; i++) {
         for (int j = 0; j < NSLICES; j++) {
@@ -1597,9 +1591,7 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
           }
         }
       }
-#ifdef WITH_OPENMP
-#pragma omp for
-#endif
+      GPUCA_OPENMP(for)
       for (int i = 0; i < mMerger.NOutputTracks(); i++) {
         const GPUTPCGMMergedTrack* track = &mMerger.OutputTracks()[i];
         if (track->NClusters() == 0) {
@@ -1618,9 +1610,7 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         }
         mThreadTracks[numThread][col][slice][0].emplace_back(i);
       }
-#ifdef WITH_OPENMP
-#pragma omp for
-#endif
+      GPUCA_OPENMP(for)
       for (unsigned int i = 0; i < ioptrs().nMCInfosTPC; i++) {
         const GPUTPCMCInfo& mc = ioptrs().mcInfosTPC[i];
         if (mc.charge == 0.f) {
@@ -1646,10 +1636,8 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         }
         mThreadTracks[numThread][col][slice][1].emplace_back(i);
       }
-#ifdef WITH_OPENMP
-#pragma omp barrier
-#pragma omp for
-#endif
+      GPUCA_OPENMP(barrier)
+      GPUCA_OPENMP(for)
       for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
         for (int iCol = 0; iCol < mNCollissions; iCol++) {
           mThreadBuffers[numThread].clear();
@@ -1668,10 +1656,8 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         }
       }
 
-#ifdef WITH_OPENMP
-#pragma omp barrier
-#pragma omp for
-#endif
+      GPUCA_OPENMP(barrier)
+      GPUCA_OPENMP(for)
       for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
         const GPUTPCTracker& tracker = sliceTracker(iSlice);
         for (int i = 0; i < N_POINTS_TYPE_TPC; i++) {

@@ -273,8 +273,6 @@ void UserLogicElinkDecoder<CHARGESUM>::completeHeader()
 template <typename CHARGESUM>
 std::ostream& UserLogicElinkDecoder<CHARGESUM>::debugHeader() const
 {
-  //std::cout << fmt::format("--ULDEBUG--{:p}-----------", reinterpret_cast<const void*>(this));
-  //return std::cout;
   return std::cout << "---";
 }
 
@@ -376,7 +374,7 @@ template <>
 void UserLogicElinkDecoder<SampleMode>::prepareAndSendCluster()
 {
   if (mSampaChannelHandler) {
-    SampaCluster sc(mClusterTime, mSamples);
+    SampaCluster sc(mClusterTime, mSampaHeader.bunchCrossingCounter(), mSamples);
     sendCluster(sc);
   }
   mSamples.clear();
@@ -389,7 +387,7 @@ void UserLogicElinkDecoder<ChargeSumMode>::prepareAndSendCluster()
     throw std::invalid_argument(fmt::format("expected sample size to be 2 but it is {}", mSamples.size()));
   }
   uint32_t q = (((static_cast<uint32_t>(mSamples[1]) & 0x3FF) << 10) | (static_cast<uint32_t>(mSamples[0]) & 0x3FF));
-  SampaCluster sc(mClusterTime, q);
+  SampaCluster sc(mClusterTime, mSampaHeader.bunchCrossingCounter(), q);
   sendCluster(sc);
   mSamples.clear();
 }

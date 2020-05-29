@@ -571,8 +571,6 @@ void GPUQA::RunQA(bool matchOnly)
     mcEffBuffer[mNEvents - 1].resize(GetNMCTracks(0));
     mcLabelBuffer[mNEvents - 1].resize(merger.NOutputTracks());
   }
-  std::vector<int>& effBuffer = mcEffBuffer[mNEvents - 1];
-  std::vector<int>& labelBuffer = mcLabelBuffer[mNEvents - 1];
 
   bool mcAvail = mcPresent();
 
@@ -585,8 +583,8 @@ void GPUQA::RunQA(bool matchOnly)
     // Assign Track MC Labels
     timer.Start();
     bool ompError = false;
-#if defined(WITH_OPENMP) && QA_DEBUG == 0
-#pragma omp parallel for
+#if QA_DEBUG == 0
+GPUCA_OPENMP(parallel for)
 #endif
     for (int i = 0; i < merger.NOutputTracks(); i++) {
       if (ompError) {
@@ -819,9 +817,7 @@ void GPUQA::RunQA(bool matchOnly)
     }
     timer.ResetStart();
 
-#ifdef WITH_OPENMP
-#pragma omp parallel for
-#endif
+    GPUCA_OPENMP(parallel for)
     for (unsigned int iCol = 0; iCol < GetNMCCollissions(); iCol++) {
       for (unsigned int i = 0; i < GetNMCTracks(iCol); i++) {
         const mcInfo_t& info = GetMCTrack(i, iCol);
@@ -836,6 +832,7 @@ void GPUQA::RunQA(bool matchOnly)
           mc2.eta = -std::log(std::tan(0.5 * mc2.theta));
         }
         if (mConfig.writeMCLabels) {
+          std::vector<int>& effBuffer = mcEffBuffer[mNEvents - 1];
           effBuffer[i] = mRecTracks[iCol][i] * 1000 + mFakeTracks[iCol][i];
         }
       }
@@ -933,6 +930,7 @@ void GPUQA::RunQA(bool matchOnly)
 
     for (int i = 0; i < merger.NOutputTracks(); i++) {
       if (mConfig.writeMCLabels) {
+        std::vector<int>& labelBuffer = mcLabelBuffer[mNEvents - 1];
         labelBuffer[i] = mTrackMCLabels[i].getTrackID();
       }
       if (mTrackMCLabels[i].isFake()) {

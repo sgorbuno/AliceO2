@@ -132,6 +132,7 @@ struct GPUSettingsDeviceProcessing {
 #endif
 
   int nThreads;                       // Numnber of threads on CPU, 0 = auto-detect
+  bool ompKernels;                    // OMP Parallelization inside kernels
   int deviceNum;                      // Device number to use, in case the backend provides multiple devices (-1 = auto-select)
   int platformNum;                    // Platform to use, in case the backend provides multiple platforms (-1 = auto-select)
   bool globalInitMutex;               // Global mutex to synchronize initialization over multiple instances
@@ -147,6 +148,7 @@ struct GPUSettingsDeviceProcessing {
   int stuckProtection;                // Timeout in us, When AMD GPU is stuck, just continue processing and skip tracking, do not crash or stall the chain
   int memoryAllocationStrategy;       // 0 = auto, 1 = new/delete per resource (default for CPU), 2 = big chunk single allocation (default for device)
   bool keepAllMemory;                 // Allocate all memory on both device and host, and do not reuse
+  bool keepDisplayMemory;             // Like keepAllMemory, but only for memory required for event display
   int nStreams;                       // Number of parallel GPU streams
   char trackletConstructorInPipeline; // Run tracklet constructor in pileline like the preceeding tasks instead of as one big block
   char trackletSelectorInPipeline;    // Run tracklet selector in pipeline, requres also tracklet constructor in pipeline
@@ -155,11 +157,16 @@ struct GPUSettingsDeviceProcessing {
   int nTPCClustererLanes;             // Number of TPC clusterers that can run in parallel
   bool deviceTimers;                  // Use device timers instead of host-based timers
   bool registerStandaloneInputMemory; // Automatically register memory for the GPU which is used as input for the standalone benchmark
-  int tpcCompressionGatherMode;       // Modes: 0 = gather by DMA, 1 = DMA + gather on host, ...
+  int tpcCompressionGatherMode;       // Modes: 0 = gather by DMA, 1 = DMA + gather on host, 2 = gather by kernel
   bool mergerSortTracks;              // Sort track indices for GPU track fit
   bool runMC;                         // Process MC labels
   float memoryScalingFactor;          // Factor to apply to all memory scalers
   bool fitSlowTracksInOtherPass;      // Do a second pass on tracks that are supposed to take long, an attempt to reduce divergence on the GPU
+  bool fullMergerOnGPU;               // Perform full TPC track merging on GPU instead of only refit
+  bool alternateBorderSort;           // Alternative scheduling for sorting of border tracks
+  bool delayedOutput;                 // Delay output to be parallel to track fit
+  bool tpccfGatherKernel;             // Use a kernel instead of the DMA engine to gather the clusters
+  bool prefetchTPCpageScan;           // Prefetch headers during TPC page scan
 };
 } // namespace gpu
 } // namespace GPUCA_NAMESPACE
