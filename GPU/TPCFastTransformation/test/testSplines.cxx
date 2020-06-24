@@ -16,7 +16,7 @@
 #define BOOST_TEST_DYN_LINK
 
 #include <boost/test/unit_test.hpp>
-#include "Spline1D.h"
+#include "Spline1DOld.h"
 #include "Spline2D.h"
 
 namespace o2
@@ -28,9 +28,9 @@ namespace gpu
 BOOST_AUTO_TEST_CASE(Spline_test1)
 {
 
-  o2::gpu::Spline1D<float> s1;
+  o2::gpu::Spline1DOld<float> s1;
   int err1 = s1.test(0);
-  BOOST_CHECK_MESSAGE(err1 == 0, "test of GPU/TPCFastTransform/Spline1D failed with the error code " << err1);
+  BOOST_CHECK_MESSAGE(err1 == 0, "test of GPU/TPCFastTransform/Spline1DOld failed with the error code " << err1);
 
   o2::gpu::Spline2D<float, 1> s2;
   int err2 = s2.test(0);

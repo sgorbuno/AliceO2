@@ -23,6 +23,7 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
+
 template <typename DataT>
 SplineHelper2D<DataT>::SplineHelper2D() : mError(), mFdimensions(0), mHelperU1(), mHelperU2()
 {

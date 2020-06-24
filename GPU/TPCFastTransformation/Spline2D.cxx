@@ -363,7 +363,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
         spline.writeToFile(outf, name);
         Spline2D<DataT, Ndim>* p = Spline2D<DataT, Ndim>::readFromFile(outf, name);
         if (p == nullptr) {
-          cout << "Failed to read Spline1D from file testSpline1D.root " << std::endl;
+          cout << "Failed to read Spline1DOld from file testSpline1DOld.root " << std::endl;
         } else {
           spline = *p;
         }
@@ -455,9 +455,9 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
         SplineHelper2D<DataT> helper;
         helper.setSpline(spline, 4, 4);
         for (int ipu = 0; ipu < helper.getHelperU1().getNumberOfDataPoints(); ipu++) {
-          const typename SplineHelper1D<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
+          const typename SplineHelper1DOld<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
           for (int ipv = 0; ipv < helper.getHelperU2().getNumberOfDataPoints(); ipv++) {
-            const typename SplineHelper1D<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
+            const typename SplineHelper1DOld<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
             if (pu.isKnot && pv.isKnot) {
               continue;
             }

@@ -13,8 +13,8 @@
 
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER1D_H
-#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER1D_H
+#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SplineHelper1D_H
+#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SplineHelper1D_H
 
 #include <cmath>
 #include <vector>
@@ -108,7 +108,7 @@ class SplineHelper1D
 
   /// _______________  Utilities   ________________________
 
-  const Spline1D<DataT>& getSpline() const { return mSpline; }
+  const Spline1D<double,0>& getSpline() const { return mSpline; }
 
   int getKnotDataPoint(int iknot) const { return mKnotDataPoints[iknot]; }
 
@@ -116,6 +116,11 @@ class SplineHelper1D
 
   ///  Gives error string
   const char* getLastError() const { return mError.c_str(); }
+
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+  /// Test the Spline1D class functionality
+  static int test(const bool draw = 0, const bool drawDataPoints = 1);
+#endif
 
  private:
   /// Stores an error message
@@ -125,7 +130,7 @@ class SplineHelper1D
 
   /// helpers for the construction of 1D spline
 
-  Spline1D<DataT> mSpline;            ///< copy of the spline
+  Spline1D<double, 0> mSpline;        ///< copy of the spline
   int mFdimensions;                   ///< n of F dimensions
   std::vector<DataPoint> mDataPoints; ///< measurement points
   std::vector<int> mKnotDataPoints;   ///< which measurement points are at knots

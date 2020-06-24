@@ -15,7 +15,7 @@
 #include "TLegend.h"
 #include "TMarker.h"
 #include "TLine.h"
-#include "GPU/Spline1D.h"
+#include "GPU/Spline1DOld.h"
 #include "GPU/IrregularSpline1D.h"
 #include "GPU/SplineHelper1D.h"
 #include "Math/Functor.h"
@@ -114,7 +114,7 @@ int SplineDemo()
 
   std::cout << "Test interpolation.." << std::endl;
 
-  //TCanvas* canv = new TCanvas("cQA", "Spline1D  QA", 2000, 1000);
+  //TCanvas* canv = new TCanvas("cQA", "Spline1DOld  QA", 2000, 1000);
 
   gRandom->SetSeed(0);
 
@@ -134,10 +134,10 @@ int SplineDemo()
       Fcoeff[i] = gRandom->Uniform(-1, 1);
     }
 
-    o2::gpu::Spline1D<float> spline(nKnots, 1);
+    o2::gpu::Spline1DOld<float> spline(nKnots, 1);
     spline.approximateFunction(0, nKnots - 1, F, nAxiliaryPoints);
 
-    o2::gpu::Spline1D<float> splineClassic(nKnots, 1);
+    o2::gpu::Spline1DOld<float> splineClassic(nKnots, 1);
     o2::gpu::SplineHelper1D<float> helper;
     helper.approximateFunctionClassic(splineClassic, 0, nKnots - 1, F);
 
