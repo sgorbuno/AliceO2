@@ -19,10 +19,13 @@
 #include <memory>
 #include <algorithm>
 
+#include <fairlogger/Logger.h>
+#include <stdexcept>
+
 #include "SymbolTable.h"
 #include "EncoderSymbol.h"
 #include "Coder.h"
-#include "CommonUtils/StringUtils.h"
+#include "helper.h"
 
 namespace o2
 {
@@ -88,7 +91,11 @@ template <typename coder_T, typename stream_T, typename source_T>
 Encoder<coder_T, stream_T, source_T>::Encoder(const SymbolStatistics& stats,
                                               size_t probabilityBits) : mSymbolTable(nullptr), mProbabilityBits(probabilityBits)
 {
+  RANSTimer t;
+  t.start();
   mSymbolTable = std::make_unique<encoderSymbolTable_t>(stats, probabilityBits);
+  t.stop();
+  LOG(debug1) << "Encoder SymbolTable inclusive time (ms): " << t.getDurationMS();
 }
 
 template <typename coder_T, typename stream_T, typename source_T>
@@ -96,49 +103,83 @@ template <typename stream_IT, typename source_IT>
 const stream_IT Encoder<coder_T, stream_T, source_T>::Encoder::process(
   const stream_IT outputBegin, const stream_IT outputEnd, const source_IT inputBegin, const source_IT inputEnd) const
 {
+  LOG(trace) << "start encoding";
+  RANSTimer t;
+  t.start();
+
   static_assert(std::is_same<typename std::iterator_traits<source_IT>::value_type, source_T>::value);
   static_assert(std::is_same<typename std::iterator_traits<stream_IT>::value_type, stream_T>::value);
 
-  State<coder_T> rans0, rans1;
-  ransCoder::encInit(&rans0);
-  ransCoder::encInit(&rans1);
+  if (inputBegin == inputEnd) {
+    LOG(warning) << "passed empty message to encoder, skip encoding";
+    return outputEnd;
+  }
 
-  stream_T* ptr = &(*outputEnd);
+  if (outputBegin == outputEnd) {
+    const std::string errorMessage("Unallocated encode buffer passed to encoder. Aborting");
+    LOG(error) << errorMessage;
+    throw std::runtime_error(errorMessage);
+  }
+
+  ransCoder rans0, rans1;
+  rans0.encInit();
+  rans1.encInit();
+
+  stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
 
-  const auto inputBufferSize = inputEnd - inputBegin;
+  const auto inputBufferSize = std::distance(inputBegin, inputEnd);
 
   // odd number of bytes?
   if (inputBufferSize & 1) {
     const coder_T s = *(--inputIT);
-    ransCoder::encPutSymbol(&rans0, &ptr, &(*mSymbolTable)[s],
-                            mProbabilityBits);
+    outputIter = rans0.encPutSymbol(outputIter, (*mSymbolTable)[s], mProbabilityBits);
+    assert(outputIter < outputEnd);
   }
 
   while (inputIT > inputBegin) { // NB: working in reverse!
     const coder_T s1 = *(--inputIT);
     const coder_T s0 = *(--inputIT);
-    ransCoder::encPutSymbol(&rans1, &ptr, &(*mSymbolTable)[s1],
-                            mProbabilityBits);
-    ransCoder::encPutSymbol(&rans0, &ptr, &(*mSymbolTable)[s0],
-                            mProbabilityBits);
+    outputIter = rans1.encPutSymbol(outputIter, (*mSymbolTable)[s1], mProbabilityBits);
+    outputIter = rans0.encPutSymbol(outputIter, (*mSymbolTable)[s0], mProbabilityBits);
+    assert(outputIter < outputEnd);
   }
-  ransCoder::encFlush(&rans1, &ptr);
-  ransCoder::encFlush(&rans0, &ptr);
+  outputIter = rans1.encFlush(outputIter);
+  outputIter = rans0.encFlush(outputIter);
+  // first iterator past the range so that sizes, distances and iterators work correctly.
+  ++outputIter;
 
-  try {                            //TODO Michael may want to generate exception message in different way
-    assert(&(*outputBegin) < ptr); // for some reason assert does not work in test, apparently BOOST modifies its handling
-    if (ptr < &(*outputBegin)) {   // RS: this exception is thrown with default calculateMaxBufferSize when running o2-test-ctf-io
-      throw std::runtime_error(o2::utils::concat_string("output buffer too short: provided ",
-                                                        std::to_string(&(*outputEnd) - &(*outputBegin)),
-                                                        " filled ", std::to_string(&(*outputEnd) - ptr), " slots"));
-    }
-  } catch (std::exception& e) {
-    std::cerr << "Exception is thrown: " << e.what() << '\n';
-    throw;
+  assert(!(outputIter > outputEnd));
+
+  // deal with overflow
+  if (outputIter > outputEnd) {
+    const std::string exceptionText = [&]() {
+      std::stringstream ss;
+      ss << __func__ << " detected overflow in encode buffer: allocated:" << std::distance(outputBegin, outputEnd) << ", used:" << std::distance(outputBegin, outputIter);
+      return ss.str();
+    }();
+
+    LOG(error) << exceptionText;
+    throw std::runtime_error(exceptionText);
   }
 
-  return outputBegin + std::distance(&(*outputBegin), ptr);
+  t.stop();
+  LOG(debug1) << __func__ << " inclusive time (ms): " << t.getDurationMS();
+
+// advanced diagnostics for debug builds
+#if !defined(NDEBUG)
+  LOG(debug2) << "EncoderProperties: {"
+              << "sourceTypeB: " << sizeof(source_T) << ", "
+              << "streamTypeB: " << sizeof(stream_T) << ", "
+              << "coderTypeB: " << sizeof(coder_T) << ", "
+              << "probabilityBits: " << mProbabilityBits << ", "
+              << "inputBufferSizeB: " << inputBufferSize * sizeof(source_T) << ", "
+              << "outputBufferSizeB: " << std::distance(outputBegin, outputIter) * sizeof(stream_T) << "}";
+#endif
+
+  LOG(trace) << "done encoding";
+
+  return outputIter;
 };
 
 } // namespace rans

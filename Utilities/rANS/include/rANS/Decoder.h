@@ -20,6 +20,8 @@
 #include <type_traits>
 #include <iostream>
 
+#include <fairlogger/Logger.h>
+
 #include "SymbolTable.h"
 #include "DecoderSymbol.h"
 #include "ReverseSymbolLookupTable.h"
@@ -47,7 +49,7 @@ class Decoder
   Decoder(const SymbolStatistics& stats, size_t probabilityBits);
 
   template <typename stream_IT, typename source_IT>
-  void process(const source_IT outputBegin, const stream_IT inputBegin, size_t numSymbols) const;
+  void process(const source_IT outputBegin, const stream_IT inputEnd, size_t numSymbols) const;
 
   using coder_t = coder_T;
   using stream_t = stream_T;
@@ -78,46 +80,66 @@ Decoder<coder_T, stream_T, source_T>& Decoder<coder_T, stream_T, source_T>::oper
 template <typename coder_T, typename stream_T, typename source_T>
 Decoder<coder_T, stream_T, source_T>::Decoder(const SymbolStatistics& stats, size_t probabilityBits) : mSymbolTable(nullptr), mReverseLUT(nullptr), mProbabilityBits(probabilityBits)
 {
+  RANSTimer t;
+  t.start();
   mSymbolTable = std::make_unique<decoderSymbol_t>(stats, probabilityBits);
+  t.stop();
+  LOG(debug1) << "Decoder SymbolTable inclusive time (ms): " << t.getDurationMS();
+  t.start();
   mReverseLUT = std::make_unique<reverseSymbolLookupTable_t>(probabilityBits, stats);
+  t.stop();
+  LOG(debug1) << "ReverseSymbolLookupTable inclusive time (ms): " << t.getDurationMS();
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
 template <typename stream_IT, typename source_IT>
-void Decoder<coder_T, stream_T, source_T>::process(const source_IT outputBegin, const stream_IT inputBegin, size_t numSymbols) const
+void Decoder<coder_T, stream_T, source_T>::process(const source_IT outputBegin, const stream_IT inputEnd, size_t numSymbols) const
 {
+  LOG(trace) << "start decoding";
+  RANSTimer t;
+  t.start();
   static_assert(std::is_same<typename std::iterator_traits<source_IT>::value_type, source_T>::value);
   static_assert(std::is_same<typename std::iterator_traits<stream_IT>::value_type, stream_T>::value);
 
-  State<coder_T> rans0, rans1;
-  const stream_T* ptr = &(*inputBegin);
+  if (numSymbols == 0) {
+    LOG(warning) << "Empty message passed to decoder, skipping decode process";
+    return;
+  }
+
+  ransDecoder rans0, rans1;
+  stream_IT inputIter = inputEnd;
   source_IT it = outputBegin;
-  ransDecoder::decInit(&rans0, &ptr);
-  ransDecoder::decInit(&rans1, &ptr);
+
+  // make Iter point to the last last element
+  --inputIter;
+
+  inputIter = rans0.decInit(inputIter);
+  inputIter = rans1.decInit(inputIter);
 
   for (size_t i = 0; i < (numSymbols & ~1); i += 2) {
     const stream_T s0 =
-      (*mReverseLUT)[ransDecoder::decGet(&rans0, mProbabilityBits)];
+      (*mReverseLUT)[rans0.decGet(mProbabilityBits)];
     const stream_T s1 =
-      (*mReverseLUT)[ransDecoder::decGet(&rans1, mProbabilityBits)];
+      (*mReverseLUT)[rans1.decGet(mProbabilityBits)];
     *it++ = s0;
     *it++ = s1;
-    ransDecoder::decAdvanceSymbolStep(&rans0, &(*mSymbolTable)[s0],
-                                      mProbabilityBits);
-    ransDecoder::decAdvanceSymbolStep(&rans1, &(*mSymbolTable)[s1],
-                                      mProbabilityBits);
-    ransDecoder::decRenorm(&rans0, &ptr);
-    ransDecoder::decRenorm(&rans1, &ptr);
+    rans0.decAdvanceSymbolStep((*mSymbolTable)[s0], mProbabilityBits);
+    rans1.decAdvanceSymbolStep((*mSymbolTable)[s1], mProbabilityBits);
+    inputIter = rans0.decRenorm(inputIter);
+    inputIter = rans1.decRenorm(inputIter);
   }
 
   // last byte, if number of bytes was odd
   if (numSymbols & 1) {
     const stream_T s0 =
-      (*mReverseLUT)[ransDecoder::decGet(&rans0, mProbabilityBits)];
+      (*mReverseLUT)[rans0.decGet(mProbabilityBits)];
     *it = s0;
-    ransDecoder::decAdvanceSymbol(&rans0, &ptr, &(*mSymbolTable)[s0],
-                                  mProbabilityBits);
+    inputIter = rans0.decAdvanceSymbol(inputIter, (*mSymbolTable)[s0], mProbabilityBits);
   }
+  t.stop();
+  LOG(debug1) << __func__ << " inclusive time (ms): " << t.getDurationMS();
+
+  LOG(trace) << "done decoding";
 }
 } // namespace rans
 } // namespace o2

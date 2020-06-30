@@ -83,6 +83,7 @@ void GPUSettingsDeviceProcessing::SetDefaults()
   gpuDeviceOnly = false;
   nDeviceHelperThreads = 2;
   debugLevel = -1;
+  allocDebugLevel = 0;
   deviceTimers = true;
   debugMask = -1;
   comparableDebutOutput = true;
@@ -99,16 +100,18 @@ void GPUSettingsDeviceProcessing::SetDefaults()
   trackletSelectorInPipeline = -1;
   trackletSelectorSlices = -1;
   forceMemoryPoolSize = 0;
+  forceHostMemoryPoolSize = 0;
   nTPCClustererLanes = 3;
   registerStandaloneInputMemory = false;
   tpcCompressionGatherMode = -1;
   mergerSortTracks = -1;
   runMC = false;
   memoryScalingFactor = 1.f;
-  fitSlowTracksInOtherPass = false;
+  disableMemoryReuse = false;
   fullMergerOnGPU = true;
   alternateBorderSort = -1;
   delayedOutput = true;
   tpccfGatherKernel = true;
   prefetchTPCpageScan = false;
+  doublePipeline = false;
 }

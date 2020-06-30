@@ -951,11 +951,12 @@ void GPUDisplay::DrawFinal(int iSlice, int /*iCol*/, GPUTPCGMPropagator* prop, s
         float alpha = param().Alpha(slice);
         if (iMC == 0) {
           trkParam.Set(track->GetParam());
-          auto cl = mMerger.Clusters()[track->FirstClusterRef() + lastCluster];
           if (mMerger.Param().earlyTpcTransform) {
+            auto cl = mMerger.ClustersXYZ()[track->FirstClusterRef() + lastCluster];
             x = cl.x;
             ZOffset = track->GetParam().GetTZOffset();
           } else {
+            auto cl = mMerger.Clusters()[track->FirstClusterRef() + lastCluster];
             const auto& cln = mMerger.GetConstantMem()->ioPtrs.clustersNative->clustersLinear[cl.num];
             float y, z;
             GPUTPCConvertImpl::convert(*mMerger.GetConstantMem(), cl.slice, cl.row, cln.getPad(), cln.getTime(), x, y, z);
@@ -1162,7 +1163,12 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
     }
 
     mMaxClusterZ = 0;
+    bool error = false;
+    GPUCA_OPENMP(parallel for num_threads(mChain->GetDeviceProcessingSettings().nThreads) reduction(max : mMaxClusterZ))
     for (int iSlice = 0; iSlice < NSLICES; iSlice++) {
+      if (error) {
+        continue;
+      }
       int row = 0;
       unsigned int nCls = mMerger.Param().earlyTpcTransform ? ioptrs().nClusterData[iSlice] : ioptrs().clustersNative->nClustersSector[iSlice];
       for (unsigned int i = 0; i < nCls; i++) {
@@ -1178,7 +1184,8 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         }
         if (cid >= mNMaxClusters) {
           GPUError("Cluster Buffer Size exceeded (id %d max %d)", cid, mNMaxClusters);
-          return (1);
+          error = true;
+          break;
         }
         float4* ptr = &mGlobalPos[cid];
         if (mMerger.Param().earlyTpcTransform) {
@@ -1208,7 +1215,11 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
         ptr->w = tCLUSTER;
       }
     }
+    if (error) {
+      return (1);
+    }
 
+    GPUCA_OPENMP(parallel for num_threads(mChain->GetDeviceProcessingSettings().nThreads) reduction(max : mMaxClusterZ))
     for (int i = 0; i < mCurrentSpacePointsTRD; i++) {
       const auto& sp = trdTracker().SpacePoints()[i];
       int iSec = mChain->GetTRDGeometry()->GetSector(trdTracker().Tracklets()[i].GetDetector());
@@ -1681,6 +1692,7 @@ int GPUDisplay::DrawGLScene_internal(bool mixAnimation, float mAnimateTime)
       totalVertizes += mVertexBuffer[i].size();
     }
 
+    // TODO: Check if this can be parallelized
     mUseMultiVBO = (totalVertizes * sizeof(mVertexBuffer[0][0]) >= 0x100000000ll);
     if (mUseMultiVBO) {
       for (int i = 0; i < NSLICES; i++) {

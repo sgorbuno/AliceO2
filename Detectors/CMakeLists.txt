@@ -41,3 +41,9 @@ if(BUILD_SIMULATION)
 endif()
 
 o2_data_file(COPY Geometry DESTINATION Detectors)
+
+if(ENABLE_UPGRADES)
+  add_subdirectory(Upgrades)
+else()
+  message(STATUS "Not building detectors for upgrades")
+endif()

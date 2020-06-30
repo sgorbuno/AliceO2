@@ -30,8 +30,10 @@
 #include "GPUTPCTrackletConstructor.h"
 #include "GPUTPCTrackletSelector.h"
 #include "GPUTPCGlobalTracking.h"
-#include "GPUTPCGMMergerGPU.h"
 #include "GPUTRDTrackerKernels.h"
+#ifdef GPUCA_NOCOMPAT
+#include "GPUTPCGMMergerGPU.h"
+#endif
 #ifdef HAVE_O2HEADERS
 #include "GPUITSFitterKernels.h"
 #include "GPUTPCConvertKernel.h"
@@ -142,6 +144,9 @@ class GPUReconstructionCPU : public GPUReconstructionKernels<GPUReconstructionCP
 
   int RunChains() override;
 
+  HighResTimer& getRecoStepTimer(RecoStep step) { return mTimersRecoSteps[getRecoStepNum(step)].timerTotal; }
+  HighResTimer& getGeneralStepTimer(GeneralStep step) { return mTimersGeneralSteps[getGeneralStepNum(step)]; }
+
  protected:
   struct GPUProcessorProcessors : public GPUProcessor {
     GPUConstantMem* mProcessorsProc = nullptr;
@@ -203,24 +208,24 @@ class GPUReconstructionCPU : public GPUReconstructionKernels<GPUReconstructionCP
   };
 
   struct RecoStepTimerMeta {
-    HighResTimer timer;
     HighResTimer timerToGPU;
     HighResTimer timerToHost;
+    HighResTimer timerTotal;
     size_t bytesToGPU = 0;
     size_t bytesToHost = 0;
     unsigned int countToGPU = 0;
     unsigned int countToHost = 0;
   };
 
-  constexpr static int N_RECO_STEPS = sizeof(GPUDataTypes::RECO_STEP_NAMES) / sizeof(GPUDataTypes::RECO_STEP_NAMES[0]);
+  HighResTimer mTimersGeneralSteps[GPUDataTypes::N_GENERAL_STEPS];
+
   std::vector<std::unique_ptr<timerMeta>> mTimers;
-  RecoStepTimerMeta mTimersRecoSteps[N_RECO_STEPS];
+  RecoStepTimerMeta mTimersRecoSteps[GPUDataTypes::N_RECO_STEPS];
   HighResTimer timerTotal;
   template <class T, int I = 0, int J = -1>
   HighResTimer& getKernelTimer(RecoStep step, int num = 0, size_t addMemorySize = 0);
   template <class T, int J = -1>
   HighResTimer& getTimer(const char* name, int num = -1);
-  int getRecoStepNum(RecoStep step, bool validCheck = true);
 
   std::vector<std::vector<deviceEvent*>> mEvents;
 
@@ -294,6 +299,9 @@ inline int GPUReconstructionCPU::runKernel(const krnlExec& x, const krnlRunRange
       } else {
         t->AddTime(setup.t);
       }
+    }
+    if (mDeviceProcessingSettings.debugLevel >= 1 && CheckErrorCodes()) {
+      throw std::runtime_error("kernel error code");
     }
   }
   return 0;

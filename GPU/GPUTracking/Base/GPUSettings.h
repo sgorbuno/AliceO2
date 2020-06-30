@@ -38,6 +38,10 @@ class GPUSettings
   enum CompressionRejection { RejectionNone = 0,
                               RejectionStrategyA = 1,
                               RejectionStrategyB = 2 };
+
+#if !defined(__OPENCL__) || defined(__OPENCLCPP__)
+  static CONSTEXPR unsigned int TPC_MAX_TF_TIME_BIN = ((256 * 3564 + 2 * 8 - 2) / 8);
+#endif
 };
 
 // Settings concerning the reconstruction
@@ -140,6 +144,7 @@ struct GPUSettingsDeviceProcessing {
   bool gpuDeviceOnly;                 // Use only GPU as device (i.e. no CPU for OpenCL)
   int nDeviceHelperThreads;           // Additional CPU helper-threads for CPU parts of processing with accelerator
   int debugLevel;                     // Level of debug output (-1 = silent)
+  int allocDebugLevel;                // Some debug output for memory allocations (without messing with normal debug level)
   int debugMask;                      // Mask for debug output dumps to file
   bool comparableDebutOutput;         // Make CPU and GPU debug output comparable (sort / skip concurrent parts)
   int resetTimers;                    // Reset timers every event
@@ -155,6 +160,7 @@ struct GPUSettingsDeviceProcessing {
   char trackletSelectorInPipeline;    // Run tracklet selector in pipeline, requres also tracklet constructor in pipeline
   char trackletSelectorSlices;        // Number of slices to processes in parallel at max
   size_t forceMemoryPoolSize;         // Override size of memory pool to be allocated on GPU / Host (set =1 to force allocating all device memory, if supported)
+  size_t forceHostMemoryPoolSize;     // Override size of host memory pool, overriding forceMemoryPoolSize on the host
   int nTPCClustererLanes;             // Number of TPC clusterers that can run in parallel
   bool deviceTimers;                  // Use device timers instead of host-based timers
   bool registerStandaloneInputMemory; // Automatically register memory for the GPU which is used as input for the standalone benchmark
@@ -162,12 +168,13 @@ struct GPUSettingsDeviceProcessing {
   char mergerSortTracks;              // Sort track indices for GPU track fit
   bool runMC;                         // Process MC labels
   float memoryScalingFactor;          // Factor to apply to all memory scalers
-  bool fitSlowTracksInOtherPass;      // Do a second pass on tracks that are supposed to take long, an attempt to reduce divergence on the GPU
+  bool disableMemoryReuse;            // Disable memory reusage (for debugging only)
   bool fullMergerOnGPU;               // Perform full TPC track merging on GPU instead of only refit
   char alternateBorderSort;           // Alternative scheduling for sorting of border tracks
   bool delayedOutput;                 // Delay output to be parallel to track fit
   bool tpccfGatherKernel;             // Use a kernel instead of the DMA engine to gather the clusters
-  bool prefetchTPCpageScan;           // Prefetch headers during TPC page scan
+  char prefetchTPCpageScan;           // Prefetch headers during TPC page scan
+  bool doublePipeline;                // Use a double-pipeline driven by 2 threads
 };
 } // namespace gpu
 } // namespace GPUCA_NAMESPACE

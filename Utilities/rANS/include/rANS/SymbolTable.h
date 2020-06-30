@@ -17,6 +17,9 @@
 #define RANS_SYMBOLTABLE_H
 
 #include <vector>
+#include <cstdint>
+
+#include <fairlogger/Logger.h>
 
 #include "SymbolStatistics.h"
 
@@ -31,17 +34,29 @@ class SymbolTable
  public:
   SymbolTable(const SymbolStatistics& symbolStats, uint64_t probabiltyBits) : mMin(symbolStats.getMinSymbol())
   {
+    LOG(trace) << "start building symbol table";
     mSymbolTable.reserve(symbolStats.getAlphabetSize());
 
     for (const auto& entry : symbolStats) {
       mSymbolTable.emplace_back(entry.second, entry.first, probabiltyBits);
     }
+
+// advanced diagnostics for debug builds
+#if !defined(NDEBUG)
+    LOG(debug2) << "SymbolTableProperties: {"
+                << "entries:" << mSymbolTable.size() << ", "
+                << "sizeB: " << mSymbolTable.size() * sizeof(T) << "}";
+#endif
+
+    LOG(trace) << "done building symbol table";
   }
 
   const T& operator[](int index) const
   {
-
-    return mSymbolTable[index - mMin];
+    auto idx = index - mMin;
+    assert(idx >= 0);
+    assert(idx < mSymbolTable.size());
+    return mSymbolTable[idx];
   }
 
  private:

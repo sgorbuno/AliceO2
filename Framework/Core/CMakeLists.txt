@@ -30,6 +30,7 @@ o2_add_library(Framework
                        src/ChannelConfigurationPolicyHelpers.cxx
                        src/ChannelSpecHelpers.cxx
                        src/CommonDataProcessors.cxx
+                       src/CommonServices.cxx
                        src/CompletionPolicy.cxx
                        src/CompletionPolicyHelpers.cxx
                        src/ComputingResourceHelpers.cxx
@@ -127,6 +128,7 @@ o2_add_library(Framework
                                      O2::FrameworkLogger
                                      Boost::serialization
                                      arrow::gandiva_shared
+                                     LibUV::LibUV
                                      )
 
 o2_target_root_dictionary(Framework

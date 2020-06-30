@@ -27,6 +27,7 @@ class GPUChain
 
  public:
   using RecoStep = GPUReconstruction::RecoStep;
+  using GeneralStep = GPUReconstruction::GeneralStep;
   using InOutPointerType = GPUReconstruction::InOutPointerType;
   using GeometryType = GPUReconstruction::GeometryType;
   using krnlRunRange = GPUReconstruction::krnlRunRange;
@@ -45,6 +46,9 @@ class GPUChain
   virtual int RunChain() = 0;
   virtual void MemorySize(size_t& gpuMem, size_t& pageLockedHostMem) = 0;
   virtual void PrintMemoryStatistics(){};
+  virtual int CheckErrorCodes() { return 0; }
+  virtual bool SupportsDoublePipeline() { return false; }
+  virtual int FinalizePipelinedProcessing() { return 0; }
 
   constexpr static int NSLICES = GPUReconstruction::NSLICES;
 
@@ -128,9 +132,9 @@ class GPUChain
     mRec->DumpData<T>(fp, entries, num, type);
   }
   template <class T, class S>
-  inline size_t ReadData(FILE* fp, const T** entries, S* num, std::unique_ptr<T[]>* mem, InOutPointerType type)
+  inline size_t ReadData(FILE* fp, const T** entries, S* num, std::unique_ptr<T[]>* mem, InOutPointerType type, T** nonConstPtrs = nullptr)
   {
-    return mRec->ReadData<T>(fp, entries, num, mem, type);
+    return mRec->ReadData<T>(fp, entries, num, mem, type, nonConstPtrs);
   }
   template <class T>
   inline void DumpFlatObjectToFile(const T* obj, const char* file)
@@ -207,6 +211,8 @@ class GPUChain
     mRec->SetupGPUProcessor<T>(proc, allocate);
   }
 
+  inline GPUChain* GetNextChainInQueue() { return mRec->GetNextChainInQueue(); }
+
   virtual int PrepareTextures() { return 0; }
   virtual int DoStuckProtection(int stream, void* event) { return 0; }
 
@@ -217,6 +223,9 @@ class GPUChain
   }
   template <class T, class S, typename... Args>
   bool DoDebugAndDump(RecoStep step, int mask, bool transfer, T& processor, S T::*func, Args&&... args);
+
+  template <class T, class S, typename... Args>
+  int runRecoStep(RecoStep step, S T::*func, Args... args);
 
  private:
   template <bool Always = false, class T, class S, typename... Args>
@@ -266,6 +275,22 @@ bool GPUChain::DoDebugAndDump(GPUChain::RecoStep step, int mask, bool transfer, 
       (processor.*func)(args...);
       return true;
     }
+  }
+  return false;
+}
+
+template <class T, class S, typename... Args>
+int GPUChain::runRecoStep(RecoStep step, S T::*func, Args... args)
+{
+  if (GetRecoSteps().isSet(step)) {
+    if (GetDeviceProcessingSettings().debugLevel >= 1) {
+      mRec->getRecoStepTimer(step).Start();
+    }
+    int retVal = (reinterpret_cast<T*>(this)->*func)(args...);
+    if (GetDeviceProcessingSettings().debugLevel >= 1) {
+      mRec->getRecoStepTimer(step).Stop();
+    }
+    return retVal;
   }
   return false;
 }

@@ -79,7 +79,7 @@ class VertexerTraitsGPU : public VertexerTraits
 class GPUDebugTiming
 {
  public:
-  GPUDebugTiming(bool d, void** t, cudaStream_t* s, GPUReconstruction::krnlSetup& x, GPUReconstructionCUDABackend* r = nullptr) : mDo(d), mDeviceTimers(t), mStreams(s), mXYZ(x), mRec(r)
+  GPUDebugTiming(bool d, void** t, cudaStream_t* s, GPUReconstruction::krnlSetup& x, GPUReconstructionCUDABackend* r = nullptr) : mDeviceTimers(t), mStreams(s), mXYZ(x), mRec(r), mDo(d)
   {
     if (mDo) {
       if (mDeviceTimers) {
@@ -110,8 +110,8 @@ class GPUDebugTiming
   cudaStream_t* mStreams;
   GPUReconstruction::krnlSetup& mXYZ;
   GPUReconstructionCUDABackend* mRec;
-  bool mDo;
   HighResTimer mTimer;
+  bool mDo;
 };
 
 #include "GPUReconstructionIncludesDevice.h"
@@ -265,10 +265,7 @@ int GPUReconstructionCUDABackend::InitDevice_Runtime()
       }
       int deviceOK = true;
       const char* deviceFailure = "";
-      if (cudaDeviceProp.major >= 9) {
-        deviceOK = false;
-        deviceFailure = "Invalid Revision";
-      } else if (cudaDeviceProp.major < reqVerMaj || (cudaDeviceProp.major == reqVerMaj && cudaDeviceProp.minor < reqVerMin)) {
+      if (cudaDeviceProp.major < reqVerMaj || (cudaDeviceProp.major == reqVerMaj && cudaDeviceProp.minor < reqVerMin)) {
         deviceOK = false;
         deviceFailure = "Too low device revision";
       } else if (free < std::max(mDeviceMemorySize, REQUIRE_MIN_MEMORY)) {
@@ -569,8 +566,18 @@ size_t GPUReconstructionCUDABackend::WriteToConstantMemory(size_t offset, const 
 void GPUReconstructionCUDABackend::ReleaseEvent(deviceEvent* ev) {}
 void GPUReconstructionCUDABackend::RecordMarker(deviceEvent* ev, int stream) { GPUFailedMsg(cudaEventRecord(*(cudaEvent_t*)ev, mInternals->Streams[stream])); }
 
-GPUReconstructionCUDABackend::GPUThreadContextCUDA::GPUThreadContextCUDA(GPUReconstructionCUDAInternals* context) : GPUThreadContext(), mContext(context) { cuCtxPushCurrent(mContext->CudaContext); }
-GPUReconstructionCUDABackend::GPUThreadContextCUDA::~GPUThreadContextCUDA() { cuCtxPopCurrent(&mContext->CudaContext); }
+GPUReconstructionCUDABackend::GPUThreadContextCUDA::GPUThreadContextCUDA(GPUReconstructionCUDAInternals* context) : GPUThreadContext(), mContext(context)
+{
+  if (mContext->cudaContextObtained++ == 0) {
+    cuCtxPushCurrent(mContext->CudaContext);
+  }
+}
+GPUReconstructionCUDABackend::GPUThreadContextCUDA::~GPUThreadContextCUDA()
+{
+  if (--mContext->cudaContextObtained == 0) {
+    cuCtxPopCurrent(&mContext->CudaContext);
+  }
+}
 std::unique_ptr<GPUReconstruction::GPUThreadContext> GPUReconstructionCUDABackend::GetThreadContext() { return std::unique_ptr<GPUThreadContext>(new GPUThreadContextCUDA(mInternals)); }
 
 void GPUReconstructionCUDABackend::SynchronizeGPU() { GPUFailedMsg(cudaDeviceSynchronize()); }
@@ -605,14 +612,14 @@ bool GPUReconstructionCUDABackend::IsEventDone(deviceEvent* evList, int nEvents)
 int GPUReconstructionCUDABackend::GPUDebug(const char* state, int stream)
 {
   // Wait for CUDA-Kernel to finish and check for CUDA errors afterwards, in case of debugmode
-  if (mDeviceProcessingSettings.debugLevel == 0) {
-    return (0);
-  }
   cudaError cuErr;
   cuErr = cudaGetLastError();
   if (cuErr != cudaSuccess) {
     GPUError("Cuda Error %s while running kernel (%s) (Stream %d)", cudaGetErrorString(cuErr), state, stream);
     return (1);
+  }
+  if (mDeviceProcessingSettings.debugLevel == 0) {
+    return (0);
   }
   if (GPUFailedMsgI(cudaDeviceSynchronize())) {
     GPUError("CUDA Error while synchronizing (%s) (Stream %d)", state, stream);

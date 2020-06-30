@@ -61,7 +61,7 @@ void GPUCATracking::deinitialize()
 
 int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data, GPUInterfaceOutputs* outputs)
 {
-  if ((int)(data->tpcZS != nullptr) + (int)(data->o2Digits != nullptr) + (int)(data->clusters != nullptr) != 1) {
+  if ((int)(data->tpcZS != nullptr) + (int)(data->o2Digits != nullptr) + (int)(data->clusters != nullptr) + (int)(data->compressedClusters != nullptr) != 1) {
     return 0;
   }
 
@@ -86,18 +86,20 @@ int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data, GPUInterfaceOutputs* 
   GPUTPCDigitsMCInput gpuDigitsMC;
   GPUTrackingInOutPointers ptrs;
 
-  if (data->tpcZS) {
+  if (data->compressedClusters) {
+    ptrs.tpcCompressedClusters = data->compressedClusters;
+  } else if (data->tpcZS) {
     ptrs.tpcZS = data->tpcZS;
   } else if (data->o2Digits) {
     ptrs.clustersNative = nullptr;
     const float zsThreshold = mTrackingCAO2Interface->getConfig().configReconstruction.tpcZSthreshold;
-    const int maxContTimeBin = (o2::raw::HBFUtils::Instance().getNOrbitsPerTF() * o2::constants::lhc::LHCMaxBunches + Constants::LHCBCPERTIMEBIN - 1) / Constants::LHCBCPERTIMEBIN;
+    const int maxContTimeBin = mTrackingCAO2Interface->getConfig().configEvent.continuousMaxTimeBin;
     for (int i = 0; i < Sector::MAXSECTOR; i++) {
       const auto& d = (*(data->o2Digits))[i];
       gpuDigits[i].reserve(d.size());
       gpuDigitsMap.tpcDigits[i] = gpuDigits[i].data();
       for (int j = 0; j < d.size(); j++) {
-        if (d[j].getTimeStamp() >= maxContTimeBin) {
+        if (maxContTimeBin && d[j].getTimeStamp() >= maxContTimeBin) {
           throw std::runtime_error("Digit time bin exceeds time frame length");
         }
         if (d[j].getChargeFloat() >= zsThreshold) {
@@ -119,7 +121,7 @@ int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data, GPUInterfaceOutputs* 
     ptrs.tpcPackedDigits = nullptr;
   }
   int retVal = mTrackingCAO2Interface->RunTracking(&ptrs, outputs);
-  if (data->o2Digits || data->tpcZS) {
+  if (data->o2Digits || data->tpcZS || data->compressedClusters) {
     clusters = ptrs.clustersNative;
   }
   const GPUTPCGMMergedTrack* tracks = ptrs.mergedTracks;
@@ -283,10 +285,10 @@ int GPUCATracking::runTracking(GPUO2InterfaceIOPtrs* data, GPUInterfaceOutputs* 
     int lastSector = trackClusters[tracks[i].FirstClusterRef() + tracks[i].NClusters() - 1].slice;
   }
   outClusRefs->resize(clBuff); // remove overhead
-  data->compressedClusters = ptrs.tpcCompressedClusters;
-  if (data->o2Digits || data->tpcZS) {
+  if (data->o2Digits || data->tpcZS || data->compressedClusters) {
     data->clusters = ptrs.clustersNative;
   }
+  data->compressedClusters = ptrs.tpcCompressedClusters;
   mTrackingCAO2Interface->Clear(false);
 
   return (retVal);

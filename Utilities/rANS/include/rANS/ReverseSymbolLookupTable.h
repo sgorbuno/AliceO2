@@ -17,6 +17,8 @@
 #define RANS_REVERSESYMBOLLOOKUPTABLE_H
 
 #include <vector>
+#include <type_traits>
+#include <fairlogger/Logger.h>
 
 #include "SymbolStatistics.h"
 #include "helper.h"
@@ -30,19 +32,33 @@ class ReverseSymbolLookupTable
 {
  public:
   ReverseSymbolLookupTable(size_t probabilityBits,
-                           const SymbolStatistics& stats)
+                           const SymbolStatistics& stats) : mLut()
   {
+    LOG(trace) << "start building reverse symbol lookup table";
+
+    if (stats.getAlphabetSize() == 0) {
+      LOG(warning) << "SymbolStatistics of empty message passed to " << __func__;
+      return;
+    }
+
     mLut.resize(bitsToRange(probabilityBits));
     // go over all symbols
-    for (int symbol = stats.getMinSymbol(); symbol < stats.getMaxSymbol() + 1;
+    for (int symbol = stats.getMinSymbol(); symbol <= stats.getMaxSymbol();
          symbol++) {
       for (uint32_t cumulative = stats[symbol].second;
-           cumulative < stats[symbol + 1].second; cumulative++) {
+           cumulative < stats[symbol].second + stats[symbol].first; cumulative++) {
         mLut[cumulative] = symbol;
-        //      std::cout << "ReverseSymbolLookupTable[" << cumulative << "]: "
-        //      << symbol;
       }
     }
+
+// advanced diagnostics for debug builds
+#if !defined(NDEBUG)
+    LOG(debug2) << "reverseSymbolLookupTableProperties: {"
+                << "elements: " << mLut.size() << ", "
+                << "sizeB: " << mLut.size() * sizeof(typename std::decay_t<decltype(mLut)>::value_type) << "}";
+#endif
+
+    LOG(trace) << "done building reverse symbol lookup table";
   };
 
   inline source_t operator[](size_t cummulative) const
