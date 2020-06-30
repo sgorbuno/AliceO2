@@ -32,6 +32,53 @@ namespace GPUCA_NAMESPACE
 namespace gpu
 {
 
+template <typename DataT, int a=-1, int b=-1>
+class MyTest;
+/* {
+  public:
+//  MyTest(){}
+  int get(){ return 1; }
+  //ClassDef(MyTest,0);
+};
+*/
+
+template <typename DataT,int a>
+class MyTest<DataT, a,-1>;
+
+template <typename DataT>
+class MyTest<DataT, -1,-1> : public FlatObject{
+  public:
+//  MyTest(){}
+  int get(){ return 1; }
+  ClassDef(MyTest,1);
+};
+
+template <typename DataT, int a, int b>
+class MyTest:public MyTest<DataT, -1, -1>
+ {
+  public:
+//  MyTest(){}
+  int get(){ return 2; }
+  //ClassDef(MyTest,1);
+};
+
+//#ifndef __CLING__
+template <int... N>
+class MyTest1{
+  int get(){ return 0; }
+};
+//#endif
+
+template <>
+class MyTest1<>{
+  int get(){ return 1; }
+};
+
+template <int M>
+class MyTest1<M>{
+  int get(){ return 2; }
+};
+
 ///
 /// The SplineHelper2D class is to initialize Spline* objects
 ///

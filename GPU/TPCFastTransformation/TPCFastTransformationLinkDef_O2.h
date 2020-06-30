@@ -20,11 +20,16 @@
 #pragma link C++ nestedclasses;
 #pragma link C++ nestedtypedef;
 
+#pragma link C++ defined_in "SplineHelper2D.h"
 //#pragma link C++ function o2::gpu::initSplineLibrary;
 
 #pragma link C++ namespace o2::gpu;
 //#pragma link C++ namespace o2::gpu::test+;
 //#pragma link C++ class o2::gpu::test::A<float>+;
+
+#pragma link C++ class o2::gpu::MyTest<float> +;
+#pragma link C++ class o2::gpu::MyTest<double> +;
+//#pragma link C++ class o2::gpu::MyTest1<> -;
 
 #pragma link C++ class o2::gpu::Spline1D < float> + ;
 #pragma link C++ class o2::gpu::Spline1D < double> + ;
@@ -33,7 +38,7 @@
 #pragma link C++ class o2::gpu::Spline2DBase < float, true> + ;
 #pragma link C++ class o2::gpu::Spline2DBase < double, true> + ;
 
-#pragma link C++ class o2::gpu::Spline2D < float, 1> - ;
+//#pragma link C++ class o2::gpu::Spline2D < float, 1> - ;
 
 #pragma link C++ class o2::gpu::SplineHelper1D < float>;
 #pragma link C++ class o2::gpu::SplineHelper1D < double>;

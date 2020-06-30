@@ -210,4 +210,7 @@ void SplineHelper2D<DataT>::approximateFunction(
 template class GPUCA_NAMESPACE::gpu::SplineHelper2D<float>;
 template class GPUCA_NAMESPACE::gpu::SplineHelper2D<double>;
 
+//template class GPUCA_NAMESPACE::gpu::MyTest<float>;
+template class GPUCA_NAMESPACE::gpu::MyTest1<>;
+
 #endif
