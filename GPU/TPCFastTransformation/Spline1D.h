@@ -28,10 +28,9 @@ namespace GPUCA_NAMESPACE
 {
 namespace gpu
 {
+/// The Spline1D class performs a cubic spline interpolation on a one-dimensional non-uniform grid.
 ///
-/// The Spline1D class performs a cubic spline interpolation on an one-dimensional nonunifom grid.
-///
-/// The class is a flat C structure. It inherits from the FlatObjects.
+/// The class is a flat C structure. It inherits from the FlatObject.
 /// No virtual methods, no ROOT types are used.
 ///
 /// --- Interpolation ---
@@ -56,7 +55,7 @@ namespace gpu
 /// being stretched on the X segment [0., 1.], will have X coordinates x_i={0., 3./5., 1.}
 ///
 /// For a few reasons, it is better to minimize U-gaps between knots.
-/// A spline with knots u_i={0,4,8} is mathematically the same as the spline with u_i={0,1,2},
+/// A spline with knots u_i={0,4,8} is mathematically the same as the spline with knots at u_i={0,1,2},
 /// but the later one uses less memory.
 ///
 /// The minimal number of knots is 2.
@@ -77,29 +76,29 @@ namespace gpu
 /// To do so, create a spline with nYdimensions=0, create spline parameters for F via SplineHelper1D class,
 /// and use special interpolateUMath(..) methods for interpolation.
 ///
-/// This feature allows one to use the same spline object for approximation of different functions
+/// This feature allows one to use the same spline object for the approximation of different functions
 /// on the same knots.
 ///
 /// ---- Creation of a spline ----
 ///
-/// The splines are best-fit splines. It means, that spline values S_i and derivatives D_i at knots
-/// are calibrated such, that they minimize the integral difference between S(x) and F(x).
-/// This difference is caluclated at all integer values of U coordinate (in particular, at all knots)
-/// and at extra nAxiliaryPoints points between the integers.
+/// The splines are best-fit splines. It means, that the spline values S_i and the derivatives D_i at the knots
+/// are calibrated such that they minimize the integral difference between S(x) and F(x).
+/// This difference is evaluated at all integer values of U coordinate (in particular, at all knots)
+/// and at extra nAuxiliaryPoints points between the integers.
 ///
-/// nAxiliaryPoints can be set as a parameter of approximateFunction() method.
-/// With nAxiliaryPoints==3 the approximation accuracy is noticeably better than the one with 1 or 2.
+/// nAuxiliaryPoints can be set as a parameter of approximateFunction() method.
+/// With nAuxiliaryPoints==3 the approximation accuracy is noticeably better than the one with 1 or 2.
 /// Higher values usually give a little improvement over 3.
 ///
-/// The number of axiliary points has no influence on the interpolation speed,
+/// The number of auxiliary points has no influence on the interpolation speed,
 /// it can only slow down the approximateFunction() method.
 ///
 /// It is also possible to construct the spline in a classical way - by taking F values only at knots and making
-/// the first and the second derivatives of S continuous. To do so, use corresponding method from SplineHelper1D.
+/// the first and the second derivatives of S continuous. To do so, use the corresponding method from SplineHelper1D.
 ///
 /// ---- Example of creating a spline ----
 ///
-///  auto F = [&](float x,float &f) { // a function to be approximated
+///  auto F = [&](double x, double &f) { // a function to be approximated
 ///   f[0] = x*x+3.f; // F(x)
 ///  };
 ///
@@ -118,7 +117,7 @@ namespace gpu
 ///
 
 ///
-/// Declare the spline class as a template with optional parameters
+/// Declare the spline class as a template with one optional parameter
 ///
 template <class DataT, int nYdimT = -1>
 class Spline1D;
@@ -182,9 +181,9 @@ class Spline1D<DataT, -1> : public FlatObject
   void recreate(int nYdim, int numberOfKnots, const int knotU[]);
 
   /// approximate a function F with this spline.
-  void approximateFunction(DataT xMin, DataT xMax,
-                           std::function<void(DataT x, DataT f[/*mYdim*/])> F,
-                           int nAxiliaryDataPoints = 4);
+  void approximateFunction(double xMin, double xMax,
+                           std::function<void(double x, double f[/*mYdim*/])> F,
+                           int nAuxiliaryDataPoints = 4);
 #endif
 
   /// _______________  Main functionality   ________________________

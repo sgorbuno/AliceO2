@@ -498,7 +498,7 @@ void TPCFastSpaceChargeCorrection::initInverse(bool prn)
   initMaxDriftLength(prn);
 
   SplineHelper2D<float> helper;
-  std::vector<float> dataPointF;
+  std::vector<double> dataPointF;
   std::vector<float> splineParameters;
 
   ChebyshevFit1D chebFitterX, chebFitterU, chebFitterV;
@@ -645,7 +645,7 @@ void TPCFastSpaceChargeCorrection::initInverse(bool prn)
       double dcol = (area.cuMax - area.cuMin) / (helper.getNumberOfDataPointsU1() - 1);
       for (int iv = 0; iv < helper.getNumberOfDataPointsU2(); iv++) {
         double cv = iv * drow;
-        float* dataPointFrow = &dataPointF[iv * helper.getNumberOfDataPointsU1() * 3];
+        double* dataPointFrow = &dataPointF[iv * helper.getNumberOfDataPointsU1() * 3];
         for (int iu = 0; iu < helper.getNumberOfDataPointsU1(); iu++) {
           dataPointFrow[iu * 3 + 0] = 0;
           dataPointFrow[iu * 3 + 1] = 0;

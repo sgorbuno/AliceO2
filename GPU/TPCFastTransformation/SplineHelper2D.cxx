@@ -37,21 +37,21 @@ int SplineHelper2D<DataT>::storeError(int code, const char* msg)
 
 template <typename DataT>
 void SplineHelper2D<DataT>::approximateFunction(
-  DataT* Fparameters, DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-  std::function<void(DataT x1, DataT x2, DataT f[/*spline.getFdimensions()*/])> F) const
+  DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
+  std::function<void(double x1, double x2, double f[/*spline.getFdimensions()*/])> F) const
 {
   /// Create best-fit spline parameters for a given input function F
   /// output in Fparameters
 
-  std::vector<DataT> dataPointF(getNumberOfDataPoints() * mFdimensions);
+  std::vector<double> dataPointF(getNumberOfDataPoints() * mFdimensions);
 
   double scaleX1 = (x1Max - x1Min) / ((double)mHelperU1.getSpline().getUmax());
   double scaleX2 = (x2Max - x2Min) / ((double)mHelperU2.getSpline().getUmax());
 
   for (int iv = 0; iv < getNumberOfDataPointsU2(); iv++) {
-    DataT x2 = x2Min + mHelperU2.getDataPoint(iv).u * scaleX2;
+    double x2 = x2Min + mHelperU2.getDataPoint(iv).u * scaleX2;
     for (int iu = 0; iu < getNumberOfDataPointsU1(); iu++) {
-      DataT x1 = x1Min + mHelperU1.getDataPoint(iu).u * scaleX1;
+      double x1 = x1Min + mHelperU1.getDataPoint(iu).u * scaleX1;
       F(x1, x2, &dataPointF[(iv * getNumberOfDataPointsU1() + iu) * mFdimensions]);
     }
   }
@@ -60,38 +60,38 @@ void SplineHelper2D<DataT>::approximateFunction(
 
 template <typename DataT>
 void SplineHelper2D<DataT>::approximateFunctionBatch(
-  DataT* Fparameters, DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-  std::function<void(const std::vector<DataT>& x1, const std::vector<DataT>& x2, std::vector<DataT> f[/*mFdimensions*/])> F,
+  DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
+  std::function<void(const std::vector<double>& x1, const std::vector<double>& x2, std::vector<double> f[/*mFdimensions*/])> F,
   unsigned int batchsize) const
 {
   /// Create best-fit spline parameters for a given input function F.
   /// F calculates values for a batch of points.
   /// output in Fparameters
 
-  std::vector<DataT> dataPointF(getNumberOfDataPoints() * mFdimensions);
+  std::vector<double> dataPointF(getNumberOfDataPoints() * mFdimensions);
 
   double scaleX1 = (x1Max - x1Min) / ((double)mHelperU1.getSpline().getUmax());
   double scaleX2 = (x2Max - x2Min) / ((double)mHelperU2.getSpline().getUmax());
 
-  std::vector<DataT> x1;
+  std::vector<double> x1;
   x1.reserve(batchsize);
 
-  std::vector<DataT> x2;
+  std::vector<double> x2;
   x2.reserve(batchsize);
 
   std::vector<int> index;
   index.reserve(batchsize);
 
-  std::vector<DataT> dataPointFTmp[mFdimensions];
+  std::vector<double> dataPointFTmp[mFdimensions];
   for (unsigned int iDim = 0; iDim < mFdimensions; ++iDim) {
     dataPointFTmp[iDim].reserve(batchsize);
   }
 
   unsigned int counter = 0;
   for (int iv = 0; iv < getNumberOfDataPointsU2(); iv++) {
-    DataT x2Tmp = x2Min + mHelperU2.getDataPoint(iv).u * scaleX2;
+    double x2Tmp = x2Min + mHelperU2.getDataPoint(iv).u * scaleX2;
     for (int iu = 0; iu < getNumberOfDataPointsU1(); iu++) {
-      DataT x1Tmp = x1Min + mHelperU1.getDataPoint(iu).u * scaleX1;
+      double x1Tmp = x1Min + mHelperU1.getDataPoint(iu).u * scaleX1;
       x1.emplace_back(x1Tmp);
       x2.emplace_back(x2Tmp);
       index.emplace_back((iv * getNumberOfDataPointsU1() + iu) * mFdimensions);
@@ -123,7 +123,7 @@ void SplineHelper2D<DataT>::approximateFunctionBatch(
 
 template <typename DataT>
 void SplineHelper2D<DataT>::approximateFunction(
-  DataT* Fparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
+  DataT* Fparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// approximate a function given as an array of values at data points
 
@@ -138,8 +138,8 @@ void SplineHelper2D<DataT>::approximateFunction(
   int nKnotsU = mHelperU1.getSpline().getNumberOfKnots();
   int nKnotsV = mHelperU2.getSpline().getNumberOfKnots();
 
-  std::unique_ptr<DataT[]> rotDataPointF(new DataT[nDataPointsU * nDataPointsV * Ndim]); // U DataPoints x V DataPoints :  rotated DataPointF for one output dimension
-  std::unique_ptr<DataT[]> Dv(new DataT[nKnotsV * nDataPointsU * Ndim]);                 // V knots x U DataPoints
+  std::unique_ptr<double[]> rotDataPointF(new double[nDataPointsU * nDataPointsV * Ndim]); // U DataPoints x V DataPoints :  rotated DataPointF for one output dimension
+  std::unique_ptr<double[]> Dv(new double[nKnotsV * nDataPointsU * Ndim]);                 // V knots x U DataPoints
 
   std::unique_ptr<DataT[]> parU(new DataT[mHelperU1.getSpline().getNumberOfParametersMath(Ndim)]);
   std::unique_ptr<DataT[]> parV(new DataT[mHelperU2.getSpline().getNumberOfParametersMath(Ndim)]);
@@ -161,7 +161,7 @@ void SplineHelper2D<DataT>::approximateFunction(
 
   for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
     int ipv = mHelperU2.getKnotDataPoint(iKnotV);
-    const DataT* DataPointFrow = &(DataPointF[Ndim * ipv * nDataPointsU]);
+    const double* DataPointFrow = &(DataPointF[Ndim * ipv * nDataPointsU]);
     mHelperU1.approximateFunctionGradually(parU.get(), DataPointFrow);
 
     for (int i = 0; i < mHelperU1.getSpline().getNumberOfParametersMath(Ndim); i++) {
@@ -189,11 +189,11 @@ void SplineHelper2D<DataT>::approximateFunction(
   // calculate S'v at all data points with V == V of a knot
 
   for (int ipu = 0; ipu < nDataPointsU; ipu++) {
-    const DataT* DataPointFcol = &(rotDataPointF[ipu * nDataPointsV * Ndim]);
+    const double* DataPointFcol = &(rotDataPointF[ipu * nDataPointsV * Ndim]);
     mHelperU2.approximateFunctionGradually(parV.get(), DataPointFcol);
     for (int iKnotV = 0; iKnotV < nKnotsV; iKnotV++) {
       for (int dim = 0; dim < Ndim; dim++) {
-        DataT dv = parV[(iKnotV * 2 + 1) * Ndim + dim];
+        double dv = parV[(iKnotV * 2 + 1) * Ndim + dim];
         Dv[(iKnotV * nDataPointsU + ipu) * Ndim + dim] = dv;
       }
     }
@@ -202,7 +202,7 @@ void SplineHelper2D<DataT>::approximateFunction(
   // fit S'v and S''_vu at all the knots
 
   for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
-    const DataT* Dvrow = &(Dv[iKnotV * nDataPointsU * Ndim]);
+    const double* Dvrow = &(Dv[iKnotV * nDataPointsU * Ndim]);
     mHelperU1.approximateFunction(parU.get(), Dvrow);
     for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
       for (int dim = 0; dim < Ndim; ++dim) {

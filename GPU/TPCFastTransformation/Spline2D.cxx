@@ -231,13 +231,13 @@ Spline2DBase<DataT, isConsistentT>* Spline2DBase<DataT, isConsistentT>::readFrom
 
 template <typename DataT, bool isConsistentT>
 void Spline2DBase<DataT, isConsistentT>::approximateFunction(
-  DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-  std::function<void(DataT x1, DataT x2, DataT f[])> F,
-  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
+  double x1Min, double x1Max, double x2Min, double x2Max,
+  std::function<void(double x1, double x2, double f[])> F,
+  int nAuxiliaryDataPointsU1, int nAuxiliaryDataPointsU2)
 {
   /// approximate a function F with this spline
   SplineHelper2D<DataT> helper;
-  helper.approximateFunction(*this, x1Min, x1Max, x2Min, x2Max, F, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
+  helper.approximateFunction(*this, x1Min, x1Max, x2Min, x2Max, F, nAuxiliaryDataPointsU1, nAuxiliaryDataPointsU2);
 }
 
 template <typename DataT, bool isConsistentT>
@@ -252,10 +252,10 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
   double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
 
   constexpr int nKnots = 4;
-  constexpr int nAxiliaryPoints = 1;
+  constexpr int nAuxiliaryPoints = 1;
   constexpr int uMax = nKnots * 3;
 
-  auto F = [&](DataT u, DataT v, DataT Fuv[]) {
+  auto F = [&](double u, double v, double Fuv[]) {
     const double scale = TMath::Pi() / uMax;
     double uu = u * scale;
     double vv = v * scale;
@@ -376,8 +376,8 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
     Spline2D<DataT, 1> splines1D[Ndim];
 
     for (int dim = 0; dim < Ndim; dim++) {
-      auto F1 = [&](DataT x1, DataT x2, DataT f[]) {
-        DataT ff[Ndim];
+      auto F1 = [&](double x1, double x2, double f[]) {
+        double ff[Ndim];
         F(x1, x2, ff);
         f[0] = ff[dim];
       };
@@ -388,7 +388,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
     double stepU = .1;
     for (double u = 0; u < uMax; u += stepU) {
       for (double v = 0; v < uMax; v += stepU) {
-        DataT f[Ndim];
+        double f[Ndim];
         F(u, v, f);
         DataT s[Ndim];
         DataT s1;
@@ -414,7 +414,7 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
       double stepU = .3;
       for (double u = 0; u < uMax; u += stepU) {
         for (double v = 0; v < uMax; v += stepU) {
-          DataT f[Ndim];
+          double f[Ndim];
           F(u, v, f);
           DataT s[Ndim];
           spline.interpolate(u, v, s);

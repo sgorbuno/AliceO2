@@ -14,7 +14,7 @@
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
-#include "Rtypes.h"
+//#include "Rtypes.h"
 #endif
 
 #include "Spline1D.h"
@@ -169,8 +169,8 @@ void Spline1D<DataT>::print() const
 
 template <class DataT>
 void Spline1D<DataT>::approximateFunction(
-  DataT xMin, DataT xMax,
-  std::function<void(DataT x, DataT f[])> F,
+  double xMin, double xMax,
+  std::function<void(double x, double f[])> F,
   int nAxiliaryDataPoints)
 {
   /// approximate a function F with this spline

@@ -93,9 +93,9 @@ class Spline2DBase : public FlatObject
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
   /// approximate a function F with this spline.
-  void approximateFunction(DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-                           std::function<void(DataT x1, DataT x2, DataT f[])> F,
-                           int nAxiliaryDataPointsU1 = 4, int nAxiliaryDataPointsU2 = 4);
+  void approximateFunction(double x1Min, double x1Max, double x2Min, double x2Max,
+                           std::function<void(double x1, double x2, double f[])> F,
+                           int nAuxiliaryDataPointsU1 = 4, int nAuxiliaryDataPointsU2 = 4);
 #endif
 
   /// _______________  IO   ________________________

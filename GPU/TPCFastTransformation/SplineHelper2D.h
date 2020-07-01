@@ -60,30 +60,30 @@ class SplineHelper2D
   template <bool isConsistentT>
   void approximateFunction(
     Spline2DBase<DataT, isConsistentT>& spline,
-    DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-    std::function<void(DataT x1, DataT x2, DataT f[/*spline.getFdimensions()*/])> F,
-    int nAxiliaryDataPointsU1 = 4, int nAxiliaryDataPointsU2 = 4);
+    double x1Min, double x1Max, double x2Min, double x2Max,
+    std::function<void(double x1, double x2, double f[/*spline.getFdimensions()*/])> F,
+    int nAuxiliaryDataPointsU1 = 4, int nAuxiliaryDataPointsU2 = 4);
 
   /// _______________   Interface for a step-wise construction of the best-fit spline   ________________________
 
   /// precompute everything needed for the construction
   template <bool isConsistentT>
-  int setSpline(const Spline2DBase<DataT, isConsistentT>& spline, int nAxiliaryPointsU1, int nAxiliaryPointsU2);
+  int setSpline(const Spline2DBase<DataT, isConsistentT>& spline, int nAuxiliaryPointsU1, int nAuxiliaryPointsU2);
 
   /// approximate std::function, output in Fparameters
   void approximateFunction(
-    DataT* Fparameters, DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-    std::function<void(DataT x1, DataT x2, DataT f[/*mFdimensions*/])> F) const;
+    DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
+    std::function<void(double x1, double x2, double f[/*mFdimensions*/])> F) const;
 
   /// approximate std::function, output in Fparameters. F calculates values for a batch of points.
   void approximateFunctionBatch(
-    DataT* Fparameters, DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-    std::function<void(const std::vector<DataT>& x1, const std::vector<DataT>& x2, std::vector<DataT> f[/*mFdimensions*/])> F,
+    DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
+    std::function<void(const std::vector<double>& x1, const std::vector<double>& x2, std::vector<double> f[/*mFdimensions*/])> F,
     unsigned int batchsize) const;
 
   /// approximate a function given as an array of values at data points
   void approximateFunction(
-    DataT* Fparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
+    DataT* Fparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
 
   int getNumberOfDataPointsU1() const { return mHelperU1.getNumberOfDataPoints(); }
 
@@ -113,13 +113,13 @@ template <typename DataT>
 template <bool isConsistentT>
 void SplineHelper2D<DataT>::approximateFunction(
   Spline2DBase<DataT, isConsistentT>& spline,
-  DataT x1Min, DataT x1Max, DataT x2Min, DataT x2Max,
-  std::function<void(DataT x1, DataT x2, DataT f[/*spline.getFdimensions()*/])> F,
-  int nAxiliaryDataPointsU1, int nAxiliaryDataPointsU2)
+  double x1Min, double x1Max, double x2Min, double x2Max,
+  std::function<void(double x1, double x2, double f[/*spline.getFdimensions()*/])> F,
+  int nAuxiliaryDataPointsU1, int nAuxiliaryDataPointsU2)
 {
   /// Create best-fit spline parameters for a given input function F
   if (spline.isConsistent()) {
-    setSpline(spline, nAxiliaryDataPointsU1, nAxiliaryDataPointsU2);
+    setSpline(spline, nAuxiliaryDataPointsU1, nAuxiliaryDataPointsU2);
     approximateFunction(spline.getFparameters(), x1Min, x1Max, x2Min, x2Max, F);
   }
   spline.setXrange(x1Min, x1Max, x2Min, x2Max);
@@ -128,18 +128,18 @@ void SplineHelper2D<DataT>::approximateFunction(
 template <typename DataT>
 template <bool isConsistentT>
 int SplineHelper2D<DataT>::setSpline(
-  const Spline2DBase<DataT, isConsistentT>& spline, int nAxiliaryPointsU, int nAxiliaryPointsV)
+  const Spline2DBase<DataT, isConsistentT>& spline, int nAuxiliaryPointsU, int nAuxiliaryPointsV)
 {
   // Prepare creation of 2D irregular spline
-  // The should be at least one (better, two) axiliary measurements on each segnment between two knots and at least 2*nKnots measurements in total
-  // Returns 0 when the spline can not be constructed with the given nAxiliaryPoints
+  // The should be at least one (better, two) Auxiliary measurements on each segnment between two knots and at least 2*nKnots measurements in total
+  // Returns 0 when the spline can not be constructed with the given nAuxiliaryPoints
 
   int ret = 0;
   mFdimensions = spline.getFdimensions();
-  if (mHelperU1.setSpline(spline.getGridU1(), mFdimensions, nAxiliaryPointsU) != 0) {
+  if (mHelperU1.setSpline(spline.getGridU1(), mFdimensions, nAuxiliaryPointsU) != 0) {
     ret = storeError(-2, "SplineHelper2D::setSpline2D: error by setting U axis");
   }
-  if (mHelperU2.setSpline(spline.getGridU2(), mFdimensions, nAxiliaryPointsV) != 0) {
+  if (mHelperU2.setSpline(spline.getGridU2(), mFdimensions, nAuxiliaryPointsV) != 0) {
     ret = storeError(-3, "SplineHelper2D::setSpline2D: error by setting V axis");
   }
   return ret;

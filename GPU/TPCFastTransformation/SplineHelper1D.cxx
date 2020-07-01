@@ -48,7 +48,7 @@ int SplineHelper1D<DataT>::storeError(int code, const char* msg)
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunctionClassic(Spline1D<DataT>& spline,
-                                                       DataT xMin, DataT xMax, std::function<void(DataT x, DataT f[/*spline.getFdimensions()*/])> F)
+                                                       double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F)
 {
   /// Create classic spline parameters for a given input function F
   /// set slopes at the knots such, that the second derivative of the spline is continious.
@@ -118,7 +118,7 @@ void SplineHelper1D<DataT>::approximateFunctionClassic(Spline1D<DataT>& spline,
   for (int i = 0; i < nKnots; ++i) {
     const typename Spline1D<DataT>::Knot& knot = spline.getKnot(i);
     double u = knot.u;
-    DataT f[Ndim];
+    double f[Ndim];
     F(xMin + u * uToXscale, f);
     for (int dim = 0; dim < Ndim; dim++) {
       parameters[(2 * i) * Ndim + dim] = f[dim];
@@ -171,33 +171,33 @@ void SplineHelper1D<DataT>::approximateFunctionClassic(Spline1D<DataT>& spline,
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunction(
-  Spline1D<DataT>& spline, DataT xMin, DataT xMax, std::function<void(DataT x, DataT f[/*spline.getFdimensions()*/])> F,
-  int nAxiliaryDataPoints)
+  Spline1D<DataT>& spline, double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F,
+  int nAuxiliaryDataPoints)
 {
   /// Create best-fit spline parameters for a given input function F
-  setSpline(spline, spline.getYdimensions(), nAxiliaryDataPoints);
+  setSpline(spline, spline.getYdimensions(), nAuxiliaryDataPoints);
   approximateFunction(spline.getParameters(), xMin, xMax, F);
   spline.setXrange(xMin, xMax);
 }
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunctionGradually(
-  Spline1D<DataT>& spline, DataT xMin, DataT xMax, std::function<void(DataT x, DataT f[/*spline.getFdimensions()*/])> F,
-  int nAxiliaryDataPoints)
+  Spline1D<DataT>& spline, double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F,
+  int nAuxiliaryDataPoints)
 {
   /// Create best-fit spline parameters gradually for a given input function F
-  setSpline(spline, spline.getYdimensions(), nAxiliaryDataPoints);
+  setSpline(spline, spline.getYdimensions(), nAuxiliaryDataPoints);
   approximateFunctionGradually(spline.getParameters(), xMin, xMax, F);
   spline.setXrange(xMin, xMax);
 }
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunction(
-  DataT* Sparameters, DataT xMin, DataT xMax, std::function<void(DataT x, DataT f[])> F) const
+  DataT* Sparameters, double xMin, double xMax, std::function<void(double x, double f[])> F) const
 {
   /// Create best-fit spline parameters for a given input function F
   /// output in Sparameters
-  std::vector<DataT> vF(getNumberOfDataPoints() * mFdimensions);
+  std::vector<double> vF(getNumberOfDataPoints() * mFdimensions);
   double mUtoXscale = (((double)xMax) - xMin) / mSpline.getUmax();
   for (int i = 0; i < getNumberOfDataPoints(); i++) {
     F(xMin + mUtoXscale * mDataPoints[i].u, &vF[i * mFdimensions]);
@@ -207,11 +207,11 @@ void SplineHelper1D<DataT>::approximateFunction(
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunctionGradually(
-  DataT* Sparameters, DataT xMin, DataT xMax, std::function<void(DataT x, DataT f[])> F) const
+  DataT* Sparameters, double xMin, double xMax, std::function<void(double x, double f[])> F) const
 {
   /// Create best-fit spline parameters gradually for a given input function F
   /// output in Sparameters
-  std::vector<DataT> vF(getNumberOfDataPoints() * mFdimensions);
+  std::vector<double> vF(getNumberOfDataPoints() * mFdimensions);
   double mUtoXscale = (((double)xMax) - xMin) / mSpline.getUmax();
   for (int i = 0; i < getNumberOfDataPoints(); i++) {
     F(xMin + mUtoXscale * mDataPoints[i].u, &vF[i * mFdimensions]);
@@ -221,16 +221,16 @@ void SplineHelper1D<DataT>::approximateFunctionGradually(
 
 template <typename DataT>
 int SplineHelper1D<DataT>::setSpline(
-  const Spline1D<DataT>& spline, int nFdimensions, int nAxiliaryDataPoints)
+  const Spline1D<DataT>& spline, int nFdimensions, int nAuxiliaryDataPoints)
 {
   // Prepare creation of a best-fit spline
   //
   // Data points will be set at all integer U (that includes all knots),
-  // plus at nAxiliaryDataPoints points between the integers.
+  // plus at nAuxiliaryDataPoints points between the integers.
   //
-  // nAxiliaryDataPoints must be >= 2
+  // nAuxiliaryDataPoints must be >= 2
   //
-  // nAxiliaryDataPoints==1 is also possible, but there must be at least
+  // nAuxiliaryDataPoints==1 is also possible, but there must be at least
   // one integer U without a knot, in order to get 2*nKnots data points in total.
   //
   // The return value is an error index, 0 means no error
@@ -242,7 +242,7 @@ int SplineHelper1D<DataT>::setSpline(
   if (!spline.isConstructed()) {
     ret = storeError(-1, "SplineHelper1D<DataT>::setSpline: input spline is not constructed");
     mSpline.recreate(2);
-    nAxiliaryDataPoints = 2;
+    nAuxiliaryDataPoints = 2;
     nPoints = 4;
   } else {
     std::vector<int> knots;
@@ -251,11 +251,11 @@ int SplineHelper1D<DataT>::setSpline(
     }
     mSpline.recreate(spline.getNumberOfKnots(), knots.data());
 
-    nPoints = 1 + mSpline.getUmax() + mSpline.getUmax() * nAxiliaryDataPoints;
+    nPoints = 1 + mSpline.getUmax() + mSpline.getUmax() * nAuxiliaryDataPoints;
     if (nPoints < 2 * mSpline.getNumberOfKnots()) {
-      nAxiliaryDataPoints = 2;
-      nPoints = 1 + mSpline.getUmax() + mSpline.getUmax() * nAxiliaryDataPoints;
-      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAxiliaryDataPoints, increase to 2");
+      nAuxiliaryDataPoints = 2;
+      nPoints = 1 + mSpline.getUmax() + mSpline.getUmax() * nAuxiliaryDataPoints;
+      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAuxiliaryDataPoints, increase to 2");
     }
   }
 
@@ -291,7 +291,7 @@ int SplineHelper1D<DataT>::setSpline(
   for (int i = 0; i < nKnots; ++i) {
     const typename Spline1D<double>::Knot& knot = mSpline.getKnot(i);
     int iu = (int)(knot.u + 0.1f);
-    mKnotDataPoints[i] = iu * (1 + nAxiliaryDataPoints);
+    mKnotDataPoints[i] = iu * (1 + nAuxiliaryDataPoints);
     mDataPoints[mKnotDataPoints[i]].isKnot = 1;
   }
 
@@ -369,7 +369,7 @@ int SplineHelper1D<DataT>::setSpline(
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunction(
   DataT* Sparameters,
-  const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
+  const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// Approximate a function given as an array of values at data points
 
@@ -403,7 +403,7 @@ void SplineHelper1D<DataT>::approximateFunction(
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateFunctionGradually(
-  DataT* Sparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim */]) const
+  DataT* Sparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim */]) const
 {
   /// gradually approximate a function given as an array of values at data points
   /// output in Sparameters
@@ -413,7 +413,7 @@ void SplineHelper1D<DataT>::approximateFunctionGradually(
 
 template <typename DataT>
 void SplineHelper1D<DataT>::copySfromDataPoints(
-  DataT* Sparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
+  DataT* Sparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// a tool for the gradual approximation: set spline values S_i at knots == function values
   /// output in Sparameters
@@ -427,7 +427,7 @@ void SplineHelper1D<DataT>::copySfromDataPoints(
 
 template <typename DataT>
 void SplineHelper1D<DataT>::approximateDerivatives(
-  DataT* Sparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
+  DataT* Sparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// a tool for the gradual approximation:
   /// calibrate spline derivatives D_i using already calibrated spline values S_i
@@ -494,7 +494,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
   const int Fdegree = 4;
   double Fcoeff[Ndim][2 * (Fdegree + 1)];
 
-  auto F = [&](float x, float f[]) -> void {
+  auto F = [&](double x, double f[]) -> void {
     double cosx[Fdegree + 1], sinx[Fdegree + 1];
     double xi = 0;
     for (int i = 0; i <= Fdegree; i++, xi += x) {
@@ -581,10 +581,10 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
     }
 
     nKnots = spline1.getNumberOfKnots();
-    int nAxiliaryPoints = 1;
+    int nAuxiliaryPoints = 1;
     Spline1D<float, Ndim> spline2(spline1);
 
-    spline1.approximateFunction(0., TMath::Pi(), F, nAxiliaryPoints);
+    spline1.approximateFunction(0., TMath::Pi(), F, nAuxiliaryPoints);
 
     //if (itry == 0)
     {
@@ -605,26 +605,27 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
     }
 
     SplineHelper1D<float> helper;
-    helper.setSpline(spline2, Ndim, nAxiliaryPoints);
-    helper.approximateFunctionGradually(spline2, 0., TMath::Pi(), F, nAxiliaryPoints);
+    helper.setSpline(spline2, Ndim, nAuxiliaryPoints);
+    helper.approximateFunctionGradually(spline2, 0., TMath::Pi(), F, nAuxiliaryPoints);
 
     // 1-D splines for each dimension
     Spline1D<float,1> splines3[Ndim];
     {
       for (int dim = 0; dim < Ndim; dim++) {
-        auto F3 = [&](float u, float f[]) -> void {
-          float ff[Ndim];
+        auto F3 = [&](double u, double f[]) -> void {
+          double ff[Ndim];
           F(u, ff);
           f[0] = ff[dim];
         };
         splines3[dim].recreate(nKnots, knotsU);
-        splines3[dim].approximateFunction(0., TMath::Pi(), F3, nAxiliaryPoints);
+        splines3[dim].approximateFunction(0., TMath::Pi(), F3, nAuxiliaryPoints);
       }
     }
 
     double stepX = 1.e-2;
     for (double x = 0; x < TMath::Pi(); x += stepX) {
-      float f[Ndim], s1[Ndim], s2[Ndim];
+      double f[Ndim];
+      float s1[Ndim], s2[Ndim];
       F(x, f);
       spline1.interpolate(x, s1);
       spline2.interpolate(x, s2);
@@ -642,16 +643,17 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
       delete nt;
       delete knots;
       nt = new TNtuple("nt", "nt", "u:f:s");
-      float drawMax = -1.e20;
-      float drawMin = 1.e20;
-      float stepX = 1.e-4;
+      double drawMax = -1.e20;
+      double drawMin = 1.e20;
+      double stepX = 1.e-4;
       for (double x = 0; x < TMath::Pi(); x += stepX) {
-        float f[Ndim], s[Ndim];
+        double f[Ndim];
+        float s[Ndim];
         F(x, f);
         spline1.interpolate(x, s);
         nt->Fill(spline1.convXtoU(x), f[0], s[0]);
-        drawMax = std::max(drawMax, std::max(f[0], s[0]));
-        drawMin = std::min(drawMin, std::min(f[0], s[0]));
+        drawMax = std::max(drawMax, std::max(f[0], (double)s[0]));
+        drawMin = std::min(drawMin, std::min(f[0], (double)s[0]));
       }
 
       nt->SetMarkerStyle(8);
