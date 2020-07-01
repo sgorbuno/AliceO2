@@ -120,22 +120,15 @@ namespace gpu
 ///
 /// Declare the spline class as a template with optional parameters
 ///
-template <class DataT, int... nYdimT>
-class Spline1D:public FlatObject{
-  public:
-  Spline1D(){}
-
-#ifndef GPUCA_ALIROOT_LIB
-  //ClassDefNV(Spline1D, 0);
-#endif
-};
+template <class DataT, int nYdimT = -1>
+class Spline1D;
 
 ///
 /// The main class specification where the spline dimensionality is set during runtime and read via a class member mYdim
 /// DataT is a data type - either double or float.
 ///
 template <class DataT>
-class Spline1D<DataT> : public FlatObject
+class Spline1D<DataT, -1> : public FlatObject
 {
  public:
   ///
@@ -342,6 +335,9 @@ class Spline1D<DataT> : public FlatObject
 
   /// _____________  Interpolation math with external Parameters ____________
 
+  /// Number of parameters
+  GPUd() int getNumberOfParametersMath(int nYdim) const { return (2 * nYdim) * getNumberOfKnots(); }
+
   /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
   GPUd() void interpolateUMath(int nYdim, GPUgeneric() const DataT Parameters[],
                                DataT u, GPUgeneric() DataT S[/*nYdim*/]) const;
@@ -394,10 +390,10 @@ class Spline1D<DataT> : public FlatObject
 /// It inherits from the main specification above and only replaces some methods by their faster versions.
 ///
 template <class DataT, int nYdimT>
-class Spline1D<DataT, nYdimT> : public Spline1D<DataT>
+class Spline1D : public Spline1D<DataT, -1>
 {
  public:
-  typedef Spline1D<DataT> TBase;
+  typedef Spline1D<DataT, -1> TBase;
 
   /// _____________  Constructors / destructors __________________________
 

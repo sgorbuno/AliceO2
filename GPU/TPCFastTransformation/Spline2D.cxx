@@ -150,8 +150,8 @@ void Spline2DBase<DataT, isConsistentT>::recreate(
 
   FlatObject::startConstruction();
 
-  mGridU1.recreate(numberOfKnotsU1, knotsU1, 0);
-  mGridU2.recreate(numberOfKnotsU2, knotsU2, 0);
+  mGridU1.recreate(0, numberOfKnotsU1, knotsU1);
+  mGridU2.recreate(0, numberOfKnotsU2, knotsU2);
 
   const size_t u2Offset = alignSize(mGridU1.getFlatBufferSize(), mGridU2.getBufferAlignmentBytes());
   int parametersOffset = u2Offset + mGridU2.getFlatBufferSize();
@@ -455,9 +455,9 @@ int Spline2DBase<DataT, isConsistentT>::test(const bool draw, const bool drawDat
         SplineHelper2D<DataT> helper;
         helper.setSpline(spline, 4, 4);
         for (int ipu = 0; ipu < helper.getHelperU1().getNumberOfDataPoints(); ipu++) {
-          const typename SplineHelper1DOld<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
+          const typename SplineHelper1D<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
           for (int ipv = 0; ipv < helper.getHelperU2().getNumberOfDataPoints(); ipv++) {
-            const typename SplineHelper1DOld<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
+            const typename SplineHelper1D<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
             if (pu.isKnot && pv.isKnot) {
               continue;
             }

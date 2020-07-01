@@ -39,13 +39,6 @@ using namespace GPUCA_NAMESPACE::gpu;
 
 #if !defined(GPUCA_GPUCODE)
 
-
-template class GPUCA_NAMESPACE::gpu::Spline1D<float, 0,0>;
-
-template class GPUCA_NAMESPACE::gpu::Spline1D<float, 0>;
-template class GPUCA_NAMESPACE::gpu::Spline1D<double, 0>;
-
-
 template <class DataT>
 void Spline1D<DataT>::recreate(int nYdim, int numberOfKnots)
 {
@@ -277,7 +270,6 @@ int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
   return SplineHelper1D<DataT>::test(draw, drawDataPoints);
 }
 #endif // GPUCA_GPUCODE
-
 
 template class GPUCA_NAMESPACE::gpu::Spline1D<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<double>;

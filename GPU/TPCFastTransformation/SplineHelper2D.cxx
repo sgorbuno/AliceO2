@@ -23,7 +23,6 @@
 
 using namespace GPUCA_NAMESPACE::gpu;
 
-
 template <typename DataT>
 SplineHelper2D<DataT>::SplineHelper2D() : mError(), mFdimensions(0), mHelperU1(), mHelperU2()
 {
@@ -142,8 +141,11 @@ void SplineHelper2D<DataT>::approximateFunction(
   std::unique_ptr<DataT[]> rotDataPointF(new DataT[nDataPointsU * nDataPointsV * Ndim]); // U DataPoints x V DataPoints :  rotated DataPointF for one output dimension
   std::unique_ptr<DataT[]> Dv(new DataT[nKnotsV * nDataPointsU * Ndim]);                 // V knots x U DataPoints
 
-  std::unique_ptr<DataT[]> parU(new DataT[mHelperU1.getSpline().getNumberOfParameters(Ndim)]);
-  std::unique_ptr<DataT[]> parV(new DataT[mHelperU2.getSpline().getNumberOfParameters(Ndim)]);
+  std::unique_ptr<DataT[]> parU(new DataT[mHelperU1.getSpline().getNumberOfParametersMath(Ndim)]);
+  std::unique_ptr<DataT[]> parV(new DataT[mHelperU2.getSpline().getNumberOfParametersMath(Ndim)]);
+
+  std::unique_ptr<double[]> parUdbl(new double[mHelperU1.getSpline().getNumberOfParametersMath(Ndim)]);
+  std::unique_ptr<double[]> parVdbl(new double[mHelperU2.getSpline().getNumberOfParametersMath(Ndim)]);
 
   // rotated data points (u,v)->(v,u)
 
@@ -162,6 +164,9 @@ void SplineHelper2D<DataT>::approximateFunction(
     const DataT* DataPointFrow = &(DataPointF[Ndim * ipv * nDataPointsU]);
     mHelperU1.approximateFunctionGradually(parU.get(), DataPointFrow);
 
+    for (int i = 0; i < mHelperU1.getSpline().getNumberOfParametersMath(Ndim); i++) {
+      parUdbl[i] = parU[i];
+    }
     for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
       DataT* knotPar = &Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU)];
       for (int dim = 0; dim < Ndim; ++dim) {
@@ -172,9 +177,9 @@ void SplineHelper2D<DataT>::approximateFunction(
 
     // recalculate F values for all ipu DataPoints at V = ipv
     for (int ipu = 0; ipu < nDataPointsU; ipu++) {
-      DataT splineF[Ndim];
-      DataT u = mHelperU1.getDataPoint(ipu).u;
-      mHelperU1.getSpline().interpolateU(Ndim, parU.get(), u, splineF);
+      double splineF[Ndim];
+      double u = mHelperU1.getDataPoint(ipu).u;
+      mHelperU1.getSpline().interpolateUMath(Ndim, parUdbl.get(), u, splineF);
       for (int dim = 0; dim < Ndim; dim++) {
         rotDataPointF[(ipu * nDataPointsV + ipv) * Ndim + dim] = splineF[dim];
       }

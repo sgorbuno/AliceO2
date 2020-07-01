@@ -16,7 +16,7 @@
 #ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINE2D_H
 #define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINE2D_H
 
-#include "Spline1DOld.h"
+#include "Spline1D.h"
 #include "FlatObject.h"
 #include "GPUCommonDef.h"
 
@@ -33,8 +33,8 @@ namespace gpu
 {
 ///
 /// The Spline2D class performs a cubic spline interpolation on an two-dimensional nonunifom grid.
-/// The class is an extension of the Spline1DOld class.
-/// See Spline1DOld.h for more details.
+/// The class is an extension of the Spline1D class.
+/// See Spline1D.h for more details.
 ///
 /// The spline S(x1,x2) approximates a function F(x1,x2):R^2->R^m,
 /// where x1,x2 belong to [x1Min,x1Max] x [x2Min,x2Max]. F value may be multi-dimensional.
@@ -129,13 +129,13 @@ class Spline2DBase : public FlatObject
   GPUhd() int getNumberOfKnots() const { return mGridU1.getNumberOfKnots() * mGridU2.getNumberOfKnots(); }
 
   /// Get 1-D grid for U1 coordinate
-  GPUhd() const Spline1DOld<DataT>& getGridU1() const { return mGridU1; }
+  GPUhd() const Spline1D<DataT>& getGridU1() const { return mGridU1; }
 
   /// Get 1-D grid for U2 coordinate
-  GPUhd() const Spline1DOld<DataT>& getGridU2() const { return mGridU2; }
+  GPUhd() const Spline1D<DataT>& getGridU2() const { return mGridU2; }
 
   /// Get 1-D grid for U1 or U2 coordinate
-  GPUhd() const Spline1DOld<DataT>& getGrid(int iu) const { return (iu == 0) ? mGridU1 : mGridU2; }
+  GPUhd() const Spline1D<DataT>& getGrid(int iu) const { return (iu == 0) ? mGridU1 : mGridU2; }
 
   /// Get u1,u2 of i-th knot
   GPUhd() void getKnotU(int iKnot, DataT& u1, DataT& u2) const;
@@ -188,8 +188,8 @@ class Spline2DBase : public FlatObject
   int mFdim; ///< dimentionality of F
 
  protected:                /// _____________  Data members  ____________
-  Spline1DOld<DataT> mGridU1; ///< grid for U axis
-  Spline1DOld<DataT> mGridU2; ///< grid for V axis
+  Spline1D<DataT> mGridU1; ///< grid for U axis
+  Spline1D<DataT> mGridU2; ///< grid for V axis
   DataT* mFparameters;     //! (transient!!) F-dependent parameters of the spline
 #ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline2DBase, 1);
@@ -402,11 +402,11 @@ GPUhdi() void Spline2D<DataT, nFdimT, isConsistentT>::interpolateU(
   /// Fparameters can be created via SplineHelper2D.
 
   int nu = mGridU1.getNumberOfKnots();
-  int iu = mGridU1.getKnotIndexU(u);
-  int iv = mGridU2.getKnotIndexU(v);
+  int iu = mGridU1.getLeftKnotIndexForU(u);
+  int iv = mGridU2.getLeftKnotIndexForU(v);
 
-  const typename Spline1DOld<DataT>::Knot& knotU = mGridU1.getKnot(iu);
-  const typename Spline1DOld<DataT>::Knot& knotV = mGridU2.getKnot(iv);
+  const typename Spline1D<DataT>::Knot& knotU = mGridU1.getKnot(iu);
+  const typename Spline1D<DataT>::Knot& knotV = mGridU2.getKnot(iv);
 
 #if defined(GPUCA_GPUCODE) // constexpr array size for the GPU compiler
   const int nFdim = nFdimT;
@@ -444,14 +444,14 @@ GPUhdi() void Spline2D<DataT, nFdimT, isConsistentT>::interpolateU(
   }
 
   DataT parU[nFdim4]; // interpolated values { {X,Y,Z,X'v,Y'v,Z'v}(v0), {X,Y,Z,X'v,Y'v,Z'v}(v1) } at u
-  mGridU1.interpolateU(nFdim4, knotU, Su0, Du0, Su1, Du1, u, parU);
+  mGridU1.interpolateUMath(nFdim4, knotU, Su0, Du0, Su1, Du1, u, parU);
 
   const DataT* Sv0 = parU + 0;
   const DataT* Dv0 = parU + nFdim;
   const DataT* Sv1 = parU + nFdim2;
   const DataT* Dv1 = parU + nFdim2 + nFdim;
 
-  mGridU2.interpolateU(nFdim, knotV, Sv0, Dv0, Sv1, Dv1, v, S);
+  mGridU2.interpolateUMath(nFdim, knotV, Sv0, Dv0, Sv1, Dv1, v, S);
 }
 
 template <typename DataT, int nFdimT, bool isConsistentT>

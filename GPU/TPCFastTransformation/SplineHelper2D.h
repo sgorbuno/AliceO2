@@ -23,19 +23,9 @@
 #include "GPUCommonRtypes.h"
 #include "Spline1D.h"
 #include "Spline2D.h"
-#include "SplineHelper1DOld.h"
+#include "SplineHelper1D.h"
 #include <functional>
 #include <string>
-
-//#include "TObject.h"
-/*
-template <class DataT, int... nYdimT>
-class MyTest:public TObject{
-  public:
-  MyTest(){}
-  ClassDefNV(MyTest, 0);
-};
-*/
 
 
 namespace GPUCA_NAMESPACE
@@ -101,8 +91,8 @@ class SplineHelper2D
 
   int getNumberOfDataPoints() const { return getNumberOfDataPointsU1() * getNumberOfDataPointsU2(); }
 
-  const SplineHelper1DOld<DataT>& getHelperU1() const { return mHelperU1; }
-  const SplineHelper1DOld<DataT>& getHelperU2() const { return mHelperU2; }
+  const SplineHelper1D<DataT>& getHelperU1() const { return mHelperU1; }
+  const SplineHelper1D<DataT>& getHelperU2() const { return mHelperU2; }
 
   /// _______________  Utilities   ________________________
 
@@ -115,8 +105,8 @@ class SplineHelper2D
 
   std::string mError = ""; ///< error string
   int mFdimensions;        ///< n of F dimensions
-  SplineHelper1DOld<DataT> mHelperU1;
-  SplineHelper1DOld<DataT> mHelperU2;
+  SplineHelper1D<DataT> mHelperU1;
+  SplineHelper1D<DataT> mHelperU2;
 };
 
 template <typename DataT>
