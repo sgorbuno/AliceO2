@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "GPUCommonDef.h"
+#include "Riostream.h"
 #include "Rtypes.h"
 #include "TString.h"
 #include "Spline1D.h"
@@ -151,9 +152,12 @@ int SplineHelperTest<DataT>::setSpline(
     if (mHelpers[i].setSpline(spline.getGrid(i), mFdimensions, np) != 0) {
       ret = storeError(-2, "SplineHelperTest::setSpline: error by setting an axis");
     }
+    std::cout<<"nknots " << spline.getGrid(i).getNumberOfKnots()<<" n aux. p "<<np
+    <<" helper n aus. p " <<mHelpers[i].getNumberOfAxiliaryDataPoints() 
+    <<" helper.np "<<mHelpers[i].getNumberOfDataPoints()<<std::endl;
     mNumberOfDataPoints *= mHelpers[i].getNumberOfDataPoints();
   }
-
+std::cout<<"SetSpline: N data points "<<mNumberOfDataPoints<<std::endl;
   return ret;
 }
 

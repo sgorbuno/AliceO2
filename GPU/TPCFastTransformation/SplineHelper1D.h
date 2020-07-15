@@ -93,6 +93,9 @@ class SplineHelper1D
   /// number of data points
   int getNumberOfDataPoints() const { return mDataPoints.size(); }
 
+  /// number of axiliary data points
+  int getNumberOfAxiliaryDataPoints() const{ return mNaxiliaryPoints; }
+
   /// approximate a function given as an array of values at data points
   void approximateFunction(DataT* Fparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
 
@@ -127,6 +130,7 @@ class SplineHelper1D
 
   Spline1D<DataT> mSpline;            ///< copy of the spline
   int mFdimensions;                   ///< n of F dimensions
+  int mNaxiliaryPoints=0; ///< n of axiliary data points
   std::vector<DataPoint> mDataPoints; ///< measurement points
   std::vector<int> mKnotDataPoints;   ///< which measurement points are at knots
   std::vector<double> mLSMmatrixFull; ///< a matrix to convert the measurements into the spline parameters with the LSM method

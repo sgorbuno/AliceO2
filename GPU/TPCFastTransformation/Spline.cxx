@@ -243,9 +243,8 @@ SplineBase<DataT, isConsistentT>* SplineBase<DataT, isConsistentT>::readFromFile
   return FlatObject::readFromFile<SplineBase<DataT, isConsistentT>>(inpf, name);
 }
 
-template <typename DataT, bool isConsistentT>
-int SplineBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataPoints)
-{
+
+
   // TODO: Implement
   /*
   using namespace std;
@@ -496,8 +495,197 @@ int SplineBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataP
     return -2;
   }
 */
+
+////////////////
+////TESTFUNCTION 2D
+template <typename DataT, bool isConsistentT>
+int SplineBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataPoints)
+{
+  using namespace std;
+
+  const int Ndim = 3;
+  const int Fdegree = 4;
+  double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
+
+  constexpr int nKnots = 4;
+  constexpr int nAxiliaryPoints = 1;
+  constexpr int uMax = nKnots * 3;
+  auto F = [&](DataT u[],  DataT Fuv[]) {
+    const double scale = TMath::Pi() / uMax;
+    double uu = u[0] * scale;
+    double vv = u[1] * scale;
+    double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
+    double ui = 0, vi = 0;
+    for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
+      cosu[i] = cos ( ui  );
+      sinu[i] = sin (ui);
+      cosv[i] = cos ( vi  );
+      sinv[i] = sin (vi);
+    }
+    for (int dim = 0; dim < Ndim; dim++) {
+      double f = 0; // Fcoeff[dim][0]/2;
+      for (int i = 1; i <= Fdegree; i++) {
+        for (int j = 1; j <= Fdegree; j++) {
+          double* c = &(Fcoeff[dim][4 * (i * Fdegree + j)]);
+          f += c[0] * cosu[i] * cosv[j];
+          f += c[1] * cosu[i] * sinv[j];
+          f += c[2] * sinu[i] * cosv[j];
+          f += c[3] * sinu[i] * sinv[j];
+        }
+      }
+      Fuv[dim] = f;
+    }
+  };
+  
+  int seed = 1;
+  gRandom->SetSeed(seed);
+
+    for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
+      }
+    }
+  std::cout << "Fcoeff: " << std::endl; 
+  for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+        std::cout << Fcoeff[dim][i] << ", "<< std::endl;
+      }
+    }
+  std::cout << std::endl; 
+  
+  TCanvas* canv = nullptr;
+  TNtuple* nt = nullptr;
+  TNtuple* knots = nullptr;
+  /* 
+  auto ask = [&]() -> bool {
+    if (!canv) {
+      return 0;
+    }
+    canv->Update();
+    cout << "type 'q ' to exit" << endl;
+    std::string str;
+    std::getline(std::cin, str);
+    return (str != "q" && str != ".q");
+  };
+  std::cout << "Test 2D interpolation with the compact  ND spline" << std::endl;
+  int nTries = 10;
+  if (draw) {
+    canv = new TCanvas("cQA", "Spline2D  QA", 1500, 800);
+    nTries = 10000;
+  }
+
+  long double statDf = 0;
+  long double statDf1D = 0;
+  long double statN = 0;
+
+  for (int seed = 1; seed < nTries + 1; seed++) {
+    //cout << "next try.." << endl;
+
+    gRandom->SetSeed(seed);
+
+    for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
+      }
+    }
+    //EINGEFÜGT: weil wegen instanziierung anders
+    const int NdimX = 2;
+    const int nDimF = 1;
+    
+    int **knotsU = new int* [nDimX];
+    
+    do {
+      knotsU[0][0] = 0;
+      knotsU[1][0] = 0;
+      double du = 1. * uMax / (nKnots - 1);
+      for (int i = 1; i < nKnots; i++) {
+        knotsU[0][i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
+        knotsU[1][i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
+      }
+      knotsU[0][nKnots - 1] = uMax;
+      knotsU[1][nKnots - 1] = uMax;
+      Spline<double, NdimX, nDimF> spline(nKnots, knotsU);
+      //WARNUNG AUSGELASSENax;
+      //spline.recreate(nKnots, kn
+    } while (0);
+    // FLAT OBJECT STRESSTEST AUSGELASSEN
+    double xMin[NdimX]={0.,0.};
+    double xMax[NdimX]= {3.,3.};
+    int nAxiliaryDataPoints[NdimX]={4,4};
+    spline.approximateFunction(xMin, xMax, F, nAxiliaryDataPoints);
+    
+    //WRITE TO TESTFILE AUSGELASSEN
+
+    //1D SPLINES AUSGELASSEN
+    //Standard derivation ausgelassen
+
+
+    if (draw) {
+      delete nt;
+      delete knots;
+      nt = new TNtuple("nt", "nt", "u:v:f:s");
+      knots = new TNtuple("knots", "knots", "type:u:v:s");
+      double stepU = .3;
+      for (double u = 0; u < uMax; u += stepU) {
+        for (double v = 0; v < uMax; v += stepU) {
+          DataT f[Ndim];
+          DataT inputx[NdimX];
+          inputx[0] =u;
+          inputx[1] = v;
+          F(inputx, f);
+          DataT s[Ndim];
+          spline.interpolate(inputx, s);
+          nt->Fill(u, v, f[0], s[0]);
+        }
+      }
+      nt->SetMarkerStyle(8);
+
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("s:u:v", "", "");
+
+      nt->SetMarkerColor(kGray);
+      nt->SetMarkerSize(2.);
+      nt->Draw("f:u:v", "", "same");
+
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("s:u:v", "", "same");
+
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          double inputx[2];
+          inputx[0] = spline.getGrid(0).getKnot(i).u;
+          inputx[1] = spline.getGrid(1).getKnot(j).u;
+          DataT s[Ndim];
+          spline.interpolate(inputx, s);
+          knots->Fill(1, inputx[0], inputx[1], s[0]);
+        }
+      }
+
+      knots->SetMarkerStyle(8);
+      knots->SetMarkerSize(1.5);
+      knots->SetMarkerColor(kRed);
+      knots->SetMarkerSize(1.5);
+      knots->Draw("s:u:v", "type==1", "same"); // knots
+
+    }//End draw
+    if (!ask()) {
+        break;
+      }
+    
+  }//end if seed */
+  std::cout << "testfunction!"<< std::endl;
   return 0;
-}
+}//END END TESTFUNCTION 2D
+    
+
+/////////////////
+
+/////
+
+
+
 
 #endif // GPUCA_GPUCODE
 
@@ -505,3 +693,5 @@ template class GPUCA_NAMESPACE::gpu::SplineBase<float, false>;
 template class GPUCA_NAMESPACE::gpu::SplineBase<float, true>;
 template class GPUCA_NAMESPACE::gpu::SplineBase<double, false>;
 template class GPUCA_NAMESPACE::gpu::SplineBase<double, true>;
+
+template class GPUCA_NAMESPACE::gpu::Spline<float, 2,3,true>;

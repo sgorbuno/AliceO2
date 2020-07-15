@@ -93,6 +93,11 @@ class SplineHelper
 
   ///  Gives error string
   const char* getLastError() const { return mError.Data(); }
+  
+  
+  static int arraytopoints ( int point, int result[], const int numbers[],  int dim);
+  
+  static int pointstoarray ( const int indices[], const int numbers[], int dim);
 
  private:
   /// Stores an error message
@@ -105,6 +110,8 @@ class SplineHelper
   int mNumberOfDataPoints; ///< number of data points
   std::vector<SplineHelper1D<DataT>> mHelpers;
 };
+
+
 
 template <typename DataT>
 template <bool isConsistentT>

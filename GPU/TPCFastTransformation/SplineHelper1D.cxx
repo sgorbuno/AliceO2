@@ -243,7 +243,7 @@ int SplineHelper1D<DataT>::setSpline(
       ret = storeError(-3, "SplineHelper1D::setSpline: too few nAxiliaryDataPoints, increase to 2");
     }
   }
-
+  mNaxiliaryPoints = nAxiliaryDataPoints;
   const int nPar = mSpline.getNumberOfParameters(1); // n parameters for 1D
 
   mDataPoints.resize(nPoints);
@@ -278,6 +278,7 @@ int SplineHelper1D<DataT>::setSpline(
     int iu = (int)(knot.u + 0.1f);
     mKnotDataPoints[i] = iu * (1 + nAxiliaryDataPoints);
     mDataPoints[mKnotDataPoints[i]].isKnot = 1;
+    //mDataPoints[mKnotDataPoints[i]].iKnot = i;
   }
 
   TMatrixDSym A(nPar);

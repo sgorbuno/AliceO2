@@ -190,6 +190,7 @@ class Spline1D : public FlatObject
                                    GPUgeneric() const T Sr[/*nFdim*/], GPUgeneric() const T Dr[/*nFdim*/],
                                    DataT u, GPUgeneric() T Su[/*nFdim*/]);
 
+
   /// Get interpolated value for an nFdim-dimensional F(u) using spline parameters Fparameters.
   /// Fparameters can be created via SplineHelper1D. A border check for u is performed.
   GPUhd() void interpolateU(int nFdim, GPUgeneric() const DataT Fparameters[],
@@ -199,6 +200,19 @@ class Spline1D : public FlatObject
   /// Fparameters can be created via SplineHelper1D. No border check for u is performed.
   GPUhd() void interpolateUnonSafe(int nFdim, GPUgeneric() const DataT Fparameters[],
                                    DataT u, GPUgeneric() DataT Su[/*nFdim*/]) const;
+
+
+ /// Get a derivative of the interpolated value 
+  template <typename T>
+  GPUhd() static void interpolateUderivative(int nFdim, const Knot& knotL,
+                                   GPUgeneric() const T Sl[/*nFdim*/], GPUgeneric() const T Dl[/*nFdim*/],
+                                   GPUgeneric() const T Sr[/*nFdim*/], GPUgeneric() const T Dr[/*nFdim*/],
+                                   DataT u, GPUgeneric() T SuDerivative[/*nFdim*/]);
+
+  /// Get a derivative of the interpolated value 
+  GPUhd() void interpolateUderivative(int nFdim, GPUgeneric() const DataT Fparameters[],
+                            DataT u, GPUgeneric() DataT SuDerivative[/*nFdim*/]) const;
+
 
   /// _______________  Getters   ________________________
 
@@ -421,6 +435,27 @@ GPUhd() void Spline1D<DataT>::interpolateU(int nFdim, const Spline1D<DataT>::Kno
 }
 
 template <typename DataT>
+template <typename T>
+GPUhd() void Spline1D<DataT>::interpolateUderivative
+(int nFdim, const Spline1D<DataT>::Knot& knotL,
+  GPUgeneric() const T Sl[/*nFdim*/], GPUgeneric() const T Dl[/*nFdim*/],
+  GPUgeneric() const T Sr[/*nFdim*/], GPUgeneric() const T Dr[/*nFdim*/],
+  DataT u, GPUgeneric() T SuDerivative[/*nFdim*/])
+{  
+  /// Gives a derivative of the interpolated value S(u) at u
+  
+  T uu = T(u - knotL.u);
+  T li = T(knotL.Li);
+  T v = uu * li; // scaled u
+  for (int dim = 0; dim < nFdim; ++dim) {
+    T df = (Sr[dim] - Sl[dim]) * li;
+    T a = Dl[dim] + Dr[dim] - df - df;
+    T b = df - Dl[dim] - a;
+    SuDerivative[dim] = (3 * a * v + 2 * b ) * v + Dl[dim] ;
+  }
+}
+
+template <typename DataT>
 GPUhdi() void Spline1D<DataT>::interpolateU(int nFdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT Su[/*nFdim*/]) const
 {
   /// Get interpolated value for F(u) using given spline parameters with a border check
@@ -428,6 +463,16 @@ GPUhdi() void Spline1D<DataT>::interpolateU(int nFdim, GPUgeneric() const DataT 
   const DataT* d = parameters + (2 * iknot) * nFdim;
   interpolateU(nFdim, getKnotNonSafe(iknot), &(d[0]), &(d[nFdim]), &(d[2 * nFdim]), &(d[3 * nFdim]), u, Su);
 }
+
+template <typename DataT>
+GPUhdi() void Spline1D<DataT>::interpolateUderivative(int nFdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT SuDerivative[/*nFdim*/]) const
+{
+  /// Get interpolated value for F(u) using given spline parameters with a border check
+  int iknot = getKnotIndexU(u);
+  const DataT* d = parameters + (2 * iknot) * nFdim;
+  interpolateUderivative(nFdim, getKnotNonSafe(iknot), &(d[0]), &(d[nFdim]), &(d[2 * nFdim]), &(d[3 * nFdim]), u, SuDerivative);
+}
+
 
 template <typename DataT>
 GPUhdi() void Spline1D<DataT>::interpolateUnonSafe(int nFdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT Su[/*nFdim*/]) const

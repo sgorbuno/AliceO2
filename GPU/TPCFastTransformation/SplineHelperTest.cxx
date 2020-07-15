@@ -203,6 +203,9 @@ void SplineHelperTest<DataT>::approximateFunction(
  std::unique_ptr<DataT[]> allParameters[numberOfParameterTypes]; //Array for the different parametertypes s, s'u, s'v, s''uv,...
  for (int i = 0; i < numberOfParameterTypes; i++){
         allParameters[i]= std::unique_ptr<DataT[]>(new DataT[numberOfAllDataPoints*mFdimensions]);//To-Do:Fdim!!
+        for( int j=0; j<numberOfAllDataPoints*mFdimensions; j++ ){
+          allParameters[i][j] = -100;
+        }
   }
   //filling allParameters[0] and FParameters with s:
   for (int i = 0; i < numberOfAllDataPoints; i++){
@@ -250,7 +253,7 @@ void SplineHelperTest<DataT>::approximateFunction(
     dimension = ( p==1 || p==3 ) ?0 :1; //SG!!
 
     int currentDataPointF = p-(int)(pow(2.0, dimension));
-    bla;
+    
     std::cout << std::endl << "p:" << p << ", dim of approximation: " << dimension << ", based on: " << currentDataPointF << std::endl;
 
     int nrOf1DSplines = (numberOfAllDataPoints / numberOfDataPoints[dimension]); // number of Splines for Parametertyp p in direction dim
@@ -273,7 +276,7 @@ void SplineHelperTest<DataT>::approximateFunction(
 
     //// for all Splines in current dimension:
     for (int s = 0; s < nrOf1DSplines; s++){ 
-      int indices[mXdimensions-1];
+      int indices[mXdimensions];
       arraytopoints  (s, indices, currentNumbers, mXdimensions-1);
       int startpoint [mXdimensions]; //startpoint for the current 1DSpline
       for (int i = 0; i<dimension; i++){
@@ -283,6 +286,17 @@ void SplineHelperTest<DataT>::approximateFunction(
       for (int i = dimension+1; i < mXdimensions; i++){
         startpoint[i] = indices[i-1];
       }
+      
+      bool isKnotOtherDim = 1;
+      int knotindices [mXdimensions];
+      for (int j = 0; j < mXdimensions; j++){//is dataPoint a knot?
+        if( j== dimension ) continue;
+        if (!mHelpers[j].getDataPoint(startpoint[j]).isKnot){isKnotOtherDim = 0;break;}
+        //knotindices[j] = startpoint[j] / ((numberOfDataPoints[j]-1)/(numberOfKnots[j]-1));
+        knotindices[j] = mHelpers[j].getDataPoint(startpoint[j]).iKnot; //in der Annahme der wert ist ein Knotenindex und falls der datapoint ein knoten ist, gibt er seinen eigenen knotenindex zurück
+        if( startpoint[j] == numberOfDataPoints[j]-1 ) knotindices[j] = numberOfKnots[j]-1;
+      }
+
       // NOW WE HAVE THE DATAPOINTINDICES OF THE CURRENT STARTPOINT IN startpoint-Array.
       int startdatapoint = pointstoarray( startpoint, numberOfDataPoints, mXdimensions);
       int distance = 1; // distance to the next dataPoint in the array for the current dimension
@@ -305,51 +319,34 @@ void SplineHelperTest<DataT>::approximateFunction(
       //redistributing the derivatives at dimension-Knots into array p
       for (int i = 0; i < numberOfKnots[dimension];i++){ //for all dimension-Knots
         redistributionindex[dimension] = mHelpers[dimension].getKnotDataPoint(i);//find the indices
-        int finalposition = pointstoarray(redistributionindex, numberOfDataPoints, mXdimensions);
-        
-          allParameters[p][finalposition] = par[dimension][2*i +1];
-         
-        bool isKnot = 1;
-        for (int j = 0; j < mXdimensions; j++){//is dataPoint a knot?
-          if (!mHelpers[j].getDataPoint(redistributionindex[j]).isKnot){isKnot = 0;break;} //noch mal checken!! Das muss noch anders!!
-        }
-        
-        if (isKnot) { // for all knots
-          int knotindices [mXdimensions];
-
-          for (int j = 0; j < mXdimensions;j++ ){ // calculate Knotindices for all dimensions
-            knotindices[j]=redistributionindex[j]/((numberOfDataPoints[j]-1)/(numberOfKnots[j]-1));
-            //knotindices[j] = mHelpers[j].getDataPoint(redistributionindex[j]).iKnot; //in der Annahme der wert ist ein Knotenindex und falls der datapoint ein knoten ist, gibt er seinen eigenen knotenindex zurück
-          }
+        int finalposition = pointstoarray(redistributionindex, numberOfDataPoints, mXdimensions);    
+        allParameters[p][finalposition] = par[dimension][2*i +1];         
+        if( isKnotOtherDim ){
+          knotindices[dimension]=i;
           // get the knotindexvalue for FParameters:
           int knotind = pointstoarray(knotindices, numberOfKnots, mXdimensions);
           Fparameters[knotind * numberOfParameterTypes + p] = par[dimension][2*i +1]; ///write derivatives in FParameters
+          std::cout<<"ND: parameter "<<p<<" ("<<redistributionindex[0]<<","<<redistributionindex[1]<<") = " << par[dimension][2*i +1]
+           <<std::endl;
         } 
       } // end for all fknots (for redistribution) 
 
       // recalculation:
+      
        for (int i = 0; i < numberOfDataPoints[dimension]; i++){// this is somehow still redundant// TO DO: ONLY PART OF approximateFunction WHERE NDIM is considerd!!
-        redistributionindex[dimension] = i; // getting current datapointindices
-        bool isKnot =1; // check is current datapoint a knot?
-        for (int j = 0; j < mXdimensions; j++){
-          if (!mHelpers[j].getDataPoint(redistributionindex[j]).isKnot){isKnot = 0;break;} 
-        }
+        redistributionindex[dimension] = i; // getting current datapointindices        
+        if( !isKnotOtherDim ) continue; //SG!!!
         DataT splineF[1];
         DataT u = mHelpers[dimension].getDataPoint(i).u;
         mHelpers[dimension].getSpline().interpolateU(1, par[dimension].get(), u, splineF); //recalculate at all datapoints of dimension
-        allParameters [p-(int)(pow(2.0, dimension))] [(int)(startdatapoint + i*distance )] = splineF[0]; //write it in the array.
-        if (isKnot) { 
-          int knotindices[mXdimensions];
 
-          for (int j = 0; j < mXdimensions;j++ ){ // calculate KNotindices for all dimensions
-            knotindices[j]=redistributionindex[j]/((numberOfDataPoints[j]-1)/(numberOfKnots[j]-1));
-            //knotindices[j] = mHelpers[j].getDataPoint(redistributionindex[j]).iKnot; //in der Annahme der wert ist ein Knotenindex und falls der datapoint ein knoten ist, gibt er seinen eigenen knotenindex zurück
-          }
-          int currentknotarrayindex = pointstoarray(knotindices, numberOfKnots, mXdimensions);
-          // getting the recalculated value into FParameters:
-             Fparameters[currentknotarrayindex* numberOfParameterTypes +   (p-(int)(pow(2.0, dimension))) ] = splineF[0];
-        } // end if isKnot      
+        std::cout<<"recalculate point ("<<redistributionindex[0]<<","<<redistributionindex[1]<<")"
+        <<" u "<<u<<" : "<<allParameters [currentDataPointF] [(int)(startdatapoint + i*distance )]
+        <<" -> "<<splineF[0]
+        <<std::endl;
+        allParameters [currentDataPointF] [startdatapoint + i*distance] = splineF[0]; //write it in the array.                         
       } // end recalculation
+      
     }//end of all1DSplines
   }//end of for parametertypes
 } //end of approxymateFunction MYVERSION!  

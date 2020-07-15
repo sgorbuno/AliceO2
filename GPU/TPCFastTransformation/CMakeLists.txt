@@ -15,6 +15,7 @@ set(SRCS
     Spline1D.cxx  
     Spline2D.cxx
     SplineHelper.cxx
+    SplineHelperTest.cxx
     SplineHelper1D.cxx
     SplineHelper2D.cxx
     ChebyshevFit1D.cxx

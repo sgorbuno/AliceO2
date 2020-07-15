@@ -42,8 +42,10 @@
 #pragma link C++ class o2::gpu::SplineBase < double, true> + ;
 #pragma link C++ class o2::gpu::Spline < float, 1> - ;
 
-#pragma link C++ class o2::gpu::SplineHelper < float>;
-#pragma link C++ class o2::gpu::SplineHelper < double>;
+#pragma link C++ class o2::gpu::SplineHelper < float>+;
+#pragma link C++ class o2::gpu::SplineHelper < double>+;
+#pragma link C++ class o2::gpu::SplineHelperTest < float>+;
+#pragma link C++ class o2::gpu::SplineHelperTest < double>+;
 
 #pragma link C++ class o2::gpu::SplineHelper1D < float>;
 #pragma link C++ class o2::gpu::SplineHelper1D < double>;

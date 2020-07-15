@@ -163,21 +163,26 @@ void SplineHelper2D<DataT>::approximateFunction(
 
     for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
       DataT* knotPar = &Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU)];
+      int ipu = mHelperU1.getKnotDataPoint(iKnotU);
       for (int dim = 0; dim < Ndim; ++dim) {
-        knotPar[dim] = parU[Ndim * (2 * iKnotU) + dim];                // store S for all the knots
+        knotPar[dim] = parU[Ndim * (2 * iKnotU) + dim];                // store S for all the knots        
         knotPar[Ndim2 + dim] = parU[Ndim * (2 * iKnotU) + Ndim + dim]; // store S'u for all the knots //SG!!!
       }
     }
 
     // recalculate F values for all ipu DataPoints at V = ipv
+    
     for (int ipu = 0; ipu < nDataPointsU; ipu++) {
       DataT splineF[Ndim];
       DataT u = mHelperU1.getDataPoint(ipu).u;
       mHelperU1.getSpline().interpolateU(Ndim, parU.get(), u, splineF);
+      std::cout<<"2D: recalculate point ("<<ipu<<","<<ipv<<") : "
+      <<rotDataPointF[(ipu * nDataPointsV + ipv) * Ndim + 0]
+      <<"->"<< splineF[0]<<std::endl;
       for (int dim = 0; dim < Ndim; dim++) {
         rotDataPointF[(ipu * nDataPointsV + ipv) * Ndim + dim] = splineF[dim];
       }
-    }
+    }      
   }
 
   // calculate S'v at all data points with V == V of a knot
@@ -186,6 +191,9 @@ void SplineHelper2D<DataT>::approximateFunction(
     const DataT* DataPointFcol = &(rotDataPointF[ipu * nDataPointsV * Ndim]);
     mHelperU2.approximateFunctionGradually(parV.get(), DataPointFcol);
     for (int iKnotV = 0; iKnotV < nKnotsV; iKnotV++) {
+      int ipv = mHelperU2.getKnotDataPoint(iKnotV);
+      std::cout<<"2D: S'v ("<<ipu<<","<<ipv<<") = " << parV[(iKnotV * 2 + 1) * Ndim]
+       <<std::endl;
       for (int dim = 0; dim < Ndim; dim++) {
         DataT dv = parV[(iKnotV * 2 + 1) * Ndim + dim];
         Dv[(iKnotV * nDataPointsU + ipu) * Ndim + dim] = dv;
@@ -199,6 +207,12 @@ void SplineHelper2D<DataT>::approximateFunction(
     const DataT* Dvrow = &(Dv[iKnotV * nDataPointsU * Ndim]);
     mHelperU1.approximateFunction(parU.get(), Dvrow);
     for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
+      /*
+      int ipu = mHelperU1.getKnotDataPoint(iKnotU);
+      int ipv = mHelperU2.getKnotDataPoint(iKnotV);
+      std::cout<<"2D: S''uv ("<<ipu<<","<<ipv<<") = " << parV[(iKnotV * 2 + 1) * Ndim]
+       <<std::endl;
+*/
       for (int dim = 0; dim < Ndim; ++dim) {
         Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim + dim] = parU[Ndim * 2 * iKnotU + dim];         // store S'v for all the knots
         Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim3 + dim] = parU[Ndim * 2 * iKnotU + Ndim + dim]; // store S''vu for all the knots
