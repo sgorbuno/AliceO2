@@ -78,11 +78,10 @@ void SplineHelper<DataT>::approximateFunction(
   std::function<void(const DataT x[/* mXdimensions */], DataT f[/* mFdimensions */])> F) const
 {
   /// Create best-fit spline parameters for a given input function F
-  /// output in Fparameters
-
+  /// output in Fparameter
   // TODO: implement
   // MY VERSION
-  std::cout << "approximateFunction(Fparameters, xMin[],xMax[],F) :" << std::endl;
+  //std::cout << "approximateFunction(Fparameters, xMin[],xMax[],F) :" << std::endl;
   double scaleX[mXdimensions];
     for (int i = 0; i < mXdimensions; i++){
         scaleX[i] = (xMax[i] - xMin[i])/((double)(mHelpers[i].getSpline().getUmax()));
@@ -187,15 +186,16 @@ void SplineHelper<DataT>::approximateFunction(
   int numberOfAllDataPoints = 1; // getting Number of all Datapoints for the entire spline
   for (int i = 0; i < mXdimensions; i++){
     numberOfAllDataPoints *= numberOfDataPoints[i];
+    //std::cout << mHelpers[0].getNumberOfDataPoints()<<std::endl;
   }
 
   // TO BE REMOVED TEST:
-  std::cout << "total number of DataPoints (including knots): " <<  numberOfAllDataPoints << ", "<< std::endl;
+  //std::cout << "total number of DataPoints (including knots): " <<  numberOfAllDataPoints << ", "<< std::endl;
   
   int numberOfParameterTypes = (int)(pow(2.0, mXdimensions)); //number of Parameters per Knot
   
   // TO BE REMOVED TEST:
-  std::cout << "number of paramtertypes per knot : " <<  numberOfParameterTypes << ", "<< std::endl;
+  //std::cout << "number of paramtertypes per knot : " <<  numberOfParameterTypes << ", "<< std::endl;
 
  std::unique_ptr<DataT[]> allParameters[numberOfParameterTypes]; //Array for the different parametertypes s, s'u, s'v, s''uv,...
  for (int i = 0; i < numberOfParameterTypes; i++){
@@ -240,7 +240,7 @@ void SplineHelper<DataT>::approximateFunction(
         par[i]= std::unique_ptr<DataT[]>(new DataT[numberOfKnots[i]* mFdimensions*2]);
    }
 
-  std::cout << "NumberOfParameters: " <<  mNumberOfParameters <<std::endl; 
+  //std::cout << "NumberOfParameters: " <<  mNumberOfParameters <<std::endl; 
   
   //STARTING MAIN-LOOP, for all Parametertypes:
   for (int p = 1; p < numberOfParameterTypes; p++ ){ // p = 1!! Wir kriegen s (p0) durch approximateFunction()oben
@@ -250,10 +250,10 @@ void SplineHelper<DataT>::approximateFunction(
     }
 
     int currentDataPointF = p-(int)(pow(2.0, dimension));
-    std::cout << std::endl << "p:" << p << ", dim of approximation: " << dimension << ", based on: " << currentDataPointF << std::endl;
+    //std::cout << std::endl << "p:" << p << ", dim of approximation: " << dimension << ", based on: " << currentDataPointF << std::endl;
 
     int nrOf1DSplines = (numberOfAllDataPoints / numberOfDataPoints[dimension]); // number of Splines for Parametertyp p in direction dim
-    std::cout << "nr of splines: " << nrOf1DSplines;
+    //std::cout << "nr of splines: " << nrOf1DSplines;
 
     // getting the numbers of Datapoints for all dimension eccept the dimension of interpolation
     int currentNumbers[mXdimensions-1];
@@ -265,9 +265,9 @@ void SplineHelper<DataT>::approximateFunction(
     }
     std::cout << " current numbers: ";
     for (int i = 0; i < mXdimensions-1; i++){
-      std::cout << currentNumbers[i] << ",";
+      //std::cout << currentNumbers[i] << ",";
     }
-    std::cout << std::endl;
+    //std::cout << std::endl;
 
     //// for all Splines in current dimension:
     for (int s = 0; s < nrOf1DSplines; s++){ 
@@ -360,7 +360,6 @@ void SplineHelper<DataT>::approximateFunction(
           } 
         } // end if isKnot      
       } // end recalculation
-    std::cout<< " mark 1"<< std::endl;
     }//end of all1DSplines
   }//end of for parametertypes
 } //end of approxymateFunction MYVERSION!  
