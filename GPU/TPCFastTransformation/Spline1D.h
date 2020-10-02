@@ -38,29 +38,30 @@ namespace gpu
 /// The spline S(x) approximates a function F(x):[Xmin,Xmax]->Y
 /// X is one-dimensional, Y may be multi-dimensional.
 ///
-/// The spline has n knots x_i. For every knot, the spline value S(x_i) and its derivative S'(x_i) are stored.
+/// The spline has n knots x_i. The spline value S(x_i) and its derivative S'(x_i) are stored for every knot.
 /// Inbetween the knots, S(x) is evaluated via interpolation by 3-rd degree polynomials.
 ///
-/// The spline S(x) and its first derivative are continuous at the knots.
-/// Depending on the initialization of the derivatives S'(x_i), the second derivative may or may not be continuous.
+/// The spline S(x) and its first derivative are continuous.
+/// Depending on the initialization of the derivatives S'(x_i),
+/// the second derivative may or may not be continuous at the knots.
 ///
 /// --- Knots ---
 ///
-/// The knots are not completely irregular.
-/// There is an internal scaled coordinate, called U, where all N knots have integer positions:
+/// The knots are not entirely irregular.
+/// There is an internal scaled coordinate, called U, where all N knots have some integer positions:
 /// {U0==0, U1, .., Un-1==Umax}.
 /// It is implemented this way for fast matching of any X value to its neighboring knots.
 ///
 /// For example, three knots with U coordinates u_i={0, 3, 5},
 /// being stretched on the X segment [0., 1.], will have X coordinates x_i={0., 3./5., 1.}
 ///
-/// For a few reasons, it is better to minimize U-gaps between knots.
-/// A spline with knots u_i={0,4,8} is mathematically the same as the spline with knots at u_i={0,1,2},
-/// but the later one uses less memory.
+/// For a few reasons, it is better to keep U-gaps between the knots minimal.
+/// A spline with knots u_i={0,1,2} is mathematically the same as the spline with knots u_i={0,2,4}.
+/// However, it uses less memory.
 ///
 /// The minimal number of knots is 2.
 ///
-/// --- The output dimensionality ---
+/// --- Output dimensionality ---
 ///
 /// There are two ways to set the dimensionality of Y - either in the constructor or as a template argument:
 ///
@@ -72,29 +73,33 @@ namespace gpu
 /// ---- External storage of spline parameters for a given F ---
 ///
 /// One can store all F-dependent spline parameters outside of the spline object
-/// and provide them at each call of the interpolation.
-/// To do so, create a spline with nYdimensions=0, create spline parameters for F via SplineHelper1D class,
-/// and use special interpolateUMath(..) methods for interpolation.
+/// and provide them at each interpolation call.
+/// To do so, create a spline with nYdimensions=0; create spline parameters for F via SplineHelper1D class;
+/// then use special interpolateUMath(..) methods for interpolation.
 ///
 /// This feature allows one to use the same spline object for the approximation of different functions
-/// on the same knots.
+/// on the same grid of knots.
 ///
 /// ---- Creation of a spline ----
 ///
-/// The splines are best-fit splines. It means, that the spline values S_i and the derivatives D_i at the knots
-/// are calibrated such that they minimize the integral difference between S(x) and F(x).
-/// This difference is evaluated at all integer values of U coordinate (in particular, at all knots)
-/// and at extra nAuxiliaryPoints points between the integers.
+/// The spline is supposed to be a best-fit spline, created by the approximateFunction() method.
 ///
-/// nAuxiliaryPoints can be set as a parameter of approximateFunction() method.
-/// With nAuxiliaryPoints==3 the approximation accuracy is noticeably better than the one with 1 or 2.
+/// Best-fit means that the spline values S_i and its derivatives D_i at the knots
+/// are adjusted to minimize the overall difference between S(x) and F(x).
+/// The spline constructed this way is much more accurate than a classical interpolation spline.
+///
+/// The difference to F() is minimized at all integer values of U coordinate (in particular, at all knots)
+/// and at extra nAuxiliaryPoints points between the integer numbers.
+///
+/// nAuxiliaryPoints is given as a parameter of approximateFunction() method.
+/// With nAuxiliaryPoints==3, the approximation accuracy is noticeably better than the one with 1 or 2.
 /// Higher values usually give a little improvement over 3.
 ///
-/// The number of auxiliary points has no influence on the interpolation speed,
-/// it can only slow down the approximateFunction() method.
+/// The number of auxiliary points does not influence the interpolation speed,
+/// but a high number can slow down the spline's creation.
 ///
-/// It is also possible to construct the spline in a classical way - by taking F values only at knots and making
-/// the first and the second derivatives of S continuous. To do so, use the corresponding method from SplineHelper1D.
+/// It is also possible to construct the spline classically - by taking F(x) values only at knots and making
+/// the first and the second derivatives of S(x) continuous. Use the corresponding method from SplineHelper1D.
 ///
 /// ---- Example of creating a spline ----
 ///
@@ -116,14 +121,13 @@ namespace gpu
 ///
 ///
 
-///
 /// Declare the spline class as a template with one optional parameter
 ///
 template <class DataT, int nYdimT = -1>
 class Spline1D;
 
-///
-/// The main class specification where the spline dimensionality is set during runtime and read via a class member mYdim
+/// The main class specification where the spline dimensionality is set during runtime
+/// and is read via a class member mYdim.
 /// DataT is a data type - either double or float.
 ///
 template <class DataT>
@@ -135,8 +139,12 @@ class Spline1D<DataT, -1> : public FlatObject
   ///
   struct Knot {
     DataT u;  ///< u coordinate of the knot i (an integer number in float format)
-    DataT Li; ///< inverse length of the [knot_i, knot_{i+1}] segment ( == 1./ a (small) integer number)
+    DataT Li; ///< inverse length of the [knot_i, knot_{i+1}] segment ( == 1./ a (small) integer )
   };
+
+  ///
+  enum SafeFlag { kNotSafe,
+                  kSafe };
 
   /// _____________  Version control __________________________
 
@@ -215,7 +223,7 @@ class Spline1D<DataT, -1> : public FlatObject
   /// Get U coordinate of the last knot
   GPUd() int getUmax() const { return mUmax; }
 
-  /// Get number of F dimensions
+  /// Get number of Y dimensions
   GPUd() int getYdimensions() const { return mYdim; }
 
   /// Get minimal required alignment for the spline parameters
@@ -226,7 +234,7 @@ class Spline1D<DataT, -1> : public FlatObject
   }
 
   /// Number of parameters
-  GPUd() int getNumberOfParameters() const { return (2 * mYdim) * getNumberOfKnots(); }
+  GPUd() int getNumberOfParameters() const { return getNumberOfParametersMath(mYdim); }
 
   /// Size of the parameter array in bytes
   GPUd() size_t getSizeOfParameters() const { return sizeof(DataT) * getNumberOfParameters(); }
@@ -238,9 +246,17 @@ class Spline1D<DataT, -1> : public FlatObject
   GPUd() const Knot* getKnots() const { return reinterpret_cast<const Knot*>(mFlatBufferPtr); }
 
   /// Get i-th knot
-  GPUd() const Knot& getKnot(int i) const { return getKnots()[i < 0 ? 0 : (i >= mNumberOfKnots ? mNumberOfKnots - 1 : i)]; }
+  template <SafeFlag Safe = SafeFlag::kSafe>
+  GPUd() const Knot& getKnot(int i) const
+  {
+    if (Safe == SafeFlag::kSafe) {
+      i = (i < 0) ? 0 : (i >= mNumberOfKnots ? mNumberOfKnots - 1 : i);
+    }
+    return getKnots()[i];
+  }
 
   /// Get index of an associated knot for a given U coordinate. Performs a boundary check.
+  template <SafeFlag Safe = SafeFlag::kSafe>
   GPUd() int getLeftKnotIndexForU(DataT u) const;
 
   /// Get u of i-th knot
@@ -255,7 +271,7 @@ class Spline1D<DataT, -1> : public FlatObject
   /// _______________  Getters with no boundary check   ________________________
 
   /// Get i-th knot. No boundary check performed!
-  GPUd() const Knot& getKnotNonSafe(int i) const { return getKnots()[i]; }
+  GPUd() const Knot& getKnotNonSafe(int i) const { return getKnot<SafeFlag::kNotSafe>(i); }
 
   /// Get index of an associated knot for a given U coordinate. No bboundaryorder check preformed!
   GPUd() int getLeftKnotIndexForUnonSafe(DataT u) const;
@@ -394,7 +410,7 @@ class Spline1D : public Spline1D<DataT, -1>
  public:
   typedef Spline1D<DataT, -1> TBase;
 
-  /// _____________  Constructors / destructors __________________________
+  /// _____________  C++ constructors / destructors __________________________
 
 #if !defined(GPUCA_GPUCODE)
   /// Default constructor
@@ -420,6 +436,8 @@ class Spline1D : public Spline1D<DataT, -1>
 
   /// Destructor
   ~Spline1D() CON_DEFAULT;
+
+  /// _____________  Construction interface __________________________
 
 #if !defined(GPUCA_GPUCODE)
   /// Constructor for a regular spline.
@@ -456,7 +474,7 @@ class Spline1D : public Spline1D<DataT, -1>
   }
 
   /// Number of parameters
-  GPUd() int getNumberOfParameters() const { return (2 * nYdimT) * getNumberOfKnots(); }
+  GPUd() int getNumberOfParameters() const { return getNumberOfParametersMath(nYdimT); }
 
   /// Size of the parameter array in bytes
   GPUd() size_t getSizeOfParameters() const { return sizeof(DataT) * getNumberOfParameters(); }
@@ -507,12 +525,10 @@ class Spline1D : public Spline1D<DataT, -1>
 #endif
  public:
   using TBase::getNumberOfKnots;
+  using TBase::getNumberOfParametersMath;
   using TBase::interpolateMath;
   using TBase::interpolateUMath;
   using TBase::interpolateUnonSafeMath;
-#ifndef GPUCA_ALIROOT_LIB
-  //ClassDefNV(Spline1D, 1);
-#endif
 };
 
 ///
@@ -553,16 +569,14 @@ GPUd() Spline1D<DataT>& Spline1D<DataT>::operator=(const Spline1D<DataT>& spline
 #endif
 
 template <class DataT>
+template <typename Spline1D<DataT>::SafeFlag Safe>
 GPUdi() int Spline1D<DataT>::getLeftKnotIndexForU(DataT u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) segments
   /// when u is otside of [0, mUmax], return a corresponding edge segment
   int iu = (int)u;
-  if (iu < 0) {
-    iu = 0;
-  }
-  if (iu > mUmax) {
-    iu = mUmax;
+  if (Safe == SafeFlag::kSafe) {
+    iu = (iu < 0) ? 0 : (iu > mUmax ? mUmax : iu);
   }
   return getUtoKnotMap()[iu];
 }
@@ -572,7 +586,7 @@ GPUdi() int Spline1D<DataT>::getLeftKnotIndexForUnonSafe(DataT u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) segment
   /// no boundary check! u must be in [0,mUmax]
-  return getUtoKnotMap()[(int)u];
+  return getLeftKnotIndexForU<SafeFlag::kNotSafe>(u);
 }
 
 template <class DataT>
@@ -598,10 +612,10 @@ GPUdi() DataT Spline1D<DataT>::interpolateMath(int nYdim, DataT x) const
 {
   /// Simplified interface for 1D: get interpolated value for the first dimension of S(x)
   DataT u = convXtoU(x);
-  int iknot = getLeftKnotIndexForU(u);
+  int iknot = getLeftKnotIndexForU<>(u);
   const DataT* d = mParameters + (2 * nYdim) * iknot;
   DataT S = 0.;
-  interpolateUMath(nYdim, getKnotNonSafe(iknot), &(d[0]), &(d[nYdim]),
+  interpolateUMath(1, getKnotNonSafe(iknot), &(d[0]), &(d[nYdim]),
                    &(d[2 * nYdim]), &(d[3 * nYdim]), u, &S);
   return S;
 }
@@ -610,7 +624,7 @@ template <class DataT>
 GPUdi() void Spline1D<DataT>::interpolateUMath(int nYdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
 {
   /// Get interpolated value S(u) using given spline parameters with a boundary check
-  int iknot = getLeftKnotIndexForU(u);
+  int iknot = getLeftKnotIndexForU<>(u);
   const DataT* d = parameters + (2 * nYdim) * iknot;
   interpolateUMath(nYdim, getKnotNonSafe(iknot), &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, S);
 }

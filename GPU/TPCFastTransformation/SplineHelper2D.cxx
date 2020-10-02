@@ -8,7 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  Spline182.cxx
+/// \file  Spline.cxx
 /// \brief Implementation of SplineHelper2D class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
@@ -38,7 +38,7 @@ int SplineHelper2D<DataT>::storeError(int code, const char* msg)
 template <typename DataT>
 void SplineHelper2D<DataT>::approximateFunction(
   DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
-  std::function<void(double x1, double x2, double f[/*spline.getFdimensions()*/])> F) const
+  std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F) const
 {
   /// Create best-fit spline parameters for a given input function F
   /// output in Fparameters
