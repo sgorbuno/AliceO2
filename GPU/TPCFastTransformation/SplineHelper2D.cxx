@@ -141,11 +141,11 @@ void SplineHelper2D<DataT>::approximateFunction(
   std::unique_ptr<double[]> rotDataPointF(new double[nDataPointsU * nDataPointsV * Ndim]); // U DataPoints x V DataPoints :  rotated DataPointF for one output dimension
   std::unique_ptr<double[]> Dv(new double[nKnotsV * nDataPointsU * Ndim]);                 // V knots x U DataPoints
 
-  std::unique_ptr<DataT[]> parU(new DataT[mHelperU1.getSpline().getNumberOfParametersMath(Ndim)]);
-  std::unique_ptr<DataT[]> parV(new DataT[mHelperU2.getSpline().getNumberOfParametersMath(Ndim)]);
+  std::unique_ptr<DataT[]> parU(new DataT[mHelperU1.getSpline().calcNumberOfParameters(Ndim)]);
+  std::unique_ptr<DataT[]> parV(new DataT[mHelperU2.getSpline().calcNumberOfParameters(Ndim)]);
 
-  std::unique_ptr<double[]> parUdbl(new double[mHelperU1.getSpline().getNumberOfParametersMath(Ndim)]);
-  std::unique_ptr<double[]> parVdbl(new double[mHelperU2.getSpline().getNumberOfParametersMath(Ndim)]);
+  std::unique_ptr<double[]> parUdbl(new double[mHelperU1.getSpline().calcNumberOfParameters(Ndim)]);
+  std::unique_ptr<double[]> parVdbl(new double[mHelperU2.getSpline().calcNumberOfParameters(Ndim)]);
 
   // rotated data points (u,v)->(v,u)
 
@@ -164,7 +164,7 @@ void SplineHelper2D<DataT>::approximateFunction(
     const double* DataPointFrow = &(DataPointF[Ndim * ipv * nDataPointsU]);
     mHelperU1.approximateFunctionGradually(parU.get(), DataPointFrow);
 
-    for (int i = 0; i < mHelperU1.getSpline().getNumberOfParametersMath(Ndim); i++) {
+    for (int i = 0; i < mHelperU1.getSpline().calcNumberOfParameters(Ndim); i++) {
       parUdbl[i] = parU[i];
     }
     for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
@@ -179,7 +179,7 @@ void SplineHelper2D<DataT>::approximateFunction(
     for (int ipu = 0; ipu < nDataPointsU; ipu++) {
       double splineF[Ndim];
       double u = mHelperU1.getDataPoint(ipu).u;
-      mHelperU1.getSpline().interpolateUMath(Ndim, parUdbl.get(), u, splineF);
+      mHelperU1.getSpline().interpolateU(Ndim, parUdbl.get(), u, splineF);
       for (int dim = 0; dim < Ndim; dim++) {
         rotDataPointF[(ipu * nDataPointsV + ipv) * Ndim + dim] = splineF[dim];
       }

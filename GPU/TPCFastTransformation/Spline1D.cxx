@@ -40,7 +40,7 @@ using namespace GPUCA_NAMESPACE::gpu;
 #if !defined(GPUCA_GPUCODE)
 
 template <class DataT>
-void Spline1D<DataT>::recreate(int nYdim, int numberOfKnots)
+void Spline1DContainer<DataT>::recreate(int nYdim, int numberOfKnots)
 {
   /// Constructor for a regular spline
   /// \param numberOfKnots     Number of knots
@@ -57,7 +57,7 @@ void Spline1D<DataT>::recreate(int nYdim, int numberOfKnots)
 }
 
 template <class DataT>
-void Spline1D<DataT>::recreate(int nYdim, int numberOfKnots, const int inputKnots[])
+void Spline1DContainer<DataT>::recreate(int nYdim, int numberOfKnots, const int inputKnots[])
 {
   /// Main constructor for an irregular spline
   ///
@@ -152,7 +152,7 @@ void Spline1D<DataT>::recreate(int nYdim, int numberOfKnots, const int inputKnot
 #endif //GPUCA_GPUCODE
 
 template <class DataT>
-void Spline1D<DataT>::print() const
+void Spline1DContainer<DataT>::print() const
 {
   printf(" Spline 1D: \n");
   printf("  mNumberOfKnots = %d \n", mNumberOfKnots);
@@ -168,36 +168,36 @@ void Spline1D<DataT>::print() const
 #if !defined(GPUCA_GPUCODE)
 
 template <class DataT>
-void Spline1D<DataT>::approximateFunction(
+void Spline1DContainer<DataT>::approximateFunction(
   double xMin, double xMax,
   std::function<void(double x, double f[])> F,
   int nAxiliaryDataPoints)
 {
   /// approximate a function F with this spline
   SplineHelper1D<DataT> helper;
-  helper.approximateFunction(*this, xMin, xMax, F, nAxiliaryDataPoints);
+  helper.approximateFunction(*reinterpret_cast<Spline1D<DataT>*>(this), xMin, xMax, F, nAxiliaryDataPoints);
 }
 
 template <class DataT>
-int Spline1D<DataT>::writeToFile(TFile& outf, const char* name)
+int Spline1DContainer<DataT>::writeToFile(TFile& outf, const char* name)
 {
   /// write a class object to the file
   return FlatObject::writeToFile(*this, outf, name);
 }
 
 template <class DataT>
-Spline1D<DataT>* Spline1D<DataT>::readFromFile(
+Spline1DContainer<DataT>* Spline1DContainer<DataT>::readFromFile(
   TFile& inpf, const char* name)
 {
   /// read a class object from the file
-  return FlatObject::readFromFile<Spline1D<DataT>>(inpf, name);
+  return FlatObject::readFromFile<Spline1DContainer<DataT>>(inpf, name);
 }
 #endif
 
 #if !defined(GPUCA_GPUCODE)
 
 template <class DataT>
-void Spline1D<DataT>::cloneFromObject(const Spline1D<DataT>& obj, char* newFlatBufferPtr)
+void Spline1DContainer<DataT>::cloneFromObject(const Spline1DContainer<DataT>& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
 
@@ -213,7 +213,7 @@ void Spline1D<DataT>::cloneFromObject(const Spline1D<DataT>& obj, char* newFlatB
 }
 
 template <class DataT>
-void Spline1D<DataT>::moveBufferTo(char* newFlatBufferPtr)
+void Spline1DContainer<DataT>::moveBufferTo(char* newFlatBufferPtr)
 {
   /// See FlatObject for description
   char* oldFlatBufferPtr = mFlatBufferPtr;
@@ -225,7 +225,7 @@ void Spline1D<DataT>::moveBufferTo(char* newFlatBufferPtr)
 #endif // GPUCA_GPUCODE
 
 template <class DataT>
-void Spline1D<DataT>::destroy()
+void Spline1DContainer<DataT>::destroy()
 {
   /// See FlatObject for description
   mNumberOfKnots = 0;
@@ -239,7 +239,7 @@ void Spline1D<DataT>::destroy()
 }
 
 template <class DataT>
-void Spline1D<DataT>::setActualBufferAddress(char* actualFlatBufferPtr)
+void Spline1DContainer<DataT>::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// See FlatObject for description
 
@@ -255,7 +255,7 @@ void Spline1D<DataT>::setActualBufferAddress(char* actualFlatBufferPtr)
 }
 
 template <class DataT>
-void Spline1D<DataT>::setFutureBufferAddress(char* futureFlatBufferPtr)
+void Spline1DContainer<DataT>::setFutureBufferAddress(char* futureFlatBufferPtr)
 {
   /// See FlatObject for description
   mUtoKnotMap = FlatObject::relocatePointer(mFlatBufferPtr, futureFlatBufferPtr, mUtoKnotMap);
@@ -265,11 +265,15 @@ void Spline1D<DataT>::setFutureBufferAddress(char* futureFlatBufferPtr)
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
 template <class DataT>
-int Spline1D<DataT>::test(const bool draw, const bool drawDataPoints)
+int Spline1DContainer<DataT>::test(const bool draw, const bool drawDataPoints)
 {
   return SplineHelper1D<DataT>::test(draw, drawDataPoints);
 }
 #endif // GPUCA_GPUCODE
 
+template class GPUCA_NAMESPACE::gpu::Spline1DContainer<float>;
+template class GPUCA_NAMESPACE::gpu::Spline1DContainer<double>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<double>;
+template class GPUCA_NAMESPACE::gpu::Spline1D<float, 0>;
+template class GPUCA_NAMESPACE::gpu::Spline1D<double, 0>;

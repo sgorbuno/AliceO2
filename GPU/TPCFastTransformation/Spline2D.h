@@ -62,6 +62,7 @@ class Spline2DBase : public FlatObject
 {
  public:
   typedef typename Spline1D<DataT>::SafeFlag SafeFlag;
+  typedef typename Spline1D<DataT>::Knot Knot;
 
   /// _____________  Version control __________________________
 
@@ -450,8 +451,8 @@ GPUdi() void Spline2DBase<DataT>::getKnotU(int iKnot, int& u1, int& u2) const
   int nu1 = mGridU1.getNumberOfKnots();
   int iu2 = iKnot / nu1;
   int iu1 = iKnot % nu1;
-  u1 = mGridU1.getKnotU(iu1);
-  u2 = mGridU2.getKnotU(iu2);
+  u1 = mGridU1.getKnot(iu1).getU();
+  u2 = mGridU2.getKnot(iu2).getU();
 }
 
 template <typename DataT>
@@ -474,7 +475,7 @@ GPUdi() void Spline2DBase<DataT>::interpolateUMath(int nYdim, GPUgeneric() const
                                                    DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const
 {
   /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
-  interpolateUMath1<Spline1D<DataT>::SafeFlag::kSafe, 0>(nYdim, Parameters, u1, u2, S);
+  interpolateUMath1<SafeFlag::kSafe, 0>(nYdim, Parameters, u1, u2, S);
 }
 
 template <typename DataT>
@@ -482,7 +483,7 @@ GPUdi() void Spline2DBase<DataT>::interpolateUnonSafeMath(int nYdim, GPUgeneric(
                                                           DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const
 {
   /// Same as interpolateU(..) but with no boundary checks
-  interpolateUMath1<Spline1D<DataT>::SafeFlag::kNotSafe, 0>(nYdim, Parameters, u1, u2, S);
+  interpolateUMath1<SafeFlag::kNotSafe, 0>(nYdim, Parameters, u1, u2, S);
 }
 
 /// The main mathematical utility.
@@ -490,7 +491,7 @@ GPUdi() void Spline2DBase<DataT>::interpolateUnonSafeMath(int nYdim, GPUgeneric(
 /// using the spline values at the segment [knotL1, knotL1+1][knotL2, knotL2+1]
 /// Only first nYdimCalc out of nYdim Y dimensions are calculated
 template <typename DataT>
-template <typename Spline1D<DataT>::SafeFlag Safe, bool DoFirstDimOnly>
+template <typename Spline2DBase<DataT>::SafeFlag Safe, bool DoFirstDimOnly>
 GPUdi() void Spline2DBase<DataT>::interpolateUMath1(int nYdim, GPUgeneric() const DataT Parameters[],
                                                     DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const
 {

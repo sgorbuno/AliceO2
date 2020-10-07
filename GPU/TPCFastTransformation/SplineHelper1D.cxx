@@ -247,7 +247,7 @@ int SplineHelper1D<DataT>::setSpline(
   } else {
     std::vector<int> knots;
     for (int i = 0; i < spline.getNumberOfKnots(); i++) {
-      knots.push_back(spline.getKnotU(i));
+      knots.push_back(spline.getKnot(i).getU());
     }
     mSpline.recreate(spline.getNumberOfKnots(), knots.data());
 
@@ -482,7 +482,6 @@ void SplineHelper1D<DataT>::approximateDerivatives(
   }
 }
 
-
 template <typename DataT>
 int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
 {
@@ -609,7 +608,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
     helper.approximateFunctionGradually(spline2, 0., TMath::Pi(), F, nAuxiliaryPoints);
 
     // 1-D splines for each dimension
-    Spline1D<float,1> splines3[Ndim];
+    Spline1D<float, 1> splines3[Ndim];
     {
       for (int dim = 0; dim < Ndim; dim++) {
         auto F3 = [&](double u, double f[]) -> void {
@@ -735,7 +734,6 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
   }
   return 0;
 }
-
 
 template class GPUCA_NAMESPACE::gpu::SplineHelper1D<float>;
 template class GPUCA_NAMESPACE::gpu::SplineHelper1D<double>;

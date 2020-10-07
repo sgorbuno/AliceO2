@@ -22,8 +22,12 @@
 
 #pragma link C++ namespace o2::gpu;
 
+#pragma link C++ class o2::gpu::Spline1DContainer < float > +;
+#pragma link C++ class o2::gpu::Spline1DContainer < double > +;
 #pragma link C++ class o2::gpu::Spline1D < float> + ;
 #pragma link C++ class o2::gpu::Spline1D < double> + ;
+#pragma link C++ class o2::gpu::Spline1D < float, 0 > +;
+#pragma link C++ class o2::gpu::Spline1D < double, 0 > +;
 
 #pragma link C++ class o2::gpu::Spline2DBase < float> + ;
 #pragma link C++ class o2::gpu::Spline2DBase < double> + ;

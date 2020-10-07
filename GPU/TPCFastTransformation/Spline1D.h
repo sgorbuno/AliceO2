@@ -121,30 +121,33 @@ namespace gpu
 ///
 ///
 
-/// Declare the spline class as a template with one optional parameter
-///
-template <class DataT, int nYdimT = -1>
-class Spline1D;
+// ==================================================================================================
 
-/// The main class specification where the spline dimensionality is set during runtime
-/// and is read via a class member mYdim.
-/// DataT is a data type - either double or float.
+/// The class Spline1DContainer is a base class of Spline1D.
+/// It contains all the class members and methods which only depends on the DataT data type
+/// and do not depend on other template paramaters of Spline1D.
+/// It also contaions all non-inined methods with the implementation in .cxx file.
 ///
-template <class DataT>
-class Spline1D<DataT, -1> : public FlatObject
+/// DataT is a data type, which is supposed to be either double or float.
+/// For other possible data types one has to add the corresponding instantiation line
+/// at the end of the .cxx file
+///
+template <typename DataT>
+class Spline1DContainer : public FlatObject
 {
  public:
   ///
-  /// \brief The struct Knot represents the i-th knot and the segment [knot_i, knot_i+1]
+  enum SafeFlag { kNotSafe,
+                  kSafe };
+
+  /// The struct Knot represents the i-th knot and the segment [knot_i, knot_i+1]
   ///
   struct Knot {
     DataT u;  ///< u coordinate of the knot i (an integer number in float format)
     DataT Li; ///< inverse length of the [knot_i, knot_{i+1}] segment ( == 1./ a (small) integer )
+    /// Get u as an integer
+    GPUd() int getU() const { return (int)(u + 0.1); }
   };
-
-  ///
-  enum SafeFlag { kNotSafe,
-                  kSafe };
 
   /// _____________  Version control __________________________
 
@@ -155,34 +158,34 @@ class Spline1D<DataT, -1> : public FlatObject
 
 #if !defined(GPUCA_GPUCODE)
   /// Default constructor
-  Spline1D() : Spline1D(0, 2) {}
+  Spline1DContainer() : Spline1DContainer(0, 2) {}
 
   /// Constructor for a regular spline
-  Spline1D(int nYdim, int numberOfKnots);
+  Spline1DContainer(int nYdim, int numberOfKnots);
 
   /// Constructor for an irregular spline
-  Spline1D(int nYdim, int numberOfKnots, const int knotU[]);
+  Spline1DContainer(int nYdim, int numberOfKnots, const int knotU[]);
 
   /// Copy constructor
-  Spline1D(const Spline1D&);
+  Spline1DContainer(const Spline1DContainer&);
 
   /// Assignment operator
-  Spline1D& operator=(const Spline1D&);
+  Spline1DContainer& operator=(const Spline1DContainer&);
 #else
   /// Disable constructors for the GPU implementation
-  Spline1D() CON_DELETE;
-  Spline1D(const Spline1D&) CON_DELETE;
-  Spline1D& operator=(const Spline1D&) CON_DELETE;
+  Spline1DContainer() CON_DELETE;
+  Spline1DContainer(const Spline1DContainer&) CON_DELETE;
+  Spline1DContainer& operator=(const Spline1DContainer&) CON_DELETE;
 #endif
 
   /// Destructor
-  ~Spline1D() CON_DEFAULT;
+  ~Spline1DContainer() CON_DEFAULT;
 
   /// _______________  Construction interface  ________________________
 
 #if !defined(GPUCA_GPUCODE)
 
-  /// Constructor for a regular spline.
+  /// Constructor for a regular spline
   void recreate(int nYdim, int numberOfKnots);
 
   /// Constructor for an irregular spline
@@ -192,30 +195,17 @@ class Spline1D<DataT, -1> : public FlatObject
   void approximateFunction(double xMin, double xMax,
                            std::function<void(double x, double f[/*mYdim*/])> F,
                            int nAuxiliaryDataPoints = 4);
+
 #endif
 
-  /// _______________  Main functionality   ________________________
-
-  /// Get interpolated value S(x)
-  GPUd() void interpolate(DataT x, GPUgeneric() DataT S[/*mYdim*/]) const
-  {
-    interpolateMath(mYdim, x, S);
-  }
-
-  /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
-  GPUd() DataT interpolate(DataT x) const
-  {
-    return interpolateMath(mYdim, x);
-  }
-
-    /// _______________  IO   ________________________
+/// _______________  IO   ________________________
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
   /// write a class object to the file
   int writeToFile(TFile& outf, const char* name);
 
   /// read a class object from the file
-  static Spline1D* readFromFile(TFile& inpf, const char* name);
+  static Spline1DContainer* readFromFile(TFile& inpf, const char* name);
 #endif
 
   /// _______________  Getters   ________________________
@@ -234,7 +224,7 @@ class Spline1D<DataT, -1> : public FlatObject
   }
 
   /// Number of parameters
-  GPUd() int getNumberOfParameters() const { return getNumberOfParametersMath(mYdim); }
+  GPUd() int getNumberOfParameters() const { return (2 * mYdim) * getNumberOfKnots(); }
 
   /// Size of the parameter array in bytes
   GPUd() size_t getSizeOfParameters() const { return sizeof(DataT) * getNumberOfParameters(); }
@@ -259,22 +249,11 @@ class Spline1D<DataT, -1> : public FlatObject
   template <SafeFlag Safe = SafeFlag::kSafe>
   GPUd() int getLeftKnotIndexForU(DataT u) const;
 
-  /// Get u of i-th knot
-  GPUd() int getKnotU(int iKnot) const { return (int)(getKnot(iKnot).u + 0.1); }
-
   /// Get spline parameters
   GPUd() DataT* getParameters() { return mParameters; }
 
   /// Get spline parameters const
   GPUd() const DataT* getParameters() const { return mParameters; }
-
-  /// _______________  Getters with no boundary check   ________________________
-
-  /// Get i-th knot. No boundary check performed!
-  GPUd() const Knot& getKnotNonSafe(int i) const { return getKnot<SafeFlag::kNotSafe>(i); }
-
-  /// Get index of an associated knot for a given U coordinate. No bboundaryorder check preformed!
-  GPUd() int getLeftKnotIndexForUnonSafe(DataT u) const;
 
   /// _______________  Technical stuff  ________________________
 
@@ -301,31 +280,8 @@ class Spline1D<DataT, -1> : public FlatObject
 
   ///  _______________  Expert tools  _______________
 
-  /// Get interpolated value for an mYdim-dimensional S(u) using spline parameters Parameters.
-  GPUd() void interpolateU(GPUgeneric() const DataT Parameters[],
-                           DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
-  {
-    interpolateUMath(mYdim, Parameters, u, S);
-  }
-
-  /// Same as interpolateU(..) but without boundary checks
-  GPUd() void interpolateUnonSafe(GPUgeneric() const DataT Parameters[],
-                                  DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
-  {
-    interpolateUnonSafeMath(mYdim, Parameters, u, S);
-  }
-
-  /// The main mathematical utility.
-  /// Get interpolated value {S(u): 1D -> mYdim} at the segment [knotL, next knotR]
-  /// using the spline values Sl, Sr and the slopes Dl, Dr
-  template <typename T>
-  GPUd() void interpolateU(const typename Spline1D<DataT>::Knot& knotL,
-                           GPUgeneric() const T Sl[/*mYdim*/], GPUgeneric() const T Dl[/*mYdim*/],
-                           GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
-                           DataT u, GPUgeneric() T S[/*mYdim*/]) const
-  {
-    interpolateUMath(mYdim, knotL, Sl, Dl, Sr, Dr, u, S);
-  }
+  /// Number of parameters for a given Y dimensions
+  GPUd() int calcNumberOfParameters(int nYdim) const { return (2 * nYdim) * getNumberOfKnots(); }
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
   /// Test the class functionality
@@ -338,7 +294,7 @@ class Spline1D<DataT, -1> : public FlatObject
   using FlatObject::getClassAlignmentBytes;
 
 #if !defined(GPUCA_GPUCODE)
-  void cloneFromObject(const Spline1D& obj, char* newFlatBufferPtr);
+  void cloneFromObject(const Spline1DContainer& obj, char* newFlatBufferPtr);
   void moveBufferTo(char* newBufferPtr);
 #endif
 
@@ -350,40 +306,12 @@ class Spline1D<DataT, -1> : public FlatObject
 
   /// _____________  Interpolation math with external Parameters ____________
 
-  /// Number of parameters
-  GPUd() int getNumberOfParametersMath(int nYdim) const { return (2 * nYdim) * getNumberOfKnots(); }
-
-  /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
-  GPUd() void interpolateUMath(int nYdim, GPUgeneric() const DataT Parameters[],
-                               DataT u, GPUgeneric() DataT S[/*nYdim*/]) const;
-
-  /// Same as interpolateU(..) but with no boundary checks
-  GPUd() void interpolateUnonSafeMath(int nYdim, GPUgeneric() const DataT Parameters[],
-                                      DataT u, GPUgeneric() DataT S[/*nYdim*/]) const;
-
-  /// The main mathematical utility.
-  /// Get interpolated value {S(u): 1D -> mYdim} at the segment [knotL, next knotR]
-  /// using the spline values Sl, Sr and the slopes Dl, Dr
-  template <typename T>
-  GPUd() void interpolateUMath(int nYdim, const typename Spline1D<DataT>::Knot& knotL,
-                               GPUgeneric() const T Sl[/*nYdim*/], GPUgeneric() const T Dl[/*nYdim*/],
-                               GPUgeneric() const T Sr[/*nYdim*/], GPUgeneric() const T Dr[/*nYdim*/],
-                               DataT u, GPUgeneric() T Su[/*nYdim*/]) const;
-
  protected:
-  /// Non-const accessor to knots array
+  /// Non-const accessor to the knots array
   Knot* getKnots() { return reinterpret_cast<Knot*>(mFlatBufferPtr); }
 
   /// Non-const accessor to U->knots map
   int* getUtoKnotMap() { return mUtoKnotMap; }
-
-  /// _____________  Interpolation math  ____________
-
-  /// Get interpolated value S(x)
-  GPUd() void interpolateMath(int nYdim, DataT x, GPUgeneric() DataT S[/*nYdim*/]) const;
-
-  /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
-  GPUd() DataT interpolateMath(int nYdim, DataT x) const;
 
   /// _____________  Data members  ____________
 
@@ -395,202 +323,56 @@ class Spline1D<DataT, -1> : public FlatObject
   int* mUtoKnotMap;   //! (transient!!) pointer to (integer U -> knot index) map inside the mFlatBufferPtr array
   DataT* mParameters; //! (transient!!) pointer to F-dependent parameters inside the mFlatBufferPtr array
 #ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(Spline1D, 1);
+  ClassDefNV(Spline1DContainer, 1);
 #endif
 };
 
-///
-/// An additional class specification where the spline dimensionality is set at the compile time
-/// via a template argument nYdimT
-/// It inherits from the main specification above and only replaces some methods by their faster versions.
-///
-template <class DataT, int nYdimT>
-class Spline1D : public Spline1D<DataT, -1>
-{
- public:
-  typedef Spline1D<DataT, -1> TBase;
-
-  /// _____________  C++ constructors / destructors __________________________
-
-#if !defined(GPUCA_GPUCODE)
-  /// Default constructor
-  Spline1D() : Spline1D(2) {}
-
-  /// Constructor for a regular spline && default constructor
-  Spline1D(int numberOfKnots) : TBase(nYdimT, numberOfKnots) {}
-
-  /// Constructor for an irregular spline
-  Spline1D(int numberOfKnots, const int knotU[]) : TBase(nYdimT, numberOfKnots, knotU) {}
-
-  /// Copy constructor
-  Spline1D(const Spline1D& v) : TBase(v) {}
-
-  /// Assignment operator
-  Spline1D& operator=(const Spline1D& v) { TBase::operator=(v); };
-#else
-  /// Disable constructors for the GPU implementation
-  Spline1D() CON_DELETE;
-  Spline1D(const Spline1D&) CON_DELETE;
-  Spline1D& operator=(const Spline1D&) CON_DELETE;
-#endif
-
-  /// Destructor
-  ~Spline1D() CON_DEFAULT;
-
-  /// _____________  Construction interface __________________________
-
-#if !defined(GPUCA_GPUCODE)
-  /// Constructor for a regular spline.
-  void recreate(int numberOfKnots) { TBase::recreate(nYdimT, numberOfKnots); }
-
-  /// Constructor for an irregular spline
-  void recreate(int numberOfKnots, const int knotU[]) { TBase::recreate(nYdimT, numberOfKnots, knotU); }
-#endif
-
-  /// _______________  Main functionality   ________________________
-
-  /// Get interpolated value S(x)
-  GPUd() void interpolate(DataT x, GPUgeneric() DataT S[/*mYdim*/]) const
-  {
-    interpolateMath(nYdimT, x, S);
-  }
-
-  /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
-  GPUd() DataT interpolate(DataT x) const
-  {
-    return interpolateMath(nYdimT, x);
-  }
-
-  /// _______________  Getters   ________________________
-
-  /// Get number of F dimensions as constexpr
-  GPUd() static constexpr int getYdimensions() { return nYdimT; }
-
-  /// Get minimal required alignment for the spline parameters
-  GPUd() static constexpr size_t getParameterAlignmentBytes()
-  {
-    size_t s = 2 * sizeof(DataT) * nYdimT;
-    return (s < 16) ? s : 16;
-  }
-
-  /// Number of parameters
-  GPUd() int getNumberOfParameters() const { return getNumberOfParametersMath(nYdimT); }
-
-  /// Size of the parameter array in bytes
-  GPUd() size_t getSizeOfParameters() const { return sizeof(DataT) * getNumberOfParameters(); }
-
-  /// ================ Expert tools   ================================
-
-  /// Get interpolated value for an mYdim-dimensional F(u) using spline parameters Parameters.
-  GPUd() void interpolateU(GPUgeneric() const DataT Parameters[],
-                           DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
-  {
-    interpolateUMath(nYdimT, Parameters, u, S);
-  }
-
-  /// Same as interpolateU(..) but without boundary checks
-  GPUd() void interpolateUnonSafe(GPUgeneric() const DataT Parameters[],
-                                  DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
-  {
-    interpolateUnonSafeMath(nYdimT, Parameters, u, S);
-  }
-
-  /// The main mathematical utility.
-  /// Get interpolated value {S(u): 1D -> mYdim} at the segment [knotL, next knotR]
-  /// using the spline values Sl, Sr and the slopes Dl, Dr
-  template <typename T>
-  GPUd() void interpolateU(const typename Spline1D<DataT>::Knot& knotL,
-                           GPUgeneric() const T Sl[/*mYdim*/], GPUgeneric() const T Dl[/*mYdim*/],
-                           GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
-                           DataT u, GPUgeneric() T S[/*mYdim*/]) const
-  {
-    interpolateUMath(nYdimT, knotL, Sl, Dl, Sr, Dr, u, S);
-  }
-
-    /// _______________  IO   ________________________
-
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
-  /// read a class object from the file
-  static Spline1D* readFromFile(TFile& inpf, const char* name)
-  {
-    return reinterpret_cast<Spline1D*>(TBase::readFromFile(inpf, name));
-  }
-#endif
-
-  /// _______________  Suppress some base class methods   ________________________
- private:
-#if !defined(GPUCA_GPUCODE)
-  void recreate(int nYdim, int numberOfKnots){};
-  void recreate(int nYdim, int numberOfKnots, const int knotU[]){};
-#endif
- public:
-  using TBase::getNumberOfKnots;
-  using TBase::getNumberOfParametersMath;
-  using TBase::interpolateMath;
-  using TBase::interpolateUMath;
-  using TBase::interpolateUnonSafeMath;
-};
-
-///
-/// ========================================================================================================
-///       Inline implementations
-/// ========================================================================================================
-///
-
 #if !defined(GPUCA_GPUCODE)
 
-template <class DataT>
-GPUdi() Spline1D<DataT>::Spline1D(int nYdim, int numberOfKnots)
+template <typename DataT>
+GPUdi() Spline1DContainer<DataT>::Spline1DContainer(int nYdim, int numberOfKnots)
   : FlatObject()
 {
   recreate(nYdim, numberOfKnots);
 }
 
-template <class DataT>
-GPUdi() Spline1D<DataT>::Spline1D(int nYdim, int numberOfKnots, const int knotU[])
+template <typename DataT>
+GPUdi() Spline1DContainer<DataT>::Spline1DContainer(int nYdim, int numberOfKnots, const int knotU[])
   : FlatObject()
 {
   recreate(nYdim, numberOfKnots, knotU);
 }
 
-template <class DataT>
-GPUdi() Spline1D<DataT>::Spline1D(const Spline1D& spline)
+template <typename DataT>
+GPUdi() Spline1DContainer<DataT>::Spline1DContainer(const Spline1DContainer<DataT>& spline)
   : FlatObject()
 {
   cloneFromObject(spline, nullptr);
 }
 
-template <class DataT>
-GPUd() Spline1D<DataT>& Spline1D<DataT>::operator=(const Spline1D<DataT>& spline)
+template <typename DataT>
+GPUd() Spline1DContainer<DataT>& Spline1DContainer<DataT>::operator=(const Spline1DContainer<DataT>& spline)
 {
   cloneFromObject(spline, nullptr);
   return *this;
 }
 #endif
 
-template <class DataT>
-template <typename Spline1D<DataT>::SafeFlag Safe>
-GPUdi() int Spline1D<DataT>::getLeftKnotIndexForU(DataT u) const
+template <typename DataT>
+template <typename Spline1DContainer<DataT>::SafeFlag SafeT>
+GPUdi() int Spline1DContainer<DataT>::getLeftKnotIndexForU(DataT u) const
 {
   /// Get i: u is in [knot_i, knot_{i+1}) segments
   /// when u is otside of [0, mUmax], return a corresponding edge segment
   int iu = (int)u;
-  if (Safe == SafeFlag::kSafe) {
+  if (SafeT == SafeFlag::kSafe) {
     iu = (iu < 0) ? 0 : (iu > mUmax ? mUmax : iu);
   }
   return getUtoKnotMap()[iu];
 }
 
-template <class DataT>
-GPUdi() int Spline1D<DataT>::getLeftKnotIndexForUnonSafe(DataT u) const
-{
-  /// Get i: u is in [knot_i, knot_{i+1}) segment
-  /// no boundary check! u must be in [0,mUmax]
-  return getLeftKnotIndexForU<SafeFlag::kNotSafe>(u);
-}
-
-template <class DataT>
-GPUdi() void Spline1D<DataT>::setXrange(DataT xMin, DataT xMax)
+template <typename DataT>
+GPUdi() void Spline1DContainer<DataT>::setXrange(DataT xMin, DataT xMax)
 {
   mXmin = xMin;
   double l = ((double)xMax) - xMin;
@@ -600,56 +382,114 @@ GPUdi() void Spline1D<DataT>::setXrange(DataT xMin, DataT xMax)
   mXtoUscale = mUmax / l;
 }
 
-template <class DataT>
-GPUdi() void Spline1D<DataT>::interpolateMath(int nYdim, DataT x, GPUgeneric() DataT S[]) const
-{
-  /// Get interpolated value S(x)
-  interpolateUMath(nYdim, mParameters, convXtoU(x), S);
-}
+// ==================================================================================================
 
-template <class DataT>
-GPUdi() DataT Spline1D<DataT>::interpolateMath(int nYdim, DataT x) const
+/// Class with spline mathemetics
+///
+template <class DataT, int nYdimT, bool useYdimT, bool fixedMemAllocT>
+class Spline1DMath
+  : public Spline1DContainer<DataT>
+{
+ public:
+  typedef Spline1DContainer<DataT> TBase;
+  typedef typename TBase::SafeFlag SafeFlag;
+  typedef typename TBase::Knot Knot;
+
+  using TBase::TBase; // inherit constructors
+
+  /// _____________  C++ constructors / destructors __________________________
+
+  /// Destructor
+  ~Spline1DMath() CON_DEFAULT;
+
+  /// _______________  Main functionality   ________________________
+
+  /// Get interpolated value S(x)
+  GPUd() void interpolate(DataT x, GPUgeneric() DataT S[/*mYdim*/]) const
+  {
+    interpolateU<SafeFlag::kSafe>(mYdim, mParameters, convXtoU(x), S);
+  }
+
+  /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
+  GPUd() DataT interpolate(DataT x) const;
+
+  /// _______________  Getters   ________________________
+
+  /// _______________  Getters with no boundary check   ________________________
+
+  /// _______________  Technical stuff  ________________________
+
+  ///  _______________  Expert tools: interpolation with external Parameters ____________
+
+  ///
+  GPUd() void getNumberOfParameters(int nYdim) const;
+
+  /// Get interpolated value for an mYdim-dimensional S(u) using spline parameters Parameters.
+  template <SafeFlag safe = SafeFlag::kSafe>
+  GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
+                           DataT u, GPUgeneric() DataT S[/*mYdim*/]) const;
+
+  /// The main mathematical utility.
+  /// Get interpolated value {S(u): 1D -> mYdim} at the segment [knotL, next knotR]
+  /// using the spline values Sl, Sr and the slopes Dl, Dr
+  template <typename T>
+  GPUd() void interpolateU(int nYdim, const Knot& knotL,
+                           GPUgeneric() const T Sl[/*mYdim*/], GPUgeneric() const T Dl[/*mYdim*/],
+                           GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
+                           DataT u, GPUgeneric() T S[/*mYdim*/]) const;
+
+  using TBase::convXtoU;
+  using TBase::getKnot;
+  using TBase::getKnots;
+  using TBase::getNumberOfKnots;
+
+ protected:
+  using TBase::mParameters;
+  using TBase::mYdim;
+#ifndef GPUCA_ALIROOT_LIB
+  ClassDefNV(Spline1DMath, 1);
+#endif
+};
+
+template <typename DataT, int nYdimT, bool useYdimT, bool fixedMemAllocT>
+GPUdi() DataT Spline1DMath<DataT, nYdimT, useYdimT, fixedMemAllocT>::interpolate(DataT x) const
 {
   /// Simplified interface for 1D: get interpolated value for the first dimension of S(x)
+  int nYdim = mYdim;
   DataT u = convXtoU(x);
-  int iknot = getLeftKnotIndexForU<>(u);
+  int iknot = TBase::template getLeftKnotIndexForU<SafeFlag::kSafe>(u);
   const DataT* d = mParameters + (2 * nYdim) * iknot;
   DataT S = 0.;
-  interpolateUMath(1, getKnotNonSafe(iknot), &(d[0]), &(d[nYdim]),
-                   &(d[2 * nYdim]), &(d[3 * nYdim]), u, &S);
+  ((Spline1DMath<DataT, 1, true, true>*)this)->interpolateU(nYdim, getKnots()[iknot], &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, &S);
   return S;
 }
 
-template <class DataT>
-GPUdi() void Spline1D<DataT>::interpolateUMath(int nYdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
+template <typename DataT, int nYdimT, bool useYdimT, bool fixedMemAllocT>
+template <typename Spline1DContainer<DataT>::SafeFlag SafeT>
+GPUdi() void Spline1DMath<DataT, nYdimT, useYdimT, fixedMemAllocT>::interpolateU(
+  int nYdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
 {
   /// Get interpolated value S(u) using given spline parameters with a boundary check
-  int iknot = getLeftKnotIndexForU<>(u);
+  //int nYdim = mYdim;
+  int iknot = TBase::template getLeftKnotIndexForU<SafeT>(u);
   const DataT* d = parameters + (2 * nYdim) * iknot;
-  interpolateUMath(nYdim, getKnotNonSafe(iknot), &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, S);
+  interpolateU(nYdim, getKnots()[iknot], &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, S);
 }
 
-template <class DataT>
-GPUdi() void Spline1D<DataT>::interpolateUnonSafeMath(int nYdim, GPUgeneric() const DataT parameters[], DataT u, GPUgeneric() DataT S[/*mYdim*/]) const
-{
-  /// Get interpolated value S(u) using given spline parameters without boundary check
-  int iknot = getLeftKnotIndexForUnonSafe(u);
-  const DataT* d = parameters + (2 * nYdim) * iknot;
-  interpolateUMath(nYdim, getKnotNonSafe(iknot), &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, S);
-}
-
-template <class DataT>
+template <typename DataT, int nYdimT, bool useYdimT, bool fixedMemAllocT>
 template <typename T>
-GPUdi() void Spline1D<DataT>::interpolateUMath(int nYdim, const typename Spline1D<DataT>::Knot& knotL,
-                                               GPUgeneric() const T Sl[/*nYdim*/], GPUgeneric() const T Dl[/*nYdim*/],
-                                               GPUgeneric() const T Sr[/*nYdim*/], GPUgeneric() const T Dr[/*nYdim*/],
-                                               DataT u, GPUgeneric() T S[/*nYdim*/]) const
+GPUdi() void Spline1DMath<DataT, nYdimT, useYdimT, fixedMemAllocT>::interpolateU(
+  int nYdim, const typename Spline1DContainer<DataT>::Knot& knotL,
+  GPUgeneric() const T Sl[/*nYdim*/], GPUgeneric() const T Dl[/*nYdim*/],
+  GPUgeneric() const T Sr[/*nYdim*/], GPUgeneric() const T Dr[/*nYdim*/],
+  DataT u, GPUgeneric() T S[/*nYdim*/]) const
 {
   /// A static method.
   /// Gives interpolated value of N-dimensional S(u) at u
   /// input: Sl,Dl,Sr,Dr[nYdim] - N-dim function values and slopes at knots {knotL,knotR}
   /// output: S[nYdim] - N-dim interpolated value for S(u)
 
+  //int nYdim = mYdim;
   T uu = T(u - knotL.u);
   T li = T(knotL.Li);
   T v = uu * li; // scaled u
@@ -672,6 +512,182 @@ GPUdi() void Spline1D<DataT>::interpolateUMath(int nYdim, const typename Spline1
   return cSl*Sl + cSr*Sr + cDl*Dl + cDr*Dr;
   */
 }
+
+// ==================================================================================================
+
+/// Different class specifications depending on the template arguments
+///
+template <typename DataT, int nYdimT, bool useYdimT, bool fixedMemAllocT>
+class Spline1DSpecification;
+
+/// nYdim is taken during runtime as a constructor argument
+///
+template <typename DataT, int nYdimT, bool fixedMemAllocT>
+class Spline1DSpecification<DataT, nYdimT, false, fixedMemAllocT>
+  : public Spline1DMath<DataT, nYdimT, false, fixedMemAllocT>
+{
+ public:
+  typedef Spline1DMath<DataT, nYdimT, false, fixedMemAllocT> TBase;
+  typedef typename TBase::SafeFlag SafeFlag;
+  typedef typename TBase::Knot Knot;
+
+  using TBase::TBase;
+/// _____________  C++ constructors / destructors __________________________
+
+#if !defined(GPUCA_GPUCODE)
+#else
+  /// Disable constructors for the GPU implementation
+  Spline1DSpecification() CON_DELETE;
+  Spline1DSpecification(const Spline1DSpecification&) CON_DELETE;
+  Spline1DSpecification& operator=(const Spline1DSpecification&) CON_DELETE;
+#endif
+
+  /// Destructor
+  ~Spline1DSpecification() CON_DEFAULT;
+
+ protected:
+#ifndef GPUCA_ALIROOT_LIB
+  ClassDefNV(Spline1DSpecification, 1);
+#endif
+};
+
+/// nYdim is taken as a temolate argument nYdimT and known at the compile time
+///
+template <typename DataT, int nYdimT, bool fixedMemAllocT>
+class Spline1DSpecification<DataT, nYdimT, true, fixedMemAllocT> : public Spline1DMath<DataT, nYdimT, true, fixedMemAllocT>
+{
+ public:
+  typedef Spline1DMath<DataT, nYdimT, true, fixedMemAllocT> TBase;
+  typedef typename TBase::SafeFlag SafeFlag;
+  typedef typename TBase::Knot Knot;
+
+/// _____________  C++ constructors / destructors __________________________
+
+#if !defined(GPUCA_GPUCODE)
+  /// Default constructor
+  Spline1DSpecification() : Spline1DSpecification(2) {}
+
+  /// Constructor for a regular spline
+  Spline1DSpecification(int numberOfKnots) : TBase(nYdimT, numberOfKnots) {}
+
+  /// Constructor for an irregular spline
+  Spline1DSpecification(int numberOfKnots, const int knotU[])
+    : TBase(nYdimT, numberOfKnots, knotU) {}
+
+  /// Copy constructor
+  Spline1DSpecification(const Spline1DSpecification& v) : TBase(v){};
+
+  /// Assignment operator
+  Spline1DSpecification& operator=(const Spline1DSpecification& v)
+  {
+    TBase::operator=(v);
+  }
+#else
+  /// Disable constructors for the GPU implementation
+  Spline1DSpecification() CON_DELETE;
+  Spline1DSpecification(const Spline1DSpecification&) CON_DELETE;
+  Spline1DSpecification& operator=(const Spline1DSpecification&) CON_DELETE;
+#endif
+
+  /// Destructor
+  ~Spline1DSpecification() CON_DEFAULT;
+
+/// _______________  Construction interface  ________________________
+
+#if !defined(GPUCA_GPUCODE)
+
+  /// Constructor for a regular spline
+  void recreate(int numberOfKnots) { TBase::recreate(nYdimT, numberOfKnots); }
+
+  /// Constructor for an irregular spline
+  void recreate(int numberOfKnots, const int knotU[])
+  {
+    TBase::recreate(nYdimT, numberOfKnots, knotU);
+  }
+#endif
+
+  /// _______________  Getters   ________________________
+
+  /// Get number of Y dimensions
+  GPUd() constexpr int getYdimensions() const { return nYdimT; }
+
+  /// Get minimal required alignment for the spline parameters
+  GPUd() constexpr size_t getParameterAlignmentBytes() const
+  {
+    size_t s = 2 * sizeof(DataT) * nYdimT;
+    return (s < 16) ? s : 16;
+  }
+
+  /// Number of parameters
+  GPUd() int getNumberOfParameters() const { return (2 * nYdimT) * getNumberOfKnots(); }
+
+  /// Size of the parameter array in bytes
+  GPUd() size_t getSizeOfParameters() const { return (sizeof(DataT) * 2 * nYdimT) * getNumberOfKnots(); }
+
+  using TBase::getNumberOfKnots;
+
+  /// _______________  Suppress some base class methods   ________________________
+ private:
+#if !defined(GPUCA_GPUCODE)
+  using TBase::recreate;
+#endif
+
+#ifndef GPUCA_ALIROOT_LIB
+  ClassDefNV(Spline1DSpecification, 1);
+#endif
+};
+
+// ==================================================================================================
+
+/// Declare the spline class as a template with one optional parameter
+///
+template <typename DataT, int... nYdimT>
+class Spline1D;
+
+template <typename DataT>
+class Spline1D<DataT> : public Spline1DSpecification<DataT, 0, false, false>
+{
+ public:
+  typedef Spline1DSpecification<DataT, 0, false, false> TBase;
+  typedef typename TBase::SafeFlag SafeFlag;
+  typedef typename TBase::Knot Knot;
+  //typedef typename Spline1DContainer<DataT>::Knot Knot;
+  using TBase::TBase;
+
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
+  /// read a class object from the file
+  static Spline1D* readFromFile(TFile& inpf, const char* name)
+  {
+    return (Spline1D*)Spline1DContainer<DataT>::readFromFile(inpf, name);
+  }
+#endif
+
+  ClassDefNV(Spline1D, 1);
+};
+
+template <typename DataT, int nYdimT>
+class Spline1D<DataT, nYdimT> : public Spline1DSpecification<DataT, nYdimT, (nYdimT >= 0), true>
+{
+ public:
+  typedef Spline1DSpecification<DataT, nYdimT, (nYdimT >= 0), true> TBase;
+  typedef typename TBase::SafeFlag SafeFlag;
+  typedef typename TBase::Knot Knot;
+  //typedef typename Spline1DContainer<DataT>::Knot Knot;
+  using TBase::TBase;
+
+  operator Spline1D<DataT>&() { return (Spline1D<DataT>&)*this; }
+  operator const Spline1D<DataT>&() const { return (const Spline1D<DataT>&)*this; }
+
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
+  /// read a class object from the file
+  static Spline1D* readFromFile(TFile& inpf, const char* name)
+  {
+    return (Spline1D*)Spline1DContainer<DataT>::readFromFile(inpf, name);
+  }
+#endif
+
+  ClassDefNV(Spline1D, 1);
+};
 
 } // namespace gpu
 } // namespace GPUCA_NAMESPACE
