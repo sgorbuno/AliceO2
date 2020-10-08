@@ -61,7 +61,7 @@ template <typename DataT>
 class Spline2DBase : public FlatObject
 {
  public:
-  typedef typename Spline1D<DataT>::SafeFlag SafeFlag;
+  typedef typename Spline1D<DataT>::SafetyLevel SafetyLevel;
   typedef typename Spline1D<DataT>::Knot Knot;
 
   /// _____________  Version control __________________________
@@ -245,7 +245,7 @@ class Spline2DBase : public FlatObject
   /// Get interpolated value {S(u): 2D -> mYdim} at (u1,u2)
   /// using the spline values at the segment [knotL1, knotL1+1][knotL2, knotL2+1]
   /// Only first nYdimCalc out of nYdim Y dimensions are calculated
-  template <SafeFlag Safe, bool DoFirstDimOnly>
+  template <SafetyLevel Safe, bool DoFirstDimOnly>
   GPUd() void interpolateUMath1(int nYdim, GPUgeneric() const DataT Parameters[],
                                 DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const;
 
@@ -475,7 +475,7 @@ GPUdi() void Spline2DBase<DataT>::interpolateUMath(int nYdim, GPUgeneric() const
                                                    DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const
 {
   /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
-  interpolateUMath1<SafeFlag::kSafe, 0>(nYdim, Parameters, u1, u2, S);
+  interpolateUMath1<SafetyLevel::kSafe, 0>(nYdim, Parameters, u1, u2, S);
 }
 
 template <typename DataT>
@@ -483,7 +483,7 @@ GPUdi() void Spline2DBase<DataT>::interpolateUnonSafeMath(int nYdim, GPUgeneric(
                                                           DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const
 {
   /// Same as interpolateU(..) but with no boundary checks
-  interpolateUMath1<SafeFlag::kNotSafe, 0>(nYdim, Parameters, u1, u2, S);
+  interpolateUMath1<SafetyLevel::kNotSafe, 0>(nYdim, Parameters, u1, u2, S);
 }
 
 /// The main mathematical utility.
@@ -491,7 +491,7 @@ GPUdi() void Spline2DBase<DataT>::interpolateUnonSafeMath(int nYdim, GPUgeneric(
 /// using the spline values at the segment [knotL1, knotL1+1][knotL2, knotL2+1]
 /// Only first nYdimCalc out of nYdim Y dimensions are calculated
 template <typename DataT>
-template <typename Spline2DBase<DataT>::SafeFlag Safe, bool DoFirstDimOnly>
+template <typename Spline2DBase<DataT>::SafetyLevel Safe, bool DoFirstDimOnly>
 GPUdi() void Spline2DBase<DataT>::interpolateUMath1(int nYdim, GPUgeneric() const DataT Parameters[],
                                                     DataT u1, DataT u2, GPUgeneric() DataT S[/*nYdim*/]) const
 {
@@ -502,8 +502,8 @@ GPUdi() void Spline2DBase<DataT>::interpolateUMath1(int nYdim, GPUgeneric() cons
   int iu = mGridU1.getLeftKnotIndexForU<Safe>(u);
   int iv = mGridU2.getLeftKnotIndexForU<Safe>(v);
 
-  const typename Spline1D<DataT>::Knot& knotU = mGridU1.getKnot<SafeFlag::kNotSafe>(iu);
-  const typename Spline1D<DataT>::Knot& knotV = mGridU2.getKnot<SafeFlag::kNotSafe>(iv);
+  const typename Spline1D<DataT>::Knot& knotU = mGridU1.getKnot<SafetyLevel::kNotSafe>(iu);
+  const typename Spline1D<DataT>::Knot& knotV = mGridU2.getKnot<SafetyLevel::kNotSafe>(iv);
 
   const int nYdim2 = nYdim * 2;
   const int nYdim4 = nYdim * 4;
@@ -553,7 +553,7 @@ template <typename DataT>
 GPUdi() void Spline2DBase<DataT>::
   interpolateMath(int nYdim, DataT x1, DataT x2, GPUgeneric() DataT S[/*nYdim*/]) const
 { /// Get interpolated value S(x)
-  interpolateUMath1<SafeFlag::kSafe, 0>(nYdim, mParameters, mGridU1.convXtoU(x1), mGridU2.convXtoU(x2), S);
+  interpolateUMath1<SafetyLevel::kSafe, 0>(nYdim, mParameters, mGridU1.convXtoU(x1), mGridU2.convXtoU(x2), S);
 }
 
 template <typename DataT>
@@ -561,7 +561,7 @@ GPUdi() DataT Spline2DBase<DataT>::
   interpolateMath(int nYdim, DataT x1, DataT x2) const
 { /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
   DataT S;
-  interpolateUMath1<SafeFlag::kSafe, 1>(nYdim, mParameters, mGridU1.convXtoU(x1), mGridU2.convXtoU(x2), &S);
+  interpolateUMath1<SafetyLevel::kSafe, 1>(nYdim, mParameters, mGridU1.convXtoU(x1), mGridU2.convXtoU(x2), &S);
   return S;
 }
 

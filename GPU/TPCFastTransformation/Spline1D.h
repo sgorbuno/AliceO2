@@ -216,7 +216,7 @@ class Spline1DContainer : public FlatObject
   }
 
   /// Number of parameters
-  GPUd() int getNumberOfParameters() const { return (2 * mYdim) * getNumberOfKnots(); }
+  GPUd() int getNumberOfParameters() const { return calcNumberOfParameters(mYdim); }
 
   /// Size of the parameter array in bytes
   GPUd() size_t getSizeOfParameters() const { return sizeof(DataT) * getNumberOfParameters(); }
@@ -228,17 +228,17 @@ class Spline1DContainer : public FlatObject
   GPUd() const Knot* getKnots() const { return reinterpret_cast<const Knot*>(mFlatBufferPtr); }
 
   /// Get i-th knot
-  template <SafetyLevel Safe = SafetyLevel::kSafe>
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
   GPUd() const Knot& getKnot(int i) const
   {
-    if (Safe == SafetyLevel::kSafe) {
+    if (SafeT == SafetyLevel::kSafe) {
       i = (i < 0) ? 0 : (i >= mNumberOfKnots ? mNumberOfKnots - 1 : i);
     }
     return getKnots()[i];
   }
 
   /// Get index of an associated knot for a given U coordinate. Performs a boundary check.
-  template <SafetyLevel Safe = SafetyLevel::kSafe>
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
   GPUd() int getLeftKnotIndexForU(DataT u) const;
 
   /// Get spline parameters
@@ -399,10 +399,17 @@ class Spline1DCommon
   /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
   GPUd() DataT interpolate(DataT x) const;
 
-  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
+  using TBase::convXtoU;
+  using TBase::getKnot;
+  using TBase::getKnots;
+  using TBase::getNumberOfKnots;
+
+ protected:
+  using TBase::mParameters;
+  using TBase::mYdim;
 
   /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
-  template <SafetyLevel safe = SafetyLevel::kSafe>
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
   GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
                            DataT u, GPUgeneric() DataT S[/*nYdim*/]) const;
 
@@ -415,14 +422,6 @@ class Spline1DCommon
                            GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
                            DataT u, GPUgeneric() T S[/*mYdim*/]) const;
 
-  using TBase::convXtoU;
-  using TBase::getKnot;
-  using TBase::getKnots;
-  using TBase::getNumberOfKnots;
-
- protected:
-  using TBase::mParameters;
-  using TBase::mYdim;
 #ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline1DCommon, 1);
 #endif
@@ -505,9 +504,13 @@ template <typename DataT, int nYdimT, bool fixedMemAllocT>
 class Spline1DSpecific<DataT, nYdimT, false, fixedMemAllocT>
   : public Spline1DCommon<DataT, nYdimT, false, fixedMemAllocT>
 {
+  typedef Spline1DContainer<DataT> TVeryBase;
   typedef Spline1DCommon<DataT, nYdimT, false, fixedMemAllocT> TBase;
 
  public:
+  typedef typename TVeryBase::SafetyLevel SafetyLevel;
+  typedef typename TVeryBase::Knot Knot;
+
   /// _____________  C++ constructors / destructors __________________________
 
 #if !defined(GPUCA_GPUCODE)
@@ -537,6 +540,16 @@ class Spline1DSpecific<DataT, nYdimT, false, fixedMemAllocT>
   /// Destructor
   ~Spline1DSpecific() CON_DEFAULT;
 
+  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
+
+  /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
+  GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
+                           DataT u, GPUgeneric() DataT S[/*nYdim*/]) const
+  {
+    TBase::template interpolateU<SafeT>(nYdim, Parameters, u, S);
+  }
+
  public:
 #ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline1DSpecific, 1);
@@ -551,9 +564,13 @@ template <typename DataT, int nYdimT, bool fixedMemAllocT>
 class Spline1DSpecific<DataT, nYdimT, true, fixedMemAllocT>
   : public Spline1DCommon<DataT, nYdimT, true, fixedMemAllocT>
 {
+  typedef Spline1DContainer<DataT> TVeryBase;
   typedef Spline1DCommon<DataT, nYdimT, true, fixedMemAllocT> TBase;
 
  public:
+  typedef typename TVeryBase::SafetyLevel SafetyLevel;
+  typedef typename TVeryBase::Knot Knot;
+
   /// _____________  C++ constructors / destructors __________________________
 
 #if !defined(GPUCA_GPUCODE)
@@ -614,6 +631,16 @@ class Spline1DSpecific<DataT, nYdimT, true, fixedMemAllocT>
   /// Size of the parameter array in bytes
   GPUd() size_t getSizeOfParameters() const { return (sizeof(DataT) * 2 * nYdimT) * getNumberOfKnots(); }
 
+  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
+
+  /// Get interpolated value for an nYdimT-dimensional S(u) using spline parameters Parameters.
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
+  GPUd() void interpolateU(GPUgeneric() const DataT Parameters[],
+                           DataT u, GPUgeneric() DataT S[/*nYdim*/]) const
+  {
+    TBase::template interpolateU<SafeT>(nYdimT, Parameters, u, S);
+  }
+
   using TBase::getNumberOfKnots;
 
   /// _______________  Suppress some base class methods   ________________________
@@ -621,6 +648,7 @@ class Spline1DSpecific<DataT, nYdimT, true, fixedMemAllocT>
 #if !defined(GPUCA_GPUCODE)
   using TBase::recreate;
 #endif
+
  public:
 #ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline1DSpecific, 1);

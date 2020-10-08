@@ -108,7 +108,7 @@ class SplineHelper1D
 
   /// _______________  Utilities   ________________________
 
-  const Spline1D<double,0>& getSpline() const { return mSpline; }
+  const Spline1D<double>& getSpline() const { return mSpline; }
 
   int getKnotDataPoint(int iknot) const { return mKnotDataPoints[iknot]; }
 
@@ -130,7 +130,7 @@ class SplineHelper1D
 
   /// helpers for the construction of 1D spline
 
-  Spline1D<double, 0> mSpline;        ///< copy of the spline
+  Spline1D<double> mSpline;           ///< copy of the spline
   int mFdimensions;                   ///< n of F dimensions
   std::vector<DataPoint> mDataPoints; ///< measurement points
   std::vector<int> mKnotDataPoints;   ///< which measurement points are at knots

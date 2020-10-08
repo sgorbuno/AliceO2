@@ -35,7 +35,7 @@ templateClassImp(GPUCA_NAMESPACE::gpu::Spline1DHelper);
 using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT>
-SplineHelper1D<DataT>::SplineHelper1D() : mError(), mSpline(2), mFdimensions(0)
+SplineHelper1D<DataT>::SplineHelper1D() : mError(), mSpline(), mFdimensions(0)
 {
 }
 
@@ -241,7 +241,7 @@ int SplineHelper1D<DataT>::setSpline(
   int nPoints = 0;
   if (!spline.isConstructed()) {
     ret = storeError(-1, "SplineHelper1D<DataT>::setSpline: input spline is not constructed");
-    mSpline.recreate(2);
+    mSpline.recreate(0, 2);
     nAuxiliaryDataPoints = 2;
     nPoints = 4;
   } else {
@@ -249,7 +249,7 @@ int SplineHelper1D<DataT>::setSpline(
     for (int i = 0; i < spline.getNumberOfKnots(); i++) {
       knots.push_back(spline.getKnot(i).getU());
     }
-    mSpline.recreate(spline.getNumberOfKnots(), knots.data());
+    mSpline.recreate(0, spline.getNumberOfKnots(), knots.data());
 
     nPoints = 1 + mSpline.getUmax() + mSpline.getUmax() * nAuxiliaryDataPoints;
     if (nPoints < 2 * mSpline.getNumberOfKnots()) {
