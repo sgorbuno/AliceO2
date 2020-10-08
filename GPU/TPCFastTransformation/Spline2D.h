@@ -297,7 +297,7 @@ class Spline2D : public Spline2DBase<DataT>
   Spline2D(const Spline2D& v) : TBase(v) {}
 
   /// Assignment operator
-  Spline2D& operator=(const Spline2D& v) { TBase::operator=(v); };
+  Spline2D& operator=(const Spline2D& v) { return (Spline2D&) TBase::operator=(v); };
 #else
   /// Disable constructors for the GPU implementation
   Spline2D() CON_DELETE;

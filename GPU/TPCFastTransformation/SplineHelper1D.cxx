@@ -35,7 +35,7 @@ templateClassImp(GPUCA_NAMESPACE::gpu::Spline1DHelper);
 using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT>
-SplineHelper1D<DataT>::SplineHelper1D() : mError(), mSpline(), mFdimensions(0)
+SplineHelper1D<DataT>::SplineHelper1D() : mError(), mSpline(2), mFdimensions(0)
 {
 }
 
@@ -582,9 +582,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
     nKnots = spline1.getNumberOfKnots();
     int nAuxiliaryPoints = 1;
     Spline1D<float, Ndim> spline2(spline1);
-
     spline1.approximateFunction(0., TMath::Pi(), F, nAuxiliaryPoints);
-
     //if (itry == 0)
     {
       TFile outf("testSpline1D.root", "recreate");

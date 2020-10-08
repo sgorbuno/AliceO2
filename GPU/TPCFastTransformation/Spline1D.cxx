@@ -275,5 +275,5 @@ template class GPUCA_NAMESPACE::gpu::Spline1DContainer<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1DContainer<double>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1D<double>;
-template class GPUCA_NAMESPACE::gpu::Spline1D<float, 0>;
-template class GPUCA_NAMESPACE::gpu::Spline1D<double, 0>;
+//template class GPUCA_NAMESPACE::gpu::Spline1D<float, 0>;
+//template class GPUCA_NAMESPACE::gpu::Spline1D<double, 0>;
