@@ -11,6 +11,7 @@
 set(MODULE TPCFastTransformation)
 
 set(SRCS
+    SplineXD.cxx
     Spline1D.cxx
     Spline2D.cxx
     SplineHelper1D.cxx

@@ -13,9 +13,9 @@
 
 #ifdef __CLING__
 
-#pragma link off all globals;
-#pragma link off all classes;
-#pragma link off all functions;
+//#pragma link off all globals;
+//#pragma link off all classes;
+//#pragma link off all functions;
 
 #pragma link C++ nestedclasses;
 #pragma link C++ nestedtypedef;
@@ -24,6 +24,11 @@
 
 #pragma link C++ class o2::gpu::Spline1D < float> + ;
 #pragma link C++ class o2::gpu::Spline1D < double> + ;
+
+#pragma link C++ class o2::gpu::blabla + ;
+
+#pragma link C++ class o2::gpu::SplineXD < float > +;
+#pragma link C++ class o2::gpu::SplineXD < double > +;
 
 #pragma link C++ class o2::gpu::Spline2DBase < float> + ;
 #pragma link C++ class o2::gpu::Spline2DBase < double> + ;
