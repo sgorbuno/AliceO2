@@ -275,6 +275,8 @@ class Spline1DContainer : public FlatObject
   /// Number of parameters for a given Y dimensions
   GPUd() int calcNumberOfParameters(int nYdim) const { return (2 * nYdim) * getNumberOfKnots(); }
 
+  ///_______________  Test tools  _______________
+
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
   /// Test the class functionality
   static int test(const bool draw = 0, const bool drawDataPoints = 1);
@@ -421,10 +423,6 @@ class Spline1DCommon
                            GPUgeneric() const T Sl[/*mYdim*/], GPUgeneric() const T Dl[/*mYdim*/],
                            GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
                            DataT u, GPUgeneric() T S[/*mYdim*/]) const;
-
-#ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(Spline1DCommon, 1);
-#endif
 };
 
 template <typename DataT, int nYdimT, bool useYdimT, bool fixedMemAllocT>
@@ -549,11 +547,6 @@ class Spline1DSpecific<DataT, nYdimT, false, fixedMemAllocT>
   {
     TBase::template interpolateU<SafeT>(nYdim, Parameters, u, S);
   }
-
- public:
-#ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(Spline1DSpecific, 1);
-#endif
 };
 
 /// ==================================================================================================
@@ -648,11 +641,6 @@ class Spline1DSpecific<DataT, nYdimT, true, fixedMemAllocT>
 #if !defined(GPUCA_GPUCODE)
   using TBase::recreate;
 #endif
-
- public:
-#ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(Spline1DSpecific, 1);
-#endif
 };
 
 /// ==================================================================================================
@@ -696,7 +684,9 @@ class Spline1D<DataT, -666> : public Spline1DSpecific<DataT, 0, false, false>
   }
 #endif
 
+#ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline1D, 0);
+#endif
 };
 
 /// ==================================================================================================
@@ -745,8 +735,6 @@ class Spline1D : public Spline1DSpecific<DataT, nYdimT, (nYdimT >= 0), true>
     return (Spline1D*)TVeryBase::readFromFile(inpf, name);
   }
 #endif
-
-  ClassDefNV(Spline1D, 0);
 };
 
 } // namespace gpu
