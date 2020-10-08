@@ -401,6 +401,13 @@ class Spline1DCommon
   /// Get interpolated value for the first dimension of S(x). (Simplified interface for 1D)
   GPUd() DataT interpolate(DataT x) const;
 
+  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
+
+  /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
+  GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
+                           DataT u, GPUgeneric() DataT S[/*nYdim*/]) const;
+
   using TBase::convXtoU;
   using TBase::getKnot;
   using TBase::getKnots;
@@ -409,11 +416,6 @@ class Spline1DCommon
  protected:
   using TBase::mParameters;
   using TBase::mYdim;
-
-  /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
-  template <SafetyLevel SafeT = SafetyLevel::kSafe>
-  GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
-                           DataT u, GPUgeneric() DataT S[/*nYdim*/]) const;
 
   /// The main mathematical utility.
   /// Get interpolated value {S(u): 1D -> nYdim} at the segment [knotL, next knotR]
@@ -537,16 +539,6 @@ class Spline1DSpecific<DataT, nYdimT, false, fixedMemAllocT>
 
   /// Destructor
   ~Spline1DSpecific() CON_DEFAULT;
-
-  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
-
-  /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
-  template <SafetyLevel SafeT = SafetyLevel::kSafe>
-  GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
-                           DataT u, GPUgeneric() DataT S[/*nYdim*/]) const
-  {
-    TBase::template interpolateU<SafeT>(nYdim, Parameters, u, S);
-  }
 };
 
 /// ==================================================================================================
@@ -636,11 +628,12 @@ class Spline1DSpecific<DataT, nYdimT, true, fixedMemAllocT>
 
   using TBase::getNumberOfKnots;
 
-  /// _______________  Suppress some base class methods   ________________________
+  /// _______________  Suppress some parent class methods   ________________________
  private:
 #if !defined(GPUCA_GPUCODE)
   using TBase::recreate;
 #endif
+  using TBase::interpolateU;
 };
 
 /// ==================================================================================================
