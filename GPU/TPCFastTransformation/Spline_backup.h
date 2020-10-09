@@ -69,7 +69,7 @@ class SplineBase : public FlatObject
   /// Version control
   GPUhd() static constexpr int getVersion() { return 1; }
 
-    /// _____________  Constructors / destructors __________________________
+  /// _____________  Constructors / destructors __________________________
 
 #if !defined(GPUCA_GPUCODE)
   /// constructor && default constructor for the ROOT streamer
@@ -266,9 +266,9 @@ class Spline : public SplineBase<DataT, isConsistentT>
   /// Get number of F dimensions.
   GPUhd() static constexpr int getFdimensions() { return nFdimT; }
 
-  using BaseT::getKnotIndex;
   using BaseT::mFparameters;
   using BaseT::mGrid;
+  using BaseT::getKnotIndex;
 };
 
 ///
@@ -369,7 +369,7 @@ template <typename DataT, int nXdimT, int nFdimT, bool isConsistentT>
 GPUhdi() DataT Spline<DataT, nXdimT, nFdimT, isConsistentT>::
   interpolate(GPUgeneric() const DataT x[]) const
 {
-/// Simplified interface for 1D: get interpolated value for the first dimension of F(x)
+  /// Simplified interface for 1D: get interpolated value for the first dimension of F(x)
 
 #if defined(GPUCA_GPUCODE)
   DataT S[nFdimT]; // constexpr array size for the GPU compiler
@@ -380,29 +380,28 @@ GPUhdi() DataT Spline<DataT, nXdimT, nFdimT, isConsistentT>::
   return S[0];
 }
 
-#ifdef XXX
 template <typename DataT, int nXdimT, int nFdimT, bool isConsistentT>
 GPUhdi() void Spline<DataT, nXdimT, nFdimT, isConsistentT>::interpolateU(
   GPUgeneric() const DataT Fparameters[],
   GPUgeneric() const DataT u[], GPUgeneric() DataT S[]) const
 
-/// Get interpolated value S for an nFdim-dimensional F(u) using spline parameters Fparameters.
-/// Fparameters can be created via SplineHelper.
+  /// Get interpolated value S for an nFdim-dimensional F(u) using spline parameters Fparameters.
+  /// Fparameters can be created via SplineHelper.
 /*{//DUMMYVERSION:
   for (int i = 0; i < nFdimT; i++) {
     S[i] = 0.; 
     
   }*/
 
-{ //MY VERSION:
-  //std::cout<<"INTERPOLATEU"<<std::endl;
-
-  int nParameters = (int)pow(4.0, nXdimT); //total Nr of Parameters necessary for one interpolation
+{//MY VERSION:
+//std::cout<<"INTERPOLATEU"<<std::endl;
+  
+  int nParameters = (int)pow(4.0, nXdimT); //total Nr of Parameters necessary for one interpolation 
   //std::cout<<"nParameters "<<nParameters<<std::endl;
-  int nKnotParameters = (int)pow(2.0, nXdimT); // Nr of Parameters per Knot
-  DataT iParameters[nParameters * nFdimT];     // Array for all parameters
-
-  int nrofInterpolations = ((int)nParameters / 4) * nFdimT;
+  int nKnotParameters = (int)pow(2.0, nXdimT); // Nr of Parameters per Knot 
+  DataT iParameters[nParameters*nFdimT]; // Array for all parameters 
+  
+  int nrofInterpolations = ((int)nParameters/4)*nFdimT;
 
   /// TO BE REMOVED TESTOUTPUT
   //std::cout<< "numberofInterpolations: " <<nrofInterpolations << std::endl;
@@ -410,67 +409,67 @@ GPUhdi() void Spline<DataT, nXdimT, nFdimT, isConsistentT>::interpolateU(
 
   //TO BE REMOVED (testing fparameters)
   //std::cout << "Fparameters: " << std::endl;
-  //for (int j = 0; j < 128; j++){
-  //    std::cout << Fparameters[j]  <<",";
+  //for (int j = 0; j < 128; j++){ 
+  //    std::cout << Fparameters[j]  <<","; 
   //  }
   //  std::cout << std::endl;
   //END TESTOUTPUT
 
-  //get the indices of the "most left" Knot:
-
-  int indices[nXdimT]; //indices of the 'most left' knot
-  for (int i = 0; i < nXdimT; i++) {
+ //get the indices of the "most left" Knot:
+  
+  int indices[nXdimT]; //indices of the 'most left' knot 
+  for (int i = 0; i < nXdimT; i++){
     indices[i] = mGrid[i].getKnotIndexU(u[i]);
   }
   // get all the needed parameters into one array iParameters[nParameters]:
   int indicestmp[nXdimT];
-  for (int i = 0; i < (int)(pow(2.0, nXdimT)); i++) { // for every necessary Knot
-    for (int k = 0; k < nXdimT; k++) {
-      indicestmp[k] = indices[k] + (int)(i / pow(2.0, k)) % 2; //get the knot-indices in every dimension (mirrored order binary counting)
+  for (int i = 0; i < (int)(pow(2.0, nXdimT)); i++){ // for every necessary Knot
+    for (int k = 0; k < nXdimT; k++){
+       indicestmp[k] = indices[k] + (int)(i/pow(2.0, k))%2; //get the knot-indices in every dimension (mirrored order binary counting)
     }
-    int index = BaseT::getKnotIndex(indicestmp); //get index of the current Knot
+    int index = BaseT::getKnotIndex(indicestmp);//get index of the current Knot
 
-    for (int j = 0; j < nKnotParameters * nFdimT; j++) { //and fill the iparameter array with according parameters
-      iParameters[i * nKnotParameters * nFdimT + j] = Fparameters[index * nFdimT * nKnotParameters + j];
+    for (int j = 0; j < nKnotParameters * nFdimT ; j++){ //and fill the iparameter array with according parameters 
+      iParameters[i*nKnotParameters*nFdimT+j] = Fparameters[index * nFdimT * nKnotParameters + j] ; 
     }
   }
   //now start with the interpolation loop:
-  for (int d = 0; d < nXdimT; d++) { //for every dimension
-    int nrofInterpolations = (int)pow(4.0, nXdimT - d - 1) * nFdimT;
+  for (int d = 0; d < nXdimT; d++) {//for every dimension
+    int nrofInterpolations = (int)pow(4.0, nXdimT-d-1)*nFdimT;
     //std::cout<<"nrofInterpolations = "<<nrofInterpolations<<std::endl;
-    int nrofKnots = (int)pow(2.0, nXdimT - d);
+    int nrofKnots = (int)pow(2.0, nXdimT-d);
     DataT S0[nrofInterpolations];
     DataT D0[nrofInterpolations];
     DataT S1[nrofInterpolations];
     DataT D1[nrofInterpolations];
+    
+    DataT* pointer[4] =  {S0, D0, S1, D1}; // pointers for interpolation arrays S0, D0, S1, D1 point to Arraystart
 
-    DataT* pointer[4] = {S0, D0, S1, D1}; // pointers for interpolation arrays S0, D0, S1, D1 point to Arraystart
-
-    for (int i = 0; i < (int)(pow(2.0, nXdimT - d)); i++) {   //for every knot
-      for (int j = 0; j < (int)(pow(2.0, nXdimT - d)); j++) { // for every parametertype
-        int pointernr = 2 * (i % 2) + (j % 2);                //to which array should it be delivered
-
-        for (int k = 0; k < nFdimT; k++) {
-          pointer[pointernr][0] = iParameters[i * (int)(pow(2.0, nXdimT - d)) * nFdimT + j * nFdimT + k];
-          pointer[pointernr]++;
-        }
-      } // end for j (every parametertype)
-    }   // end for i (every knot)
-
+    for (int i = 0; i < (int)(pow(2.0, nXdimT-d)); i++){ //for every knot 
+      for (int j = 0; j < (int)(pow(2.0, nXdimT-d)); j++) {// for every parametertype
+        int pointernr = 2* (i%2) + (j%2); //to which array should it be delivered
+      
+        for (int k = 0; k < nFdimT; k++){
+          pointer[pointernr][0] = iParameters[i * (int)(pow(2.0, nXdimT-d)) *nFdimT + j *nFdimT + k];          
+          pointer[pointernr]++;  
+        }     
+      }// end for j (every parametertype)
+    }// end for i (every knot)
+    
     const typename Spline1D<DataT>::Knot& knotL = mGrid[d].getKnot(indices[d]);
-    int Fdim = (int)pow(4.0, nXdimT - d - 1) * nFdimT;
-    DataT coordinate = u[d];
-
+    int Fdim = (int)pow(4.0, nXdimT-d-1)*nFdimT ; 
+    DataT coordinate =  u[d];
+    
     mGrid[d].interpolateU(Fdim, knotL, S0, D0, S1, D1, coordinate, iParameters);
 
-  } //end d (every dimension)
-
-  //std::cout<<std::endl<< " ERGEBNIS INTERPOLATU =" << nFdimT << std::endl;
-  for (int i = 0; i < nFdimT; i++) {
+  }//end d (every dimension)
+  
+  //std::cout<<std::endl<< " ERGEBNIS INTERPOLATU =" << nFdimT << std::endl; 
+  for (int i = 0; i < nFdimT; i++ ){
     S[i] = iParameters[i]; // write into result-array
     //std::cout<<iParameters[i] <<", ";
   }
-  //std::cout<<std::endl;
+  //std::cout<<std::endl; 
 } // end interpolateU
 
   // TODO: Implement
@@ -527,87 +526,9 @@ GPUhdi() void Spline<DataT, nXdimT, nFdimT, isConsistentT>::interpolateU(
 
   mGridU2.interpolateU(nFdim, knotV, Sv0, Dv0, Sv1, Dv1, v, S);
   */
-#endif
+}
 
-template <typename DataT, int nXdimT, int nFdimT, bool isConsistentT>
-GPUhdi() void Spline<DataT, nXdimT, nFdimT, isConsistentT>::interpolateU(
-  GPUgeneric() const DataT Fparameters[],
-  GPUgeneric() const DataT u[], GPUgeneric() DataT S[]) const
-{ //MY VERSION:
-
-  /// Get interpolated value S for an nFdim-dimensional F(u) using spline parameters Fparameters.
-  /// Fparameters can be created via SplineHelper.
-
-  //std::cout<<"INTERPOLATEU"<<std::endl;
-
-  constexpr int nParameters = 1 << (2 * nXdimT); //(int)pow(4.0, nXdimT); //total Nr of Parameters necessary for one interpolation
-  //std::cout<<"nParameters "<<nParameters<<std::endl;
-  constexpr int nKnotParameters = 1 << nXdimT; //(int)pow(2.0, nXdimT); // Nr of Parameters per Knot
-  DataT iParameters[nParameters * nFdimT];     // Array for all parameters
-
-  //constexpr int nrofInterpolations = ((int)nParameters / 4) * nFdimT;
-
-  //get the indices of the "most left" Knot:
-
-  int indices[nXdimT]; //indices of the 'most left' knot
-  for (int i = 0; i < nXdimT; i++) {
-    indices[i] = mGrid[i].getKnotIndexU(u[i]);
-  }
-  // get all the needed parameters into one array iParameters[nParameters]:
-  int indicestmp[nXdimT];
-  for (int i = 0; i < nKnotParameters; i++) { // for every necessary Knot
-    for (int k = 0; k < nXdimT; k++) {
-      indicestmp[k] = indices[k] + (i / (1 << k)) % 2; //get the knot-indices in every dimension (mirrored order binary counting)
-    }
-    int index = BaseT::getKnotIndex(indicestmp); //get index of the current Knot
-
-    for (int j = 0; j < nKnotParameters * nFdimT; j++) { //and fill the iparameter array with according parameters
-      iParameters[i * nKnotParameters * nFdimT + j] = Fparameters[index * nFdimT * nKnotParameters + j];
-    }
-  }
-  //now start with the interpolation loop:
-  int nrofInterpolations = (1 << (2 * nXdimT - 2)) * nFdimT;
-  int nrofKnots = 1 << (nXdimT);
-
-  DataT S0[nrofInterpolations];
-  DataT D0[nrofInterpolations];
-  DataT S1[nrofInterpolations];
-  DataT D1[nrofInterpolations];
-
-  for (int d = 0; d < nXdimT; d++) { //for every dimension
-    //std::cout<<"nrofInterpolations = "<<nrofInterpolations<<std::endl;
-
-    DataT* pointer[4] = {S0, D0, S1, D1}; // pointers for interpolation arrays S0, D0, S1, D1 point to Arraystart
-
-    for (int i = 0; i < nrofKnots; i++) {      //for every knot
-      for (int j = 0; j < nrofKnots; j++) {    // for every parametertype
-        int pointernr = 2 * (i % 2) + (j % 2); //to which array should it be delivered
-        for (int k = 0; k < nFdimT; k++) {
-          pointer[pointernr][0] = iParameters[(i * nrofKnots + j) * nFdimT + k];
-          pointer[pointernr]++;
-        }
-      } // end for j (every parametertype)
-    }   // end for i (every knot)
-
-    const typename Spline1D<DataT>::Knot& knotL = mGrid[d].getKnot(indices[d]);
-    int Fdim = nrofInterpolations;
-    DataT coordinate = u[d];
-
-    mGrid[d].interpolateU(Fdim, knotL, S0, D0, S1, D1, coordinate, iParameters);
-
-    nrofInterpolations = nrofInterpolations / 4;
-    nrofKnots = nrofKnots / 2;
-  } //end d (every dimension)
-
-  //std::cout<<std::endl<< " ERGEBNIS INTERPOLATU =" << nFdimT << std::endl;
-  for (int i = 0; i < nFdimT; i++) {
-    S[i] = iParameters[i]; // write into result-array
-    //std::cout<<iParameters[i] <<", ";
-  }
-  //std::cout<<std::endl;
-} // end interpolateU
-
-} // namespace gpu
+//} // namespace gpu
 } // namespace GPUCA_NAMESPACE
 
 #endif

@@ -243,10 +243,8 @@ SplineBase<DataT, isConsistentT>* SplineBase<DataT, isConsistentT>::readFromFile
   return FlatObject::readFromFile<SplineBase<DataT, isConsistentT>>(inpf, name);
 }
 
-
-
-  // TODO: Implement
-  /*
+// TODO: Implement
+/*
   using namespace std;
 
   const int Ndim = 3;
@@ -510,17 +508,17 @@ int SplineBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataP
   constexpr int nKnots = 4;
   constexpr int nAxiliaryPoints = 1;
   constexpr int uMax = nKnots * 3;
-  auto F = [&](DataT u[],  DataT Fuv[]) {
+  auto F = [&](DataT u[], DataT Fuv[]) {
     const double scale = TMath::Pi() / uMax;
     double uu = u[0] * scale;
     double vv = u[1] * scale;
     double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
     double ui = 0, vi = 0;
     for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
-      cosu[i] = cos ( ui  );
-      sinu[i] = sin (ui);
-      cosv[i] = cos ( vi  );
-      sinv[i] = sin (vi);
+      cosu[i] = cos(ui);
+      sinu[i] = sin(ui);
+      cosv[i] = cos(vi);
+      sinv[i] = sin(vi);
     }
     for (int dim = 0; dim < Ndim; dim++) {
       double f = 0; // Fcoeff[dim][0]/2;
@@ -536,23 +534,23 @@ int SplineBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataP
       Fuv[dim] = f;
     }
   };
-  
+
   int seed = 1;
   gRandom->SetSeed(seed);
 
-    for (int dim = 0; dim < Ndim; dim++) {
-      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
-        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
-      }
-    }
-  std::cout << "Fcoeff: " << std::endl; 
   for (int dim = 0; dim < Ndim; dim++) {
-      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
-        std::cout << Fcoeff[dim][i] << ", "<< std::endl;
-      }
+    for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+      Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
     }
-  std::cout << std::endl; 
-  
+  }
+  std::cout << "Fcoeff: " << std::endl;
+  for (int dim = 0; dim < Ndim; dim++) {
+    for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+      std::cout << Fcoeff[dim][i] << ", " << std::endl;
+    }
+  }
+  std::cout << std::endl;
+
   TCanvas* canv = nullptr;
   TNtuple* nt = nullptr;
   TNtuple* knots = nullptr;
@@ -675,17 +673,13 @@ int SplineBase<DataT, isConsistentT>::test(const bool draw, const bool drawDataP
       }
     
   }//end if seed */
-  std::cout << "testfunction!"<< std::endl;
+  std::cout << "testfunction!" << std::endl;
   return 0;
-}//END END TESTFUNCTION 2D
-    
+} //END END TESTFUNCTION 2D
 
-/////////////////
+  /////////////////
 
-/////
-
-
-
+  /////
 
 #endif // GPUCA_GPUCODE
 
@@ -694,4 +688,5 @@ template class GPUCA_NAMESPACE::gpu::SplineBase<float, true>;
 template class GPUCA_NAMESPACE::gpu::SplineBase<double, false>;
 template class GPUCA_NAMESPACE::gpu::SplineBase<double, true>;
 
-template class GPUCA_NAMESPACE::gpu::Spline<float, 2,3,true>;
+template class GPUCA_NAMESPACE::gpu::Spline<float, 2, 3, true>;
+template class GPUCA_NAMESPACE::gpu::Spline<float, 2, 2, true>;
