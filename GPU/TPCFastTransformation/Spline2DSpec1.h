@@ -8,16 +8,23 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  Spline1D.cxx
-/// \brief Implementation of Spline1D class
+/// \file  Spline2DSpec.h
+/// \brief Definition of Spline2DSpec class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#include "Spline1D.h"
+#ifndef MYTEST_H
+#define MYTEST_H
 
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
-templateClassImp(GPUCA_NAMESPACE::gpu::Spline1D);
+#include "TObject.h"
+
+template <typename DataTT>
+class MyTest : public TObject //FlatObject
+{
+ public:
+  int mYdim;
+
+  ClassDefNV(MyTest, 0);
+};
+
 #endif
-
-template class GPUCA_NAMESPACE::gpu::Spline1D<float>;
-template class GPUCA_NAMESPACE::gpu::Spline1D<double>;
