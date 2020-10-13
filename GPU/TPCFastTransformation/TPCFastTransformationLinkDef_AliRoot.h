@@ -22,8 +22,10 @@
 
 #pragma link C++ namespace AliGPU::gpu;
 
-#pragma link C++ class AliGPU::gpu::Spline1D < float> + ;
-#pragma link C++ class AliGPU::gpu::Spline1D < double> + ;
+#pragma link C++ class AliGPU::gpu::Spline1DContainer< float> + ;
+#pragma link C++ class AliGPU::gpu::Spline1DContainer< double> + ;
+//#pragma link C++ class AliGPU::gpu::Spline1D < float> + ;
+//#pragma link C++ class AliGPU::gpu::Spline1D < double> + ;
 #pragma link C++ class AliGPU::gpu::Spline2DBase < float, false> + ;
 #pragma link C++ class AliGPU::gpu::Spline2DBase < double, false> + ;
 #pragma link C++ class AliGPU::gpu::Spline2DBase < float, true> + ;
