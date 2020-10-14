@@ -11,10 +11,10 @@
 set(MODULE TPCFastTransformation)
 
 set(SRCS
-    Spline1D.cxx
     Spline1DSpec.cxx
+    Spline1D.cxx
+    Spline2DSpec.cxx
     Spline2D.cxx
-#    Spline2DSpec1.cxx
     SplineHelper1D.cxx
     SplineHelper2D.cxx
     ChebyshevFit1D.cxx

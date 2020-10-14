@@ -21,6 +21,15 @@
 #include "TVectorD.h"
 #include "TDecompBK.h"
 
+#include <vector>
+#include "TRandom.h"
+#include "TMath.h"
+#include "TCanvas.h"
+#include "TNtuple.h"
+#include "TFile.h"
+#include "GPUCommonMath.h"
+#include <iostream>
+
 using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT>
@@ -211,6 +220,262 @@ void SplineHelper2D<DataT>::approximateFunction(
       }
     }
   }
+}
+
+template <typename DataT>
+int SplineHelper2D<DataT>::test(const bool draw, const bool drawDataPoints)
+{
+  using namespace std;
+
+  const int Ndim = 3;
+
+  const int Fdegree = 4;
+
+  double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
+
+  constexpr int nKnots = 4;
+  constexpr int nAuxiliaryPoints = 1;
+  constexpr int uMax = nKnots * 3;
+
+  auto F = [&](double u, double v, double Fuv[]) {
+    const double scale = TMath::Pi() / uMax;
+    double uu = u * scale;
+    double vv = v * scale;
+    double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
+    double ui = 0, vi = 0;
+    for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
+      GPUCommonMath::SinCos(ui, sinu[i], cosu[i]);
+      GPUCommonMath::SinCos(vi, sinv[i], cosv[i]);
+    }
+    for (int dim = 0; dim < Ndim; dim++) {
+      double f = 0; // Fcoeff[dim][0]/2;
+      for (int i = 1; i <= Fdegree; i++) {
+        for (int j = 1; j <= Fdegree; j++) {
+          double* c = &(Fcoeff[dim][4 * (i * Fdegree + j)]);
+          f += c[0] * cosu[i] * cosv[j];
+          f += c[1] * cosu[i] * sinv[j];
+          f += c[2] * sinu[i] * cosv[j];
+          f += c[3] * sinu[i] * sinv[j];
+        }
+      }
+      Fuv[dim] = f;
+    }
+  };
+
+  TCanvas* canv = nullptr;
+  TNtuple* nt = nullptr;
+  TNtuple* knots = nullptr;
+
+  auto ask = [&]() -> bool {
+    if (!canv) {
+      return 0;
+    }
+    canv->Update();
+    cout << "type 'q ' to exit" << endl;
+    std::string str;
+    std::getline(std::cin, str);
+    return (str != "q" && str != ".q");
+  };
+
+  std::cout << "Test 2D interpolation with the compact spline" << std::endl;
+
+  int nTries = 10;
+
+  if (draw) {
+    canv = new TCanvas("cQA", "Spline2D  QA", 1500, 800);
+    nTries = 10000;
+  }
+
+  long double statDf = 0;
+  long double statDf1D = 0;
+  long double statN = 0;
+
+  for (int seed = 1; seed < nTries + 1; seed++) {
+    //cout << "next try.." << endl;
+
+    gRandom->SetSeed(seed);
+
+    for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
+      }
+    }
+
+    Spline2D<DataT, Ndim> spline;
+
+    int knotsU[nKnots], knotsV[nKnots];
+    do {
+      knotsU[0] = 0;
+      knotsV[0] = 0;
+      double du = 1. * uMax / (nKnots - 1);
+      for (int i = 1; i < nKnots; i++) {
+        knotsU[i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
+        knotsV[i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
+      }
+      knotsU[nKnots - 1] = uMax;
+      knotsV[nKnots - 1] = uMax;
+      spline.recreate(nKnots, knotsU, nKnots, knotsV);
+
+      if (nKnots != spline.getGridX1().getNumberOfKnots() ||
+          nKnots != spline.getGridX2().getNumberOfKnots()) {
+        cout << "warning: n knots changed during the initialisation " << nKnots
+             << " -> " << spline.getNumberOfKnots() << std::endl;
+        continue;
+      }
+    } while (0);
+
+    std::string err = FlatObject::stressTest(spline);
+    if (!err.empty()) {
+      cout << "error at FlatObject functionality: " << err << endl;
+      return -1;
+    } else {
+      // cout << "flat object functionality is ok" << endl;
+    }
+
+    // Ndim-D spline
+    spline.approximateFunction(0., uMax, 0., uMax, F, 4, 4);
+
+    //if (itry == 0)
+    if (1) {
+      TFile outf("testSpline2D.root", "recreate");
+      if (outf.IsZombie()) {
+        cout << "Failed to open output file testSpline2D.root " << std::endl;
+      } else {
+        const char* name = "spline2Dtest";
+        spline.writeToFile(outf, name);
+        Spline2D<DataT, Ndim>* p = Spline2D<DataT, Ndim>::readFromFile(outf, name);
+        if (p == nullptr) {
+          cout << "Failed to read Spline1DOld from file testSpline1DOld.root " << std::endl;
+        } else {
+          spline = *p;
+        }
+        outf.Close();
+      }
+    }
+
+    // 1-D splines for each of Ndim dimensions
+
+    Spline2D<DataT, 1> splines1D[Ndim];
+
+    for (int dim = 0; dim < Ndim; dim++) {
+      auto F1 = [&](double x1, double x2, double f[]) {
+        double ff[Ndim];
+        F(x1, x2, ff);
+        f[0] = ff[dim];
+      };
+      splines1D[dim].recreate(nKnots, knotsU, nKnots, knotsV);
+      splines1D[dim].approximateFunction(0., uMax, 0., uMax, F1, 4, 4);
+    }
+
+    double stepU = .1;
+    for (double u = 0; u < uMax; u += stepU) {
+      for (double v = 0; v < uMax; v += stepU) {
+        double f[Ndim];
+        F(u, v, f);
+        DataT s[Ndim];
+        spline.interpolate(u, v, s);
+        for (int dim = 0; dim < Ndim; dim++) {
+          statDf += (s[dim] - f[dim]) * (s[dim] - f[dim]);
+          DataT s1 = splines1D[dim].interpolate(u, v);
+          statDf1D += (s[dim] - s1) * (s[dim] - s1);
+        }
+        statN += Ndim;
+        // cout << u << " " << v << ": f " << f << " s " << s << " df "
+        //   << s - f << " " << sqrt(statDf / statN) << std::endl;
+      }
+    }
+    // cout << "Spline2D standard deviation   : " << sqrt(statDf / statN)
+    //   << std::endl;
+
+    if (draw) {
+      delete nt;
+      delete knots;
+      nt = new TNtuple("nt", "nt", "u:v:f:s");
+      knots = new TNtuple("knots", "knots", "type:u:v:s");
+      double stepU = .3;
+      for (double u = 0; u < uMax; u += stepU) {
+        for (double v = 0; v < uMax; v += stepU) {
+          double f[Ndim];
+          F(u, v, f);
+          DataT s[Ndim];
+          spline.interpolate(u, v, s);
+          nt->Fill(u, v, f[0], s[0]);
+        }
+      }
+      nt->SetMarkerStyle(8);
+
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("s:u:v", "", "");
+
+      nt->SetMarkerColor(kGray);
+      nt->SetMarkerSize(2.);
+      nt->Draw("f:u:v", "", "same");
+
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("s:u:v", "", "same");
+
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          double u = spline.getGridX1().getKnot(i).u;
+          double v = spline.getGridX2().getKnot(j).u;
+          DataT s[Ndim];
+          spline.interpolate(u, v, s);
+          knots->Fill(1, u, v, s[0]);
+        }
+      }
+
+      knots->SetMarkerStyle(8);
+      knots->SetMarkerSize(1.5);
+      knots->SetMarkerColor(kRed);
+      knots->SetMarkerSize(1.5);
+      knots->Draw("s:u:v", "type==1", "same"); // knots
+
+      if (drawDataPoints) {
+        SplineHelper2D<DataT> helper;
+        helper.setSpline(spline, 4, 4);
+        for (int ipu = 0; ipu < helper.getHelperU1().getNumberOfDataPoints(); ipu++) {
+          const typename SplineHelper1D<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
+          for (int ipv = 0; ipv < helper.getHelperU2().getNumberOfDataPoints(); ipv++) {
+            const typename SplineHelper1D<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
+            if (pu.isKnot && pv.isKnot) {
+              continue;
+            }
+            DataT s[Ndim];
+            spline.interpolate(pu.u, pv.u, s);
+            knots->Fill(2, pu.u, pv.u, s[0]);
+          }
+        }
+        knots->SetMarkerColor(kBlack);
+        knots->SetMarkerSize(1.);
+        knots->Draw("s:u:v", "type==2", "same"); // data points
+      }
+
+      if (!ask()) {
+        break;
+      }
+    }
+  }
+  // delete canv;
+  // delete nt;
+  // delete knots;
+
+  statDf = sqrt(statDf / statN);
+  statDf1D = sqrt(statDf1D / statN);
+
+  cout << "\n std dev for Spline2D   : " << statDf << std::endl;
+  cout << " mean difference between 1-D and " << Ndim
+       << "-D splines   : " << statDf1D << std::endl;
+
+  if (statDf < 0.15 && statDf1D < 1.e-20) {
+    cout << "Everything is fine" << endl;
+  } else {
+    cout << "Something is wrong!!" << endl;
+    return -2;
+  }
+
+  return 0;
 }
 
 template class GPUCA_NAMESPACE::gpu::SplineHelper2D<float>;

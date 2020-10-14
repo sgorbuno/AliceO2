@@ -270,8 +270,8 @@ GPUdi() int TPCFastSpaceChargeCorrection::getCorrection(int slice, int row, floa
   const float* splineData = getSplineData(slice, row);
   float su = 0, sv = 0;
   mGeo.convUVtoScaledUV(slice, row, u, v, su, sv);
-  su *= spline.getGridU1().getUmax();
-  sv *= spline.getGridU2().getUmax();
+  su *= spline.getGridX1().getUmax();
+  sv *= spline.getGridX2().getUmax();
   float dxuv[3];
   spline.interpolateU(splineData, su, sv, dxuv);
   dx = dxuv[0];

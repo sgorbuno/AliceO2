@@ -44,9 +44,9 @@ namespace gpu
 /// \param YisAnyT      YdimT is any. This case is a parent for all other specifications.
 /// \param YisPositiveT YdimT >= 0
 /// \param YisOneT      YdimT == 1
-/// \param YisNotSetT   YdimT is not set (it is equal to some specific default value)
+/// \param YisAbsentT   YdimT is not set (it is equal to some specific default value)
 ///
-template <typename DataT, int YdimT, bool YisAnyT, bool YisPositiveT, bool YisOneT, bool YisNotSetT>
+template <typename DataT, int YdimT, bool YisAnyT, bool YisPositiveT, bool YisOneT, bool YisAbsentT>
 class Spline1DSpec;
 
 /// ==================================================================================================
@@ -63,7 +63,7 @@ template <typename DataT>
 class Spline1DContainer : public FlatObject
 {
  public:
-  /// A named enumeration for the safety level used by some methods
+  /// Named enumeration for the safety level used by some methods
   enum SafetyLevel { kNotSafe,
                      kSafe };
 
@@ -264,19 +264,35 @@ GPUdi() void Spline1DContainer<DataT>::setXrange(DataT xMin, DataT xMax)
 }
 
 /// ==================================================================================================
-/// Specification (YisAnyT==1, YisPositiveT=*, YisOneT=*, YisNotSetT=*)
-/// It  declares common methods for all other Spline1D specifications.
-/// Implementations may depend on the YdimT value.
+/// The specification declares common methods for all other Spline1D specifications.
+/// Implementations of the methods may depend on the YdimT value.
 ///
-template <typename DataT, int YdimT, bool YisPositiveT, bool YisOneT, bool YisNotSetT>
-class Spline1DSpec<DataT, YdimT, true, YisPositiveT, YisOneT, YisNotSetT> : public Spline1DContainer<DataT>
+template <typename DataT, int YdimT, bool YisPositiveT, bool YisOneT, bool YisAbsentT>
+class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbsentT> : public Spline1DContainer<DataT>
 {
   typedef Spline1DContainer<DataT> TBase;
+
+ public:
   typedef typename TBase::SafetyLevel SafetyLevel;
   typedef typename TBase::Knot Knot;
 
- public:
-  /// _______________  Main functionality   ________________________
+  /// _______________  Template magic  ________________________
+
+  /// An expression getYdim(YisPositiveTbool{},int) is either an integer or a constexpr integer,
+  /// depending on the YisPositiveT value
+  ///
+  typedef std::integral_constant<bool, YisPositiveT> YisPositiveTbool;
+  static constexpr int getYdim(std::true_type, int) { return YdimT; }
+  static int getYdim(std::false_type, int nYdim) { return nYdim; }
+
+  /// An expression getMaxYdim(YisAbsentTbool{},int) is either an integer or a constexpr integer,
+  /// depending on the YisAbsentT value
+  ///
+  typedef std::integral_constant<bool, YisAbsentT> YisAbsentTbool;
+  static int getMaxYdim(std::true_type, int nYdim) { return nYdim; }
+  static constexpr int getMaxYdim(std::false_type, int) { return abs(YdimT); }
+
+  /// _______________  Interpolation math   ________________________
 
   /// Get interpolated value S(x)
   GPUd() void interpolate(DataT x, GPUgeneric() DataT S[/*mYdim*/]) const
@@ -284,30 +300,12 @@ class Spline1DSpec<DataT, YdimT, true, YisPositiveT, YisOneT, YisNotSetT> : publ
     interpolateU<SafetyLevel::kSafe>(mYdim, mParameters, convXtoU(x), S);
   }
 
-  using TBase::convXtoU;
-  using TBase::getKnot;
-  using TBase::getKnots;
-  using TBase::getNumberOfKnots;
-
- protected:
-  using TBase::TBase; // inherit constructors and hide them
-  using TBase::mParameters;
-  using TBase::mYdim;
-
-  /// A template magic.
-  /// An expression getYdim(dimType{},int) is either an integer or a constexpr integer,
-  /// depending on the YisPositiveT value
-  ///
-  static constexpr int getYdim(std::true_type, int) { return YdimT; }
-  static int getYdim(std::false_type, int nYdim) { return nYdim; }
-  typedef std::integral_constant<bool, YisPositiveT> dimType;
-
   /// Get interpolated value for an nYdim-dimensional S(u) using spline parameters Parameters.
   template <SafetyLevel SafeT = SafetyLevel::kSafe>
   GPUd() void interpolateU(int inpYdim, GPUgeneric() const DataT Parameters[],
                            DataT u, GPUgeneric() DataT S[/*nYdim*/]) const
   {
-    auto nYdim = getYdim(dimType{}, inpYdim);
+    auto nYdim = getYdim(YisPositiveTbool{}, inpYdim);
     int iknot = TBase::template getLeftKnotIndexForU<SafeT>(u);
     const DataT* d = Parameters + (2 * nYdim) * iknot;
     interpolateU(nYdim, getKnots()[iknot], &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, S);
@@ -322,7 +320,7 @@ class Spline1DSpec<DataT, YdimT, true, YisPositiveT, YisOneT, YisNotSetT> : publ
                            GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
                            DataT u, GPUgeneric() T S[/*mYdim*/]) const
   {
-    auto nYdim = getYdim(dimType{}, inpYdim);
+    auto nYdim = getYdim(YisPositiveTbool{}, inpYdim);
     T uu = T(u - knotL.u);
     T li = T(knotL.Li);
     T v = uu * li; // scaled u
@@ -345,21 +343,32 @@ class Spline1DSpec<DataT, YdimT, true, YisPositiveT, YisOneT, YisNotSetT> : publ
      return cSl*Sl + cSr*Sr + cDl*Dl + cDr*Dr;
     */
   }
+
+  using TBase::convXtoU;
+  using TBase::getKnot;
+  using TBase::getKnots;
+  using TBase::getNumberOfKnots;
+
+ protected:
+  using TBase::TBase; // inherit constructors and hide them
+  using TBase::mParameters;
+  using TBase::mYdim;
 };
 
 /// ==================================================================================================
-/// Specification (YisAnyT==0, YisPositiveT=1, YisOneT=0, YisNotSetT=0)
-/// The number of Y dimensions is taken from a template argument YdimT at the compile time
+/// Specification YdimT>=0 where the number of Y dimensions is taken from a template argument YdimT
+/// at the compile time
 ///
 template <typename DataT, int YdimT>
-class Spline1DSpec<DataT, YdimT, false, true, false, false>
+class Spline1DSpec<DataT, YdimT, false /*YisAnyT*/, true /*YisPositiveT*/, false /*YisOneT*/, false /*YisAbsentT*/>
   : public Spline1DSpec<DataT, YdimT, true, true, false, false>
 {
   typedef Spline1DContainer<DataT> TVeryBase;
   typedef Spline1DSpec<DataT, YdimT, true, true, false, false> TBase;
-  typedef typename TVeryBase::SafetyLevel SafetyLevel;
 
  public:
+  typedef typename TVeryBase::SafetyLevel SafetyLevel;
+
 #if !defined(GPUCA_GPUCODE)
   /// Default constructor
   Spline1DSpec() : Spline1DSpec(2) {}
@@ -416,6 +425,17 @@ class Spline1DSpec<DataT, YdimT, false, true, false, false>
     TBase::template interpolateU<SafeT>(YdimT, Parameters, u, S);
   }
 
+  /// Get interpolated value for an YdimT-dimensional S(u) at the segment [knotL, next knotR]
+  /// using the spline values Sl, Sr and the slopes Dl, Dr
+  template <typename T>
+  GPUd() void interpolateU(const typename TBase::Knot& knotL,
+                           GPUgeneric() const T Sl[/*mYdim*/], GPUgeneric() const T Dl[/*mYdim*/],
+                           GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
+                           DataT u, GPUgeneric() T S[/*mYdim*/]) const
+  {
+    TBase::template interpolateU(YdimT, knotL, Sl, Dl, Sr, Dr, u, S);
+  }
+
   using TBase::getNumberOfKnots;
 
   /// _______________  Suppress some parent class methods   ________________________
@@ -427,11 +447,10 @@ class Spline1DSpec<DataT, YdimT, false, true, false, false>
 };
 
 /// ==================================================================================================
-/// Specification (YisAnyT==0, YisPositiveT=1, YisOneT=1, YisNotSetT=0)
-/// The number of Y dimensions is one.
+/// Specification where the number of Y dimensions is 1.
 ///
 template <typename DataT>
-class Spline1DSpec<DataT, 1, false, true, true, false>
+class Spline1DSpec<DataT, 1, false /*YisAnyT*/, true /*YisPositiveT*/, true /*YisOneT*/, false /*YisAbsentT*/>
   : public Spline1DSpec<DataT, 1, false, true, false, false>
 {
   typedef Spline1DSpec<DataT, 1, false, true, false, false> TBase;
@@ -449,19 +468,20 @@ class Spline1DSpec<DataT, 1, false, true, true, false>
 };
 
 /// ==================================================================================================
-/// Specification (YisAnyT==0, YisPositiveT=0, YisOneT=0, YisNotSetT=*)
-/// The number of Y dimensions is taken during runtime as a constructor argument.
-/// Specification currently doesn't depend on the YisNotSetT value.
+/// A specification (YdimT<0) where the number of Y dimensions is set in the runtime
+/// via a constructor argument.
+/// Specification currently doesn't depend on the YisAbsentT value.
 ///
-template <typename DataT, int YdimT, bool YisNotSetT>
-class Spline1DSpec<DataT, YdimT, false, false, false, YisNotSetT>
-  : public Spline1DSpec<DataT, YdimT, true, false, false, YisNotSetT>
+template <typename DataT, int YdimT, bool YisAbsentT>
+class Spline1DSpec<DataT, YdimT, false /*YisAnyT*/, false /*YisPositiveT*/, false /*YisOneT*/, YisAbsentT>
+  : public Spline1DSpec<DataT, YdimT, true, false, false, YisAbsentT>
 {
   typedef Spline1DContainer<DataT> TVeryBase;
-  typedef Spline1DSpec<DataT, YdimT, true, false, false, YisNotSetT> TBase;
-  typedef typename TVeryBase::SafetyLevel SafetyLevel;
+  typedef Spline1DSpec<DataT, YdimT, true, false, false, YisAbsentT> TBase;
 
  public:
+  typedef typename TVeryBase::SafetyLevel SafetyLevel;
+
 #if !defined(GPUCA_GPUCODE)
   /// Default constructor
   Spline1DSpec() : Spline1DSpec(0, 2) {}
@@ -493,13 +513,7 @@ class Spline1DSpec<DataT, YdimT, false, false, false, YisNotSetT>
 
   ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
 
-  /// Get interpolated value for an YdimT-dimensional S(u) using spline parameters Parameters.
-  template <SafetyLevel SafeT = SafetyLevel::kSafe>
-  GPUd() void interpolateU(int nYdim, GPUgeneric() const DataT Parameters[],
-                           DataT u, GPUgeneric() DataT S[/*nYdim*/]) const
-  {
-    TBase::template interpolateU<SafeT>(nYdim, Parameters, u, S);
-  }
+  using TBase::interpolateU;
 };
 
 } // namespace gpu

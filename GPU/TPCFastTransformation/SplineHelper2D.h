@@ -58,7 +58,7 @@ class SplineHelper2D
 
   /// Create best-fit spline parameters for a given input function F
   void approximateFunction(
-    Spline2DBase<DataT>& spline,
+    Spline2D<DataT>& spline,
     double x1Min, double x1Max, double x2Min, double x2Max,
     std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F,
     int nAuxiliaryDataPointsU1 = 4, int nAuxiliaryDataPointsU2 = 4);
@@ -66,7 +66,7 @@ class SplineHelper2D
   /// _______________   Interface for a step-wise construction of the best-fit spline   ________________________
 
   /// precompute everything needed for the construction
-  int setSpline(const Spline2DBase<DataT>& spline, int nAuxiliaryPointsU1, int nAuxiliaryPointsU2);
+  int setSpline(const Spline2D<DataT>& spline, int nAuxiliaryPointsU1, int nAuxiliaryPointsU2);
 
   /// approximate std::function, output in Fparameters
   void approximateFunction(
@@ -97,6 +97,11 @@ class SplineHelper2D
   ///  Gives error string
   const char* getLastError() const { return mError.c_str(); }
 
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+  /// Test the Spline2D class functionality
+  static int test(const bool draw = 0, const bool drawDataPoints = 1);
+#endif
+
  private:
   /// Stores an error message
   int storeError(int code, const char* msg);
@@ -109,7 +114,7 @@ class SplineHelper2D
 
 template <typename DataT>
 void SplineHelper2D<DataT>::approximateFunction(
-  Spline2DBase<DataT>& spline,
+  Spline2D<DataT>& spline,
   double x1Min, double x1Max, double x2Min, double x2Max,
   std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F,
   int nAuxiliaryDataPointsU1, int nAuxiliaryDataPointsU2)
@@ -122,7 +127,7 @@ void SplineHelper2D<DataT>::approximateFunction(
 
 template <typename DataT>
 int SplineHelper2D<DataT>::setSpline(
-  const Spline2DBase<DataT>& spline, int nAuxiliaryPointsU, int nAuxiliaryPointsV)
+  const Spline2D<DataT>& spline, int nAuxiliaryPointsU, int nAuxiliaryPointsV)
 {
   // Prepare creation of 2D irregular spline
   // The should be at least one (better, two) Auxiliary measurements on each segnment between two knots and at least 2*nKnots measurements in total
@@ -130,10 +135,10 @@ int SplineHelper2D<DataT>::setSpline(
 
   int ret = 0;
   mFdimensions = spline.getYdimensions();
-  if (mHelperU1.setSpline(spline.getGridU1(), mFdimensions, nAuxiliaryPointsU) != 0) {
+  if (mHelperU1.setSpline(spline.getGridX1(), mFdimensions, nAuxiliaryPointsU) != 0) {
     ret = storeError(-2, "SplineHelper2D::setSpline2D: error by setting U axis");
   }
-  if (mHelperU2.setSpline(spline.getGridU2(), mFdimensions, nAuxiliaryPointsV) != 0) {
+  if (mHelperU2.setSpline(spline.getGridX2(), mFdimensions, nAuxiliaryPointsV) != 0) {
     ret = storeError(-3, "SplineHelper2D::setSpline2D: error by setting V axis");
   }
   return ret;

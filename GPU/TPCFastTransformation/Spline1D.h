@@ -126,7 +126,7 @@ namespace gpu
 /// Declare the Spline1D class as a template with one optional parameter.
 ///
 /// The default value is just an indicator of the absence of the second parameter.
-/// (The right way would be to use variadic templates in this case,
+/// (The right way would be to use variadic templates for this case,
 /// but they are screwed up in the ROOT linker).
 ///
 /// Class specifications depend on the YdimT value. They can be found in Spline1DSpecs.h
@@ -158,8 +158,8 @@ class Spline1D
   }
 #else
   /// Disable constructors for the GPU implementation
-  Spline1DSpec() CON_DELETE;
-  Spline1DSpec(const Spline1DSpec&) CON_DELETE;
+  Spline1D() CON_DELETE;
+  Spline1D(const Spline1DSpec&) CON_DELETE;
 #endif
 
   /// cast to the one-parameter-template class

@@ -553,7 +553,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
     int nKnots = 4;
     const int uMax = nKnots * 3;
 
-    Spline1D<float, Ndim> spline1;
+    Spline1D<DataT, Ndim> spline1;
     int knotsU[nKnots];
 
     do { // set knots randomly
@@ -581,7 +581,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
 
     nKnots = spline1.getNumberOfKnots();
     int nAuxiliaryPoints = 1;
-    Spline1D<float, Ndim> spline2(spline1);
+    Spline1D<DataT, Ndim> spline2(spline1);
     spline1.approximateFunction(0., TMath::Pi(), F, nAuxiliaryPoints);
     //if (itry == 0)
     {
@@ -591,7 +591,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
       } else {
         const char* name = "Spline1Dtest";
         spline1.writeToFile(outf, name);
-        Spline1D<float, Ndim>* p = spline1.readFromFile(outf, name);
+        Spline1D<DataT, Ndim>* p = spline1.readFromFile(outf, name);
         if (p == nullptr) {
           cout << "Failed to read Spline1D from file testSpline1D.root " << std::endl;
         } else {
@@ -601,12 +601,12 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
       }
     }
 
-    SplineHelper1D<float> helper;
+    SplineHelper1D<DataT> helper;
     helper.setSpline(spline2, Ndim, nAuxiliaryPoints);
     helper.approximateFunctionGradually(spline2, 0., TMath::Pi(), F, nAuxiliaryPoints);
 
     // 1-D splines for each dimension
-    Spline1D<float, 1> splines3[Ndim];
+    Spline1D<DataT, 1> splines3[Ndim];
     {
       for (int dim = 0; dim < Ndim; dim++) {
         auto F3 = [&](double u, double f[]) -> void {
@@ -622,14 +622,14 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
     double stepX = 1.e-2;
     for (double x = 0; x < TMath::Pi(); x += stepX) {
       double f[Ndim];
-      float s1[Ndim], s2[Ndim];
+      DataT s1[Ndim], s2[Ndim];
       F(x, f);
       spline1.interpolate(x, s1);
       spline2.interpolate(x, s2);
       for (int dim = 0; dim < Ndim; dim++) {
         statDf1 += (s1[dim] - f[dim]) * (s1[dim] - f[dim]);
         statDf2 += (s2[dim] - f[dim]) * (s2[dim] - f[dim]);
-        float s1D = splines3[dim].interpolate(x);
+        DataT s1D = splines3[dim].interpolate(x);
         statDf1D += (s1D - s1[dim]) * (s1D - s1[dim]);
       }
       statN += Ndim;
@@ -645,7 +645,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
       double stepX = 1.e-4;
       for (double x = 0; x < TMath::Pi(); x += stepX) {
         double f[Ndim];
-        float s[Ndim];
+        DataT s[Ndim];
         F(x, f);
         spline1.interpolate(x, s);
         nt->Fill(spline1.convXtoU(x), f[0], s[0]);
@@ -680,7 +680,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
       knots = new TNtuple("knots", "knots", "type:u:s");
       for (int i = 0; i < nKnots; i++) {
         double u = spline1.getKnot(i).u;
-        float s[Ndim];
+        DataT s[Ndim];
         spline1.interpolate(spline1.convUtoX(u), s);
         knots->Fill(1, u, s[0]);
       }
@@ -693,11 +693,11 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
 
       if (drawDataPoints) {
         for (int j = 0; j < helper.getNumberOfDataPoints(); j++) {
-          const typename SplineHelper1D<float>::DataPoint& p = helper.getDataPoint(j);
+          const typename SplineHelper1D<DataT>::DataPoint& p = helper.getDataPoint(j);
           if (p.isKnot) {
             continue;
           }
-          float s[Ndim];
+          DataT s[Ndim];
           spline1.interpolate(spline1.convUtoX(p.u), s);
           knots->Fill(2, p.u, s[0]);
         }

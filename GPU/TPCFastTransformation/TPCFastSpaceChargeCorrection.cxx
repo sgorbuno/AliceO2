@@ -219,8 +219,8 @@ void TPCFastSpaceChargeCorrection::print() const
       const SplineType& spline = getSpline(is, ir);
       const float* d = getSplineData(is, ir);
       int k = 0;
-      for (int i = 0; i < spline.getGridU1().getNumberOfKnots(); i++) {
-        for (int j = 0; j < spline.getGridU2().getNumberOfKnots(); j++, k++) {
+      for (int i = 0; i < spline.getGridX1().getNumberOfKnots(); i++) {
+        for (int j = 0; j < spline.getGridX2().getNumberOfKnots(); j++, k++) {
           std::cout << d[k] << " ";
         }
         std::cout << std::endl;
@@ -414,8 +414,8 @@ GPUd() void TPCFastSpaceChargeCorrection::setNoCorrection()
       area.vMax = vLength;
       area.cvMax = vLength;
       info.CorrU0 = area.cuMin;
-      info.scaleCorrUtoGrid = (spline.getGridU1().getNumberOfKnots() - 1) / (area.cuMax - area.cuMin);
-      info.scaleCorrVtoGrid = (spline.getGridU2().getNumberOfKnots() - 1) / area.cvMax;
+      info.scaleCorrUtoGrid = (spline.getGridX1().getNumberOfKnots() - 1) / (area.cuMax - area.cuMin);
+      info.scaleCorrVtoGrid = (spline.getGridX2().getNumberOfKnots() - 1) / area.cvMax;
     } // row
   }   // slice
 }
@@ -629,8 +629,8 @@ void TPCFastSpaceChargeCorrection::initInverse(bool prn)
       }
       SliceRowInfo& info = mSliceRowInfoPtr[slice * mGeo.getNumberOfRows() + row];
       info.CorrU0 = area.cuMin;
-      info.scaleCorrUtoGrid = (spline.getGridU1().getNumberOfKnots() - 1) / (area.cuMax - area.cuMin);
-      info.scaleCorrVtoGrid = (spline.getGridU2().getNumberOfKnots() - 1) / area.cvMax;
+      info.scaleCorrUtoGrid = (spline.getGridX1().getNumberOfKnots() - 1) / (area.cuMax - area.cuMin);
+      info.scaleCorrVtoGrid = (spline.getGridX2().getNumberOfKnots() - 1) / area.cvMax;
 
       dataPointF.resize(helper.getNumberOfDataPoints() * 3);
 
