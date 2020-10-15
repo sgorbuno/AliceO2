@@ -267,7 +267,7 @@ int TPCFastTransformHelperO2::updateCalibration(TPCFastTransform& fastTransform,
         float* data = correction.getSplineData(slice, row);
         SplineHelper2D<float> helper;
         helper.setSpline(spline, 3, 3);
-        auto F = [&](float su, float sv, float dxuv[3]) {
+        auto F = [&](double su, double sv, double dxuv[3]) {
           getSpaceChargeCorrection(slice, row, su, sv, dxuv[0], dxuv[1], dxuv[2]);
         };
         helper.approximateFunction(data, 0., 1., 0., 1., F);
@@ -283,7 +283,7 @@ int TPCFastTransformHelperO2::updateCalibration(TPCFastTransform& fastTransform,
   return 0;
 }
 
-int TPCFastTransformHelperO2::getSpaceChargeCorrection(int slice, int row, float su, float sv, float& dx, float& du, float& dv)
+int TPCFastTransformHelperO2::getSpaceChargeCorrection(int slice, int row, double su, double sv, double& dx, double& du, double& dv)
 {
   // get space charge correction in internal TPCFastTransform coordinates su,sv->dx,du,dv
 
