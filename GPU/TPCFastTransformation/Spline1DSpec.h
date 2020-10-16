@@ -92,7 +92,7 @@ class Spline1DContainer : public FlatObject
   /// Destructor
   ~Spline1DContainer() CON_DEFAULT;
 
-/// _______________  Construction interface  ________________________
+  /// _______________  Construction interface  ________________________
 
 #if !defined(GPUCA_GPUCODE)
   /// approximate a function F with this spline
@@ -101,7 +101,7 @@ class Spline1DContainer : public FlatObject
                            int nAuxiliaryDataPoints = 4);
 #endif
 
-/// _______________  IO   ________________________
+  /// _______________  IO   ________________________
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
   /// write a class object to the file
@@ -186,7 +186,7 @@ class Spline1DContainer : public FlatObject
   /// Number of parameters for given Y dimensions
   GPUd() int calcNumberOfParameters(int nYdim) const { return (2 * nYdim) * getNumberOfKnots(); }
 
-///_______________  Test tools  _______________
+  ///_______________  Test tools  _______________
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
   /// Test the class functionality
@@ -350,9 +350,9 @@ class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
   using TBase::getNumberOfKnots;
 
  protected:
-  using TBase::TBase; // inherit constructors and hide them
   using TBase::mParameters;
   using TBase::mYdim;
+  using TBase::TBase; // inherit constructors and hide them
 #ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline1DSpec, 0);
 #endif
