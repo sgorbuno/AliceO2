@@ -162,7 +162,7 @@ void Spline1DContainer<DataT>::print() const
   printf("\n");
 }
 
-#if !defined(GPUCA_GPUCODE)
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
 
 template <class DataT>
 void Spline1DContainer<DataT>::approximateFunction(
@@ -189,6 +189,10 @@ Spline1DContainer<DataT>* Spline1DContainer<DataT>::readFromFile(
   /// read a class object from the file
   return FlatObject::readFromFile<Spline1DContainer<DataT>>(inpf, name);
 }
+
+#endif
+
+#if !defined(GPUCA_GPUCODE)
 
 template <class DataT>
 void Spline1DContainer<DataT>::cloneFromObject(const Spline1DContainer<DataT>& obj, char* newFlatBufferPtr)

@@ -94,7 +94,7 @@ class Spline1DContainer : public FlatObject
 
   /// _______________  Construction interface  ________________________
 
-#if !defined(GPUCA_GPUCODE)
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
   /// approximate a function F with this spline
   void approximateFunction(double xMin, double xMax,
                            std::function<void(double x, double f[/*mYdim*/])> F,

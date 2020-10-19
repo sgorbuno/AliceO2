@@ -47,6 +47,8 @@ void Spline2DContainer<DataT>::destroy()
   /// See FlatObject for description
   mGridX1.destroy();
   mGridX2.destroy();
+  mYdim = 0;
+  mParameters = nullptr;
   FlatObject::destroy();
 }
 
@@ -189,6 +191,10 @@ void Spline2DContainer<DataT>::recreate(int nYdim,
   }
 }
 
+#endif // GPUCA_GPUCODE
+
+#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
+
 template <typename DataT>
 void Spline2DContainer<DataT>::approximateFunction(
   double x1Min, double x1Max, double x2Min, double x2Max,
@@ -199,10 +205,6 @@ void Spline2DContainer<DataT>::approximateFunction(
   SplineHelper2D<DataT> helper;
   helper.approximateFunction(*reinterpret_cast<Spline2D<DataT>*>(this), x1Min, x1Max, x2Min, x2Max, F, nAuxiliaryDataPointsX1, nAuxiliaryDataPointsX2);
 }
-
-#endif // GPUCA_GPUCODE
-
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
 
 template <typename DataT>
 int Spline2DContainer<DataT>::writeToFile(TFile& outf, const char* name)
