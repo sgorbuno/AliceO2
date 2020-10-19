@@ -44,6 +44,8 @@
 #pragma link C++ class o2::gpu::SplineContainer < double> + ;
 #pragma link C++ class o2::gpu::Spline < float> + ;
 #pragma link C++ class o2::gpu::Spline < double> + ;
+#pragma link C++ class o2::gpu::SplineHelper < float> + ;
+#pragma link C++ class o2::gpu::SplineHelper < double> + ;
 
 #pragma link C++ class o2::gpu::ChebyshevFit1D + ;
 

@@ -8,7 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  Spline182.cxx
+/// \file  Spline.cxx
 /// \brief Implementation of SplineHelper class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
@@ -20,6 +20,15 @@
 #include "TMatrixD.h"
 #include "TVectorD.h"
 #include "TDecompBK.h"
+
+#include <vector>
+#include "TRandom.h"
+#include "TMath.h"
+#include "TCanvas.h"
+#include "TNtuple.h"
+#include "TFile.h"
+#include "GPUCommonMath.h"
+#include <iostream>
 
 using namespace GPUCA_NAMESPACE::gpu;
 
@@ -76,8 +85,8 @@ int SplineHelper<DataT>::arraytopoints(int point, int result[], const int number
 
 template <typename DataT>
 void SplineHelper<DataT>::approximateFunction(
-  DataT* Fparameters, const DataT xMin[/* mXdimensions */], const DataT xMax[/* mXdimensions */],
-  std::function<void(const DataT x[/* mXdimensions */], DataT f[/* mFdimensions */])> F) const
+  DataT* Fparameters, const double xMin[/* mXdimensions */], const double xMax[/* mXdimensions */],
+  std::function<void(const double x[/* mXdimensions */], double f[/* mFdimensions */])> F) const
 {
   /// Create best-fit spline parameters for a given input function F
   /// output in Fparameter
@@ -91,13 +100,13 @@ void SplineHelper<DataT>::approximateFunction(
 
   // calculate F-Values at all datapoints:
   int nrOfAllPoints = getNumberOfDataPoints();
-  std::vector<DataT> dataPointF(nrOfAllPoints * mFdimensions);
+  std::vector<double> dataPointF(nrOfAllPoints * mFdimensions);
 
   int nrOfPoints[mXdimensions];
   for (int i = 0; i < mXdimensions; i++) {
     nrOfPoints[i] = mHelpers[i].getNumberOfDataPoints();
   }
-  DataT x[mXdimensions];
+  double x[mXdimensions];
   for (int d = 0; d < nrOfAllPoints; d++) { // for all DataPoints
 
     int indices[mXdimensions];
@@ -143,8 +152,8 @@ void SplineHelper<DataT>::approximateFunction(
 
 template <typename DataT>
 void SplineHelper<DataT>::approximateFunctionBatch(
-  DataT* Fparameters, const DataT xMin[], const DataT xMax[],
-  std::function<void(const std::vector<DataT> x[], std::vector<DataT> f[/*mFdimensions*/])> F,
+  DataT* Fparameters, const double xMin[], const double xMax[],
+  std::function<void(const std::vector<double> x[], std::vector<double> f[/*mFdimensions*/])> F,
   unsigned int batchsize) const
 {
   /// Create best-fit spline parameters for a given input function F.
@@ -153,7 +162,7 @@ void SplineHelper<DataT>::approximateFunctionBatch(
 
   // TODO: implement later
 
-  std::vector<DataT> dataPointF(getNumberOfDataPoints() * mFdimensions);
+  std::vector<double> dataPointF(getNumberOfDataPoints() * mFdimensions);
   for (int i = 0; i < getNumberOfDataPoints() * mFdimensions; i++) {
     dataPointF[i] = 0.;
   }
@@ -163,7 +172,7 @@ void SplineHelper<DataT>::approximateFunctionBatch(
 
 template <typename DataT>
 void SplineHelper<DataT>::approximateFunction(
-  DataT* Fparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
+  DataT* Fparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// approximate a function given as an array of values at data points
 
@@ -198,9 +207,9 @@ void SplineHelper<DataT>::approximateFunction(
   // TO BE REMOVED TEST:
   //std::cout << "number of paramtertypes per knot : " <<  numberOfParameterTypes << ", "<< std::endl;
 
-  std::unique_ptr<DataT[]> allParameters[numberOfParameterTypes]; //Array for the different parametertypes s, s'u, s'v, s''uv,...
+  std::unique_ptr<double[]> allParameters[numberOfParameterTypes]; //Array for the different parametertypes s, s'u, s'v, s''uv,...
   for (int i = 0; i < numberOfParameterTypes; i++) {
-    allParameters[i] = std::unique_ptr<DataT[]>(new DataT[numberOfAllDataPoints * mFdimensions]); //To-Do:Fdim!!
+    allParameters[i] = std::unique_ptr<double[]>(new double[numberOfAllDataPoints * mFdimensions]); //To-Do:Fdim!!
   }
   //filling allParameters[0] and FParameters with s:
   for (int i = 0; i < numberOfAllDataPoints; i++) {
@@ -234,14 +243,17 @@ void SplineHelper<DataT>::approximateFunction(
   //now: allParameters[0] = dataPointF;
 
   //Array for input DataPointF-values for Spline1D::approximateFunctionGradually(...);
-  std::unique_ptr<DataT[]> dataPointF1D[mXdimensions];
+  std::unique_ptr<double[]> dataPointF1D[mXdimensions];
   for (int i = 0; i < mXdimensions; i++) {
-    dataPointF1D[i] = std::unique_ptr<DataT[]>(new DataT[numberOfDataPoints[i] * mFdimensions]); // To-Do:Fdim!! For s and derivetives at all knots.
+    dataPointF1D[i] = std::unique_ptr<double[]>(new double[numberOfDataPoints[i] * mFdimensions]); // To-Do:Fdim!! For s and derivetives at all knots.
   }
   //Array to be filled by Spline1D::approximateFunctionGradually(...);
   std::unique_ptr<DataT[]> par[mXdimensions];
+  std::unique_ptr<double[]> parD[mXdimensions];
+
   for (int i = 0; i < mXdimensions; i++) {
     par[i] = std::unique_ptr<DataT[]>(new DataT[numberOfKnots[i] * mFdimensions * 2]);
+    parD[i] = std::unique_ptr<double[]>(new double[numberOfKnots[i] * mFdimensions * 2]);
   }
 
   //std::cout << "NumberOfParameters: " <<  mNumberOfParameters <<std::endl;
@@ -302,6 +314,9 @@ void SplineHelper<DataT>::approximateFunction(
         }
       }
       mHelpers[dimension].approximateFunction(par[dimension].get(), dataPointF1D[dimension].get());
+      for (int i = 0; i < numberOfKnots[dimension] * mFdimensions * 2; i++) {
+        parD[dimension][i] = par[dimension][i];
+      }
       // now we have all s and s' values in par[dimension]
 
       int redistributionindex[mXdimensions];
@@ -349,9 +364,9 @@ void SplineHelper<DataT>::approximateFunction(
             break;
           }
         }
-        DataT splineF[mFdimensions];
-        DataT u = mHelpers[dimension].getDataPoint(i).u;
-        mHelpers[dimension].getSpline().interpolateU(mFdimensions, par[dimension].get(), u, splineF); //recalculate at all datapoints of dimension
+        double splineF[mFdimensions];
+        double u = mHelpers[dimension].getDataPoint(i).u;
+        mHelpers[dimension].getSpline().interpolateU(mFdimensions, parD[dimension].get(), u, splineF); //recalculate at all datapoints of dimension
         for (int dim = 0; dim < mFdimensions; dim++) {                                                //writing it in allParameters
           //std::cout<<allParameters [p-(int)(pow(2.0, dimension))] [(int)(startdatapoint*mFdimensions + i*distance + dim)]<<", ";
           allParameters[p - (int)(pow(2.0, dimension))][(int)(startdatapoint * mFdimensions + i * distance + dim)] = splineF[dim]; //write it in the array.
@@ -376,86 +391,175 @@ void SplineHelper<DataT>::approximateFunction(
   }       //end of for parametertypes
 } //end of approxymateFunction MYVERSION!
 
-/*
-  const int Ndim = mFdimensions;
-  const int Ndim2 = 2 * Ndim;
-  const int Ndim3 = 3 * Ndim;
-  const int Ndim4 = 4 * Ndim;
+//****
+//* TESTFUNCTION 2D
+template <typename DataT>
+int SplineHelper<DataT>::test(const bool draw, const bool drawDataPoints)
+{
+  using namespace std;
 
-  int nDataPointsU = getNumberOfDataPointsU1();
-  int nDataPointsV = getNumberOfDataPointsU2();
+  const int Ndim = 3;
+  const int Fdegree = 4;
+  double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
 
-  int nKnotsU = mHelperU1.getSpline().getNumberOfKnots();
-  int nKnotsV = mHelperU2.getSpline().getNumberOfKnots();
-
-  std::unique_ptr<DataT[]> rotDataPointF(new DataT[nDataPointsU * nDataPointsV * Ndim]); // U DataPoints x V DataPoints :  rotated DataPointF for one output dimension
-  std::unique_ptr<DataT[]> Dv(new DataT[nKnotsV * nDataPointsU * Ndim]);                 // V knots x U DataPoints
-
-  std::unique_ptr<DataT[]> parU(new DataT[mHelperU1.getSpline().getNumberOfParameters(Ndim)]);
-  std::unique_ptr<DataT[]> parV(new DataT[mHelperU2.getSpline().getNumberOfParameters(Ndim)]);
-
-  // rotated data points (u,v)->(v,u)
-
-  for (int ipu = 0; ipu < nDataPointsU; ipu++) {
-    for (int ipv = 0; ipv < nDataPointsV; ipv++) {
-      for (int dim = 0; dim < Ndim; dim++) {
-        rotDataPointF[Ndim * (ipu * nDataPointsV + ipv) + dim] = DataPointF[Ndim * (ipv * nDataPointsU + ipu) + dim];
+  constexpr int nKnots = 4;
+  constexpr int nAxiliaryPoints = 1;
+  constexpr int uMax = nKnots * 3;
+  auto F = [&](DataT u[], DataT Fuv[]) {
+    const double scale = TMath::Pi() / uMax;
+    double uu = u[0] * scale;
+    double vv = u[1] * scale;
+    double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
+    double ui = 0, vi = 0;
+    for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
+      cosu[i] = cos(ui);
+      sinu[i] = sin(ui);
+      cosv[i] = cos(vi);
+      sinv[i] = sin(vi);
+    }
+    for (int dim = 0; dim < Ndim; dim++) {
+      double f = 0; // Fcoeff[dim][0]/2;
+      for (int i = 1; i <= Fdegree; i++) {
+        for (int j = 1; j <= Fdegree; j++) {
+          double* c = &(Fcoeff[dim][4 * (i * Fdegree + j)]);
+          f += c[0] * cosu[i] * cosv[j];
+          f += c[1] * cosu[i] * sinv[j];
+          f += c[2] * sinu[i] * cosv[j];
+          f += c[3] * sinu[i] * sinv[j];
+        }
       }
+      Fuv[dim] = f;
+    }
+  };
+
+  int seed = 1;
+  gRandom->SetSeed(seed);
+
+  for (int dim = 0; dim < Ndim; dim++) {
+    for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+      Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
     }
   }
-
-  // get S and S'u at all the knots by interpolating along the U axis
-
-  for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
-    int ipv = mHelperU2.getKnotDataPoint(iKnotV);
-    const DataT* DataPointFrow = &(DataPointF[Ndim * ipv * nDataPointsU]);
-    mHelperU1.approximateFunctionGradually(parU.get(), DataPointFrow);
-
-    for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
-      DataT* knotPar = &Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU)];
-      for (int dim = 0; dim < Ndim; ++dim) {
-        knotPar[dim] = parU[Ndim * (2 * iKnotU) + dim];                // store S for all the knots
-        knotPar[Ndim2 + dim] = parU[Ndim * (2 * iKnotU) + Ndim + dim]; // store S'u for all the knots //SG!!!
-      }
-    }
-
-    // recalculate F values for all ipu DataPoints at V = ipv
-    for (int ipu = 0; ipu < nDataPointsU; ipu++) {
-      DataT splineF[Ndim];
-      DataT u = mHelperU1.getDataPoint(ipu).u;
-      mHelperU1.getSpline().interpolateU(Ndim, parU.get(), u, splineF);
-      for (int dim = 0; dim < Ndim; dim++) {
-        rotDataPointF[(ipu * nDataPointsV + ipv) * Ndim + dim] = splineF[dim];
-      }
+  std::cout << "Fcoeff: " << std::endl;
+  for (int dim = 0; dim < Ndim; dim++) {
+    for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+      std::cout << Fcoeff[dim][i] << ", " << std::endl;
     }
   }
+  std::cout << std::endl;
 
-  // calculate S'v at all data points with V == V of a knot
-
-  for (int ipu = 0; ipu < nDataPointsU; ipu++) {
-    const DataT* DataPointFcol = &(rotDataPointF[ipu * nDataPointsV * Ndim]);
-    mHelperU2.approximateFunctionGradually(parV.get(), DataPointFcol);
-    for (int iKnotV = 0; iKnotV < nKnotsV; iKnotV++) {
-      for (int dim = 0; dim < Ndim; dim++) {
-        DataT dv = parV[(iKnotV * 2 + 1) * Ndim + dim];
-        Dv[(iKnotV * nDataPointsU + ipu) * Ndim + dim] = dv;
+  TCanvas* canv = nullptr;
+  TNtuple* nt = nullptr;
+  TNtuple* knots = nullptr;
+  /* 
+  auto ask = [&]() -> bool {
+    if (!canv) {
+      return 0;
+    }
+    canv->Update();
+    cout << "type 'q ' to exit" << endl;
+    std::string str;
+    std::getline(std::cin, str);
+    return (str != "q" && str != ".q");
+  };
+  std::cout << "Test 2D interpolation with the compact  ND spline" << std::endl;
+  int nTries = 10;
+  if (draw) {
+    canv = new TCanvas("cQA", "Spline2D  QA", 1500, 800);
+    nTries = 10000;
+  }
+  long double statDf = 0;
+  long double statDf1D = 0;
+  long double statN = 0;
+  for (int seed = 1; seed < nTries + 1; seed++) {
+    //cout << "next try.." << endl;
+    gRandom->SetSeed(seed);
+    for (int dim = 0; dim < Ndim; dim++) {
+      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
+        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
       }
     }
-  }
-
-  // fit S'v and S''_vu at all the knots
-
-  for (int iKnotV = 0; iKnotV < nKnotsV; ++iKnotV) {
-    const DataT* Dvrow = &(Dv[iKnotV * nDataPointsU * Ndim]);
-    mHelperU1.approximateFunction(parU.get(), Dvrow);
-    for (int iKnotU = 0; iKnotU < nKnotsU; ++iKnotU) {
-      for (int dim = 0; dim < Ndim; ++dim) {
-        Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim + dim] = parU[Ndim * 2 * iKnotU + dim];         // store S'v for all the knots
-        Fparameters[Ndim4 * (iKnotV * nKnotsU + iKnotU) + Ndim3 + dim] = parU[Ndim * 2 * iKnotU + Ndim + dim]; // store S''vu for all the knots
+    //EINGEFÜGT: weil wegen instanziierung anders
+    const int NdimX = 2;
+    const int nDimF = 1;
+    
+    int **knotsU = new int* [nDimX];
+    
+    do {
+      knotsU[0][0] = 0;
+      knotsU[1][0] = 0;
+      double du = 1. * uMax / (nKnots - 1);
+      for (int i = 1; i < nKnots; i++) {
+        knotsU[0][i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
+        knotsU[1][i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
       }
-    }
-  }
-  */
+      knotsU[0][nKnots - 1] = uMax;
+      knotsU[1][nKnots - 1] = uMax;
+      Spline<double, NdimX, nDimF> spline(nKnots, knotsU);
+      //WARNUNG AUSGELASSENax;
+      //spline.recreate(nKnots, kn
+    } while (0);
+    // FLAT OBJECT STRESSTEST AUSGELASSEN
+    double xMin[NdimX]={0.,0.};
+    double xMax[NdimX]= {3.,3.};
+    int nAxiliaryDataPoints[NdimX]={4,4};
+    spline.approximateFunction(xMin, xMax, F, nAxiliaryDataPoints);
+    
+    //WRITE TO TESTFILE AUSGELASSEN
+    //1D SPLINES AUSGELASSEN
+    //Standard derivation ausgelassen
+    if (draw) {
+      delete nt;
+      delete knots;
+      nt = new TNtuple("nt", "nt", "u:v:f:s");
+      knots = new TNtuple("knots", "knots", "type:u:v:s");
+      double stepU = .3;
+      for (double u = 0; u < uMax; u += stepU) {
+        for (double v = 0; v < uMax; v += stepU) {
+          DataT f[Ndim];
+          DataT inputx[NdimX];
+          inputx[0] =u;
+          inputx[1] = v;
+          F(inputx, f);
+          DataT s[Ndim];
+          spline.interpolate(inputx, s);
+          nt->Fill(u, v, f[0], s[0]);
+        }
+      }
+      nt->SetMarkerStyle(8);
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("s:u:v", "", "");
+      nt->SetMarkerColor(kGray);
+      nt->SetMarkerSize(2.);
+      nt->Draw("f:u:v", "", "same");
+      nt->SetMarkerSize(.5);
+      nt->SetMarkerColor(kBlue);
+      nt->Draw("s:u:v", "", "same");
+      for (int i = 0; i < nKnots; i++) {
+        for (int j = 0; j < nKnots; j++) {
+          double inputx[2];
+          inputx[0] = spline.getGrid(0).getKnot(i).u;
+          inputx[1] = spline.getGrid(1).getKnot(j).u;
+          DataT s[Ndim];
+          spline.interpolate(inputx, s);
+          knots->Fill(1, inputx[0], inputx[1], s[0]);
+        }
+      }
+      knots->SetMarkerStyle(8);
+      knots->SetMarkerSize(1.5);
+      knots->SetMarkerColor(kRed);
+      knots->SetMarkerSize(1.5);
+      knots->Draw("s:u:v", "type==1", "same"); // knots
+    }//End draw
+    if (!ask()) {
+        break;
+      }
+    
+  }//end if seed */
+  std::cout << "testfunction!" << std::endl;
+  return 0;
+} //END END TESTFUNCTION 2D
 
 template class GPUCA_NAMESPACE::gpu::SplineHelper<float>;
 template class GPUCA_NAMESPACE::gpu::SplineHelper<double>;
