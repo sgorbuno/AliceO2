@@ -100,15 +100,12 @@ template <typename DataT>
 void Spline2DContainer<DataT>::cloneFromObject(const Spline2DContainer<DataT>& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
-  if (mYdim != obj.mYdim) {
-    assert(0);
-    return;
-  }
 
   const char* oldFlatBufferPtr = obj.mFlatBufferPtr;
 
   FlatObject::cloneFromObject(obj, newFlatBufferPtr);
 
+  mYdim = obj.mYdim;
   char* bufferU = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGridX1.getFlatBufferPtr());
   char* bufferV = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGridX2.getFlatBufferPtr());
 

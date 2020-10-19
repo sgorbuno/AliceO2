@@ -99,18 +99,19 @@ template <typename DataT>
 void SplineContainer<DataT>::cloneFromObject(const SplineContainer<DataT>& obj, char* newFlatBufferPtr)
 {
   /// See FlatObject for description
-  if (mXdim != obj.mXdim || mYdim != obj.mYdim) {
-    assert(0);
-    return;
-  }
+
   const char* oldFlatBufferPtr = obj.mFlatBufferPtr;
   FlatObject::cloneFromObject(obj, newFlatBufferPtr);
+  mXdim = obj.mXdim;
+  mYdim = obj.mYdim;
   mNknots = obj.mNknots;
-  mGrid = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGrid);
+
+  Spline1D<DataT>* newGrid = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGrid);
   for (int i = 0; i < mXdim; i++) {
     char* buffer = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGrid[i].getFlatBufferPtr());
-    mGrid[i].cloneFromObject(obj.mGrid[i], buffer);
+    newGrid[i].cloneFromObject(obj.mGrid[i], buffer);
   }
+  mGrid = newGrid;
   mParameters = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mParameters);
 }
 
