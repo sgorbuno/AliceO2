@@ -392,9 +392,6 @@ class SplineCommon : public SplineContainer<DataT>
   using TBase::mXdim;
   using TBase::mYdim;
   using TBase::TBase; // inherit constructors and hide them
-#ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(SplineCommon, 0);
-#endif
 };
 
 /// ==================================================================================================

@@ -61,7 +61,6 @@ void SplineContainer<DataT>::setActualBufferAddress(char* actualFlatBufferPtr)
   FlatObject::setActualBufferAddress(actualFlatBufferPtr);
   mGrid = reinterpret_cast<Spline1D<DataT>*>(mFlatBufferPtr);
   int offset = sizeof(*mGrid) * mXdim;
-
   for (int i = 0; i < mXdim; i++) {
     offset = alignSize(offset, mGrid[i].getBufferAlignmentBytes());
     mGrid[i].setActualBufferAddress(mFlatBufferPtr + offset);
@@ -106,6 +105,7 @@ void SplineContainer<DataT>::cloneFromObject(const SplineContainer<DataT>& obj, 
   }
   const char* oldFlatBufferPtr = obj.mFlatBufferPtr;
   FlatObject::cloneFromObject(obj, newFlatBufferPtr);
+  mNknots = obj.mNknots;
   mGrid = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGrid);
   for (int i = 0; i < mXdim; i++) {
     char* buffer = FlatObject::relocatePointer(oldFlatBufferPtr, mFlatBufferPtr, obj.mGrid[i].getFlatBufferPtr());
