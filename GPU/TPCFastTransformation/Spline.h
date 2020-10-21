@@ -64,10 +64,15 @@ namespace gpu
 ///
 template <typename DataT, int XdimT = 0, int YdimT = 0>
 class Spline
-  : public SplineSpec<DataT, XdimT, YdimT, XdimCase(XdimT), YdimCase(YdimT)>
+  : public SplineSpec<DataT,
+                      XdimT, (XdimT > 0), false,
+                      YdimT, (YdimT > 0), false>
 {
   typedef SplineContainer<DataT> TVeryBase;
-  typedef SplineSpec<DataT, XdimT, YdimT, XdimCase(XdimT), YdimCase(YdimT)> TBase;
+  typedef SplineSpec<DataT,
+                     XdimT, (XdimT > 0), false,
+                     YdimT, (YdimT > 0), false>
+    TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;

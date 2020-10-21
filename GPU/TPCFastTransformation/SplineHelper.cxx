@@ -16,6 +16,8 @@
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
 
 #include "SplineHelper.h"
+#include "Spline2D.h"
+
 #include "TMath.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
@@ -367,7 +369,7 @@ void SplineHelper<DataT>::approximateFunction(
         double splineF[mFdimensions];
         double u = mHelpers[dimension].getDataPoint(i).u;
         mHelpers[dimension].getSpline().interpolateU(mFdimensions, parD[dimension].get(), u, splineF); //recalculate at all datapoints of dimension
-        for (int dim = 0; dim < mFdimensions; dim++) {                                                //writing it in allParameters
+        for (int dim = 0; dim < mFdimensions; dim++) {                                                 //writing it in allParameters
           //std::cout<<allParameters [p-(int)(pow(2.0, dimension))] [(int)(startdatapoint*mFdimensions + i*distance + dim)]<<", ";
           allParameters[p - (int)(pow(2.0, dimension))][(int)(startdatapoint * mFdimensions + i * distance + dim)] = splineF[dim]; //write it in the array.
           //std::cout<<allParameters [p-(int)(pow(2.0, dimension))] [(int)(startdatapoint*mFdimensions + i*distance + dim)]<<",   ";
@@ -391,175 +393,150 @@ void SplineHelper<DataT>::approximateFunction(
   }       //end of for parametertypes
 } //end of approxymateFunction MYVERSION!
 
-//****
-//* TESTFUNCTION 2D
 template <typename DataT>
 int SplineHelper<DataT>::test(const bool draw, const bool drawDataPoints)
 {
+  // Test method
+
   using namespace std;
 
-  const int Ndim = 3;
-  const int Fdegree = 4;
-  double Fcoeff[Ndim][4 * (Fdegree + 1) * (Fdegree + 1)];
+  constexpr int nDimX = 2;
+  constexpr int nDimY = 2;
+  constexpr int Fdegree = 4;
 
-  constexpr int nKnots = 4;
-  constexpr int nAxiliaryPoints = 1;
-  constexpr int uMax = nKnots * 3;
-  auto F = [&](DataT u[], DataT Fuv[]) {
-    const double scale = TMath::Pi() / uMax;
-    double uu = u[0] * scale;
-    double vv = u[1] * scale;
-    double cosu[Fdegree + 1], sinu[Fdegree + 1], cosv[Fdegree + 1], sinv[Fdegree + 1];
-    double ui = 0, vi = 0;
-    for (int i = 0; i <= Fdegree; i++, ui += uu, vi += vv) {
-      cosu[i] = cos(ui);
-      sinu[i] = sin(ui);
-      cosv[i] = cos(vi);
-      sinv[i] = sin(vi);
-    }
-    for (int dim = 0; dim < Ndim; dim++) {
-      double f = 0; // Fcoeff[dim][0]/2;
-      for (int i = 1; i <= Fdegree; i++) {
-        for (int j = 1; j <= Fdegree; j++) {
-          double* c = &(Fcoeff[dim][4 * (i * Fdegree + j)]);
-          f += c[0] * cosu[i] * cosv[j];
-          f += c[1] * cosu[i] * sinv[j];
-          f += c[2] * sinu[i] * cosv[j];
-          f += c[3] * sinu[i] * sinv[j];
+  double xMin[nDimX];
+  double xMax[nDimX];
+  int nKnots[nDimX];
+  int* knotsU[nDimX];
+  int nAxiliaryDatapoints[nDimX];
+
+  for (int i = 0; i < nDimX; i++) {
+    xMin[i] = 0.;
+    xMax[i] = 1.;
+    nKnots[i] = 4;
+    knotsU[i] = new int[nKnots[i]];
+    nAxiliaryDatapoints[i] = 4;
+  }
+
+  // Function F
+  const int nTerms1D = 2 * (Fdegree + 1);
+  int nFcoeff = nDimY;
+  for (int i = 0; i < nDimX; i++) {
+    nFcoeff *= nTerms1D;
+  }
+
+  double Fcoeff[nFcoeff];
+
+  auto F = [&](const double x[nDimX], double f[nDimY]) {
+    double a[nFcoeff];
+    a[0] = 1;
+    int na = 1;
+    for (int d = 0; d < nDimX; d++) {
+      double b[nFcoeff];
+      int nb = 0;
+      double t = (x[d] - xMin[d]) * TMath::Pi() / (xMax[d] - xMin[d]);
+      for (int i = 0; i < nTerms1D; i++) {
+        double c = (i % 2) ? cos((i / 2) * t) : cos((i / 2) * t);
+        for (int j = 0; j < na; j++) {
+          b[nb++] = c * a[j];
+          assert(nb <= nFcoeff);
         }
       }
-      Fuv[dim] = f;
+      na = nb;
+      for (int i = 0; i < nb; i++) {
+        a[i] = b[i];
+      }
+    }
+
+    double* c = Fcoeff;
+    for (int dim = 0; dim < nDimY; dim++) {
+      f[dim] = 0;
+      for (int i = 0; i < na; i++) {
+        f[dim] += a[i] * (*c++);
+      }
     }
   };
 
-  int seed = 1;
-  gRandom->SetSeed(seed);
-
-  for (int dim = 0; dim < Ndim; dim++) {
-    for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
-      Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
-    }
-  }
-  std::cout << "Fcoeff: " << std::endl;
-  for (int dim = 0; dim < Ndim; dim++) {
-    for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
-      std::cout << Fcoeff[dim][i] << ", " << std::endl;
-    }
-  }
-  std::cout << std::endl;
-
-  TCanvas* canv = nullptr;
-  TNtuple* nt = nullptr;
-  TNtuple* knots = nullptr;
-  /* 
-  auto ask = [&]() -> bool {
-    if (!canv) {
-      return 0;
-    }
-    canv->Update();
-    cout << "type 'q ' to exit" << endl;
-    std::string str;
-    std::getline(std::cin, str);
-    return (str != "q" && str != ".q");
+  auto F2D = [&](double x1, double x2, double f[nDimY]) {
+    double x[2] = {x1, x2};
+    F(x, f);
   };
-  std::cout << "Test 2D interpolation with the compact  ND spline" << std::endl;
-  int nTries = 10;
-  if (draw) {
-    canv = new TCanvas("cQA", "Spline2D  QA", 1500, 800);
-    nTries = 10000;
-  }
-  long double statDf = 0;
-  long double statDf1D = 0;
-  long double statN = 0;
-  for (int seed = 1; seed < nTries + 1; seed++) {
-    //cout << "next try.." << endl;
+
+  for (int seed = 1; seed < 10; seed++) {
+
     gRandom->SetSeed(seed);
-    for (int dim = 0; dim < Ndim; dim++) {
-      for (int i = 0; i < 4 * (Fdegree + 1) * (Fdegree + 1); i++) {
-        Fcoeff[dim][i] = gRandom->Uniform(-1, 1);
+
+    // getting the coefficents filled randomly
+    for (int i = 0; i < nFcoeff; i++) {
+      Fcoeff[i] = gRandom->Uniform(-1, 1);
+    }
+
+    for (int i = 0; i < nDimX; i++) {
+      knotsU[i][0] = 0;
+      for (int j = 1; j < nKnots[i]; j++) {
+        knotsU[i][j] = j * 4; //+ int(gRandom->Integer(3)) - 1;
       }
     }
-    //EINGEFÜGT: weil wegen instanziierung anders
-    const int NdimX = 2;
-    const int nDimF = 1;
-    
-    int **knotsU = new int* [nDimX];
-    
+
+    o2::gpu::Spline<float, nDimX, nDimY> spline(nKnots, knotsU);
+    o2::gpu::Spline2D<float, nDimY> spline2D(nKnots[0], knotsU[0], nKnots[1], knotsU[1]);
+
+    cout << "mark 1" << std::endl;
+    spline.approximateFunction(xMin, xMax, F, nAxiliaryDatapoints);
+    spline2D.approximateFunction(xMin[0], xMax[0], xMin[1], xMax[1],
+                                 F2D, nAxiliaryDatapoints[0], nAxiliaryDatapoints[0]);
+    cout << "mark 2" << std::endl;
+
+    long double statDf = 0;
+    long double statDf2D = 0;
+
+    long double statN = 0;
+
+    double x[nDimX];
+    for (int i = 0; i < nDimX; i++) {
+      x[i] = xMin[i];
+    }
     do {
-      knotsU[0][0] = 0;
-      knotsU[1][0] = 0;
-      double du = 1. * uMax / (nKnots - 1);
-      for (int i = 1; i < nKnots; i++) {
-        knotsU[0][i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
-        knotsU[1][i] = (int)(i * du); // + gRandom->Uniform(-du / 3, du / 3);
+      float xf[nDimX];
+      float s[nDimY];
+      float s2D[nDimY];
+      double f[nDimY];
+      for (int i = 0; i < nDimX; i++) {
+        xf[i] = x[i];
       }
-      knotsU[0][nKnots - 1] = uMax;
-      knotsU[1][nKnots - 1] = uMax;
-      Spline<double, NdimX, nDimF> spline(nKnots, knotsU);
-      //WARNUNG AUSGELASSENax;
-      //spline.recreate(nKnots, kn
-    } while (0);
-    // FLAT OBJECT STRESSTEST AUSGELASSEN
-    double xMin[NdimX]={0.,0.};
-    double xMax[NdimX]= {3.,3.};
-    int nAxiliaryDataPoints[NdimX]={4,4};
-    spline.approximateFunction(xMin, xMax, F, nAxiliaryDataPoints);
-    
-    //WRITE TO TESTFILE AUSGELASSEN
-    //1D SPLINES AUSGELASSEN
-    //Standard derivation ausgelassen
-    if (draw) {
-      delete nt;
-      delete knots;
-      nt = new TNtuple("nt", "nt", "u:v:f:s");
-      knots = new TNtuple("knots", "knots", "type:u:v:s");
-      double stepU = .3;
-      for (double u = 0; u < uMax; u += stepU) {
-        for (double v = 0; v < uMax; v += stepU) {
-          DataT f[Ndim];
-          DataT inputx[NdimX];
-          inputx[0] =u;
-          inputx[1] = v;
-          F(inputx, f);
-          DataT s[Ndim];
-          spline.interpolate(inputx, s);
-          nt->Fill(u, v, f[0], s[0]);
+      F(x, f);
+      spline.interpolate(xf, s);
+      spline2D.interpolate(xf[0], xf[1], s2D);
+
+      for (int dim = 0; dim < nDimY; dim++) {
+        statDf += (s[dim] - f[dim]) * (s[dim] - f[dim]);
+        statDf2D += (s2D[dim] - f[dim]) * (s2D[dim] - f[dim]);
+        statN++;
+      }
+      int dim = 0;
+      for (; dim < nDimX; dim++) {
+        x[dim] += 0.01;
+        if (x[dim] <= xMax[dim]) {
+          break;
         }
+        x[dim] = xMin[dim];
       }
-      nt->SetMarkerStyle(8);
-      nt->SetMarkerSize(.5);
-      nt->SetMarkerColor(kBlue);
-      nt->Draw("s:u:v", "", "");
-      nt->SetMarkerColor(kGray);
-      nt->SetMarkerSize(2.);
-      nt->Draw("f:u:v", "", "same");
-      nt->SetMarkerSize(.5);
-      nt->SetMarkerColor(kBlue);
-      nt->Draw("s:u:v", "", "same");
-      for (int i = 0; i < nKnots; i++) {
-        for (int j = 0; j < nKnots; j++) {
-          double inputx[2];
-          inputx[0] = spline.getGrid(0).getKnot(i).u;
-          inputx[1] = spline.getGrid(1).getKnot(j).u;
-          DataT s[Ndim];
-          spline.interpolate(inputx, s);
-          knots->Fill(1, inputx[0], inputx[1], s[0]);
-        }
-      }
-      knots->SetMarkerStyle(8);
-      knots->SetMarkerSize(1.5);
-      knots->SetMarkerColor(kRed);
-      knots->SetMarkerSize(1.5);
-      knots->Draw("s:u:v", "type==1", "same"); // knots
-    }//End draw
-    if (!ask()) {
+      if (dim >= nDimX) {
         break;
       }
-    
-  }//end if seed */
-  std::cout << "testfunction!" << std::endl;
+    } while (1);
+
+    cout << "\n std dev for SplineND   : " << sqrt(statDf / statN) << std::endl;
+    cout << "\n std dev for Spline2D   : " << sqrt(statDf2D / statN) << std::endl;
+
+  } // seed
+
+  for (int i = 0; i < nDimX; i++) {
+    delete[] knotsU[i];
+  }
+
   return 0;
-} //END END TESTFUNCTION 2D
+}
 
 template class GPUCA_NAMESPACE::gpu::SplineHelper<float>;
 template class GPUCA_NAMESPACE::gpu::SplineHelper<double>;

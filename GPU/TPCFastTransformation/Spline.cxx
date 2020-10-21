@@ -21,3 +21,5 @@ templateClassImp(GPUCA_NAMESPACE::gpu::Spline);
 
 template class GPUCA_NAMESPACE::gpu::Spline<float>;
 template class GPUCA_NAMESPACE::gpu::Spline<double>;
+template class GPUCA_NAMESPACE::gpu::Spline<float,1,1>;
+
