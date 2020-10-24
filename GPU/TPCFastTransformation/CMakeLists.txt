@@ -16,10 +16,10 @@ set(SRCS
     SplineHelper.cxx
     Spline1DSpec.cxx
     Spline1D.cxx
+    Spline1DHelper.cxx
     Spline2DSpec.cxx
     Spline2D.cxx
-    SplineHelper1D.cxx
-    SplineHelper2D.cxx
+    Spline2DHelper.cxx
     ChebyshevFit1D.cxx
     devtools/IrregularSpline1D.cxx
     devtools/IrregularSpline2D3D.cxx

@@ -21,7 +21,7 @@
 #include "TPCBase/Sector.h"
 #include "DataFormatsTPC/Defs.h"
 #include "TPCFastTransform.h"
-#include "SplineHelper2D.h"
+#include "Spline2DHelper.h"
 #include "Riostream.h"
 #include "FairLogger.h"
 
@@ -265,7 +265,7 @@ int TPCFastTransformHelperO2::updateCalibration(TPCFastTransform& fastTransform,
       for (int row = 0; row < correction.getGeometry().getNumberOfRows(); row++) {
         const TPCFastSpaceChargeCorrection::SplineType& spline = correction.getSpline(slice, row);
         float* data = correction.getSplineData(slice, row);
-        SplineHelper2D<float> helper;
+        Spline2DHelper<float> helper;
         helper.setSpline(spline, 3, 3);
         auto F = [&](double su, double sv, double dxuv[3]) {
           getSpaceChargeCorrection(slice, row, su, sv, dxuv[0], dxuv[1], dxuv[2]);

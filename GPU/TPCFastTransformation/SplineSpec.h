@@ -33,9 +33,36 @@ namespace gpu
 {
 
 /// ==================================================================================================
-/// The class SplineContainer is a base class of Spline.
-/// It contains all the class members and methods which only depends on the DataT data type
-/// and do not depend on other template parameters of Spline.
+/// Utilities for the Spline class
+///
+class SplineUtil
+{
+ public:
+  /// Calculate a Spline specialization number depending on nXdim, nYdim
+  ///
+  static constexpr int getSpec(int nXdim, int nYdim)
+  {
+    // List of the Spline class specializations:
+    //
+    //  0 - a parent class for other specializations
+    //  1 - nXdim>0, nYdim>0: both nXdim and nYdim are set at the compile time
+    //  2 - at least one of the dimensions must be set during runtime
+    //  3 - specialization where nYdim==1 (a small add-on on top of the other specs)
+
+    if (nYdim == 1) {
+      return 3;
+    }
+    if (nXdim > 0 && nYdim > 0) {
+      return 1;
+    } else {
+      return 2;
+    }
+  }
+};
+
+/// ==================================================================================================
+/// The class SplineContainer is a base Spline class.
+/// It contains all the class members and those methods which only depends on the DataT data type.
 /// It also contains all non-inlined methods with the implementation in SplineSpec.cxx file.
 ///
 /// DataT is a data type, which is supposed to be either double or float.
@@ -228,11 +255,36 @@ GPUdi() void SplineContainer<DataT>::
 }
 
 /// ==================================================================================================
-/// The specification declares common methods for all other Spline specifications.
+///
+/// SplineSpec class declares different specializations of the Spline class.
+/// (See Spline.h for the description.)
+///
+/// The specializations depend on the value of Spline's template parameters XdimT and YdimT.
+/// specializations have different constructors and slightly different declarations of methods.
+///
+/// The meaning of the template parameters:
+///
+/// \param DataT data type: float or double
+/// \param XdimT
+///    XdimT > 0 : the number of X dimensions is known at the compile time and is equal to XdimT
+///    XdimT = 0 : the number of X dimensions will be set in the runtime
+///    XdimT < 0 : the number of X dimensions will be set in the runtime, and it will not exceed abs(XdimT)
+/// \param YdimT same for the X dimensions
+/// \param SpecT specialisation number:
+///  0 - a parent class for all other specializations
+///  1 - nXdim>0, nYdim>0: both nXdim and nYdim are set at the compile time
+///  2 - at least one of the dimensions must be set during runtime
+///  3 - specialization where nYdim==1 (a small add-on on top of the other specs)
+///
+template <typename DataT, int XdimT, int YdimT, int SpecT>
+class SplineSpec;
+
+/// ==================================================================================================
+/// Specialization 0 declares common methods for all other Spline specializations.
 /// Implementations of the methods may depend on the YdimT value.
 ///
 template <typename DataT, int XdimT, int YdimT>
-class SplineCommon : public SplineContainer<DataT>
+class SplineSpec<DataT, XdimT, YdimT, 0> : public SplineContainer<DataT>
 {
   typedef SplineContainer<DataT> TBase;
 
@@ -340,7 +392,7 @@ class SplineCommon : public SplineContainer<DataT>
       int Ydim = nrofInterpolations;
       DataT coordinate = u[d];
 
-      typedef Spline1DSpec<DataT, YdimT, true, (YdimT > 0), (YdimT == 1), (YdimT == 999999)> TGridX;
+      typedef Spline1DSpec<DataT, YdimT, 0> TGridX;
       const TGridX& gridX = *((const TGridX*)&(mGrid[d]));
       gridX.interpolateU(Ydim, knotL, S0, D0, S1, D1, coordinate, iParameters);
 
@@ -362,44 +414,87 @@ class SplineCommon : public SplineContainer<DataT>
   using TBase::mYdim;
 };
 
-/// SplineSpec class declares different specifications of the Spline class.
-/// (See Spline.h for the description.)
-///
-/// The specifications depend on the value of Spline's template parameters XdimT and YdimT.
-/// Specifications have different constructors and slightly different declarations of methods.
-///
-/// The meaning of the template parameters:
-///
-/// \param DataT data type: float or double
-/// \param XdimT
-///    XdimT > 0 : the number of X dimensions is known at the compile time and is equal to XdimT
-///    XdimT = 0 : the number of X dimensions will be set in the runtime
-///    XdimT < 0 : the number of X dimensions will be set in the runtime, and it will not exceed abs(XdimT)
-/// \param XdimTPositive A technical flag == (XdimT > 0). It lets us to have different specializations
-///                      for XdimT>0 and XdimT<=0 regions
-/// \param XdimTGeneric  A technical flag. It lets an explicit specialization (for a particular XdimT value)
-///                          to inherit from the generic specialization (for any XdimT)
-/// \param YdimT same meaning as YdimT
-/// \param YdimTPositive same meaning as XdimTPositive
-/// \param YdimTGeneric same meaning as XdimTMarkedGeneric
-///
-template <typename DataT,
-          int XdimT, bool XdimTPositive, bool XdimTGeneric,
-          int YdimT, bool YdimTPositive, bool YdimTGeneric>
-class SplineSpec;
-
 /// ==================================================================================================
-/// A specification (XdimT<=0 || YdimT<=0) where at least one of the dimensions
-/// must be set in the runtime via a constructor parameter
+/// Specialization 1: XdimT>0, YdimT>0 where the number of dimensions is taken from template parameters
+/// at the compile time
 ///
-template <typename DataT,
-          int XdimT, bool XdimTPositive, bool XdimTGeneric,
-          int YdimT, bool YdimTPositive, bool YdimTGeneric>
-class SplineSpec
-  : public SplineCommon<DataT, XdimT, YdimT>
+template <typename DataT, int XdimT, int YdimT>
+class SplineSpec<DataT, XdimT, YdimT, 1>
+  : public SplineSpec<DataT, XdimT, YdimT, 0>
 {
   typedef SplineContainer<DataT> TVeryBase;
-  typedef SplineCommon<DataT, XdimT, YdimT> TBase;
+  typedef SplineSpec<DataT, XdimT, YdimT, 0> TBase;
+
+ public:
+  typedef typename TVeryBase::SafetyLevel SafetyLevel;
+
+#if !defined(GPUCA_GPUCODE)
+  /// Default constructor
+  SplineSpec() : SplineSpec(nullptr) {}
+
+  /// Constructor for a regular spline
+  SplineSpec(const int nKnots[/*XdimT*/]) : TBase()
+  {
+    recreate(nKnots);
+  }
+  /// Constructor for an irregular spline
+  SplineSpec(const int nKnots[/*XdimT*/], const int* const knotU[/*XdimT*/])
+    : TBase()
+  {
+    recreate(nKnots, knotU);
+  }
+  /// Copy constructor
+  SplineSpec(const SplineSpec& v) : TBase()
+  {
+    TBase::cloneFromObject(v, nullptr);
+  }
+  /// Constructor for a regular spline
+  void recreate(const int nKnots[/*XdimT*/])
+  {
+    TBase::recreate(XdimT, YdimT, nKnots);
+  }
+
+  /// Constructor for an irregular spline
+  void recreate(const int nKnots[/*XdimT*/], const int* const knotU[/*XdimT*/])
+  {
+    TBase::recreate(XdimT, YdimT, nKnots, knotU);
+  }
+#endif
+
+  /// Get number of X dimensions
+  GPUd() constexpr int getXdimensions() const { return XdimT; }
+
+  /// Get number of Y dimensions
+  GPUd() constexpr int getYdimensions() const { return YdimT; }
+
+  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
+
+  /// Get interpolated value for an YdimT-dimensional S(u1,u2) using spline parameters Parameters.
+  template <SafetyLevel SafeT = SafetyLevel::kSafe>
+  GPUd() void interpolateU(GPUgeneric() const DataT Parameters[],
+                           const DataT u[/*XdimT*/], GPUgeneric() DataT S[/*YdimT*/]) const
+  {
+    TBase::template interpolateU<SafeT>(XdimT, YdimT, Parameters, u, S);
+  }
+
+  /// _______________  Suppress some parent class methods   ________________________
+ private:
+#if !defined(GPUCA_GPUCODE)
+  using TBase::recreate;
+#endif
+  using TBase::interpolateU;
+};
+
+/// ==================================================================================================
+/// Specialization 2 (XdimT<=0 || YdimT<=0) where at least one of the dimensions
+/// must be set in the runtime via a constructor parameter
+///
+template <typename DataT, int XdimT, int YdimT>
+class SplineSpec<DataT, XdimT, YdimT, 2>
+  : public SplineSpec<DataT, XdimT, YdimT, 0>
+{
+  typedef SplineContainer<DataT> TVeryBase;
+  typedef SplineSpec<DataT, XdimT, YdimT, 0> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;
@@ -478,98 +573,13 @@ class SplineSpec
 };
 
 /// ==================================================================================================
-/// Specification XdimT>0, YdimT>0 where the number of dimensions is taken from template parameters
-/// at the compile time
+/// Specialization 3 where the number of Y dimensions is 1.
 ///
-template <typename DataT,
-          int XdimT, bool XdimTGeneric,
-          int YdimT, bool YdimTGeneric>
-class SplineSpec<DataT,
-                 XdimT, true /*XdimTPositive*/, XdimTGeneric,
-                 YdimT, true /*YdimTPositive*/, YdimTGeneric>
-  : public SplineCommon<DataT, XdimT, YdimT>
+template <typename DataT, int XdimT>
+class SplineSpec<DataT, XdimT, 1, 3>
+  : public SplineSpec<DataT, XdimT, 1, SplineUtil::getSpec(XdimT, 999)>
 {
-  typedef SplineContainer<DataT> TVeryBase;
-  typedef SplineCommon<DataT, XdimT, YdimT> TBase;
-
- public:
-  typedef typename TVeryBase::SafetyLevel SafetyLevel;
-
-#if !defined(GPUCA_GPUCODE)
-  /// Default constructor
-  SplineSpec() : SplineSpec(nullptr) {}
-
-  /// Constructor for a regular spline
-  SplineSpec(const int nKnots[/*XdimT*/]) : TBase()
-  {
-    recreate(nKnots);
-  }
-  /// Constructor for an irregular spline
-  SplineSpec(const int nKnots[/*XdimT*/], const int* const knotU[/*XdimT*/])
-    : TBase()
-  {
-    recreate(nKnots, knotU);
-  }
-  /// Copy constructor
-  SplineSpec(const SplineSpec& v) : TBase()
-  {
-    TBase::cloneFromObject(v, nullptr);
-  }
-  /// Constructor for a regular spline
-  void recreate(const int nKnots[/*XdimT*/])
-  {
-    TBase::recreate(XdimT, YdimT, nKnots);
-  }
-
-  /// Constructor for an irregular spline
-  void recreate(const int nKnots[/*XdimT*/], const int* const knotU[/*XdimT*/])
-  {
-    TBase::recreate(XdimT, YdimT, nKnots, knotU);
-  }
-#endif
-
-  /// Get number of X dimensions
-  GPUd() constexpr int getXdimensions() const { return XdimT; }
-
-  /// Get number of Y dimensions
-  GPUd() constexpr int getYdimensions() const { return YdimT; }
-
-  ///  _______  Expert tools: interpolation with given nYdim and external Parameters _______
-
-  /// Get interpolated value for an YdimT-dimensional S(u1,u2) using spline parameters Parameters.
-  template <SafetyLevel SafeT = SafetyLevel::kSafe>
-  GPUd() void interpolateU(GPUgeneric() const DataT Parameters[],
-                           const DataT u[/*XdimT*/], GPUgeneric() DataT S[/*YdimT*/]) const
-  {
-    TBase::template interpolateU<SafeT>(XdimT, YdimT, Parameters, u, S);
-  }
-
-  /// _______________  Suppress some parent class methods   ________________________
- private:
-#if !defined(GPUCA_GPUCODE)
-  using TBase::recreate;
-#endif
-  using TBase::interpolateU;
-};
-
-/// ==================================================================================================
-/// Specification where the number of Y dimensions is 1.
-///
-template <typename DataT,
-          int XdimT, bool XdimTPositive, bool XdimTGeneric>
-class SplineSpec<DataT,
-                 XdimT, XdimTPositive, XdimTGeneric,
-                 1, true /*YdimTPositive*/, false /*YdimTGeneric*/>
-                 {};
-#ifdef XXX
-  : public SplineSpec<DataT,
-                      XdimT, XdimTPositive, XdimTGeneric,
-                      1, true /*YdimTPositive*/, true /*YdimTGeneric*/>
-{
-  typedef SplineSpec<DataT,
-                     XdimT, XdimTPositive, XdimTGeneric,
-                     1, true /*YdimTPositive*/, true /*YdimTGeneric*/>
-    TBase;
+  typedef SplineSpec<DataT, XdimT, 1, SplineUtil::getSpec(XdimT, 999)> TBase;
 
  public:
   using TBase::TBase; // inherit constructors
@@ -586,7 +596,6 @@ class SplineSpec<DataT,
   // but the compiler gets confused w/o this extra declaration
   using TBase::interpolate;
 };
-#endif
 
 } // namespace gpu
 } // namespace GPUCA_NAMESPACE

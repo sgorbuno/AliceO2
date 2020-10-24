@@ -27,52 +27,57 @@ namespace gpu
 /// The class is an extension of the Spline1D class.
 /// See Spline1D.h for more details.
 ///
-/// The spline S(x1,x2) approximates a function F(x1,x2):R^2->R^m,
-/// with 2-dimensional domain and multi-dimensional codomain.
-/// x1,x2 belong to [x1min,x1max] x [x2min,x2max].
+/// The spline S(x) approximates a function F(x):R^n->R^m,
+/// with multi-dimensional domain and multi-dimensional codomain.
+/// x belongs to [xmin,xmax].
 ///
 /// --- Example of creating a spline ---
 ///
-///  auto F = [&](float x1, float x2, float f[] ) {
-///   f[0] = 1.f + x1 + x2*x2; // F(x1,x2)
+///  constexpr int nDimX = 2, nDimY = 1;
+///  int nKnots[nDimX] = {2, 3}; //  2 x 3 knots
+///  int knotsU1[] = {0, 1};     // relative knot positions
+///  int knotsU2[] = {0, 2, 5};
+///  int *knotsU[nDimX] = {knotsU1, knotsU2};
+///
+///  o2::gpu::Spline<float, nDimX, nDimY> spline(nKnots, knotsU);
+///
+///  auto F = [&](const double x[], double f[]) {
+///    f[0] = 1.f + x[0] + x[1] * x[1]; // F(x)
 ///  };
-///  const int nKnotsU=2;
-///  const int nKnotsV=3;
-///  int knotsU[nKnotsU] = {0, 1};
-///  int knotsV[nKnotsV] = {0, 2, 5};
-///  Spline<float,1> spline(nKnotsU, knotsU, nKnotsV, knotsV ); // spline with 1-dimensional codomain
-///  spline.approximateFunction(0., 1., 0.,1., F); //initialize spline to approximate F on [0., 1.]x[0., 1.] area
-///  float S = spline.interpolate(.1, .3 ); // interpolated value at (.1,.3)
+///  double xMin[nDimX] = {0.f, 0.f};
+///  double xMax[nDimX] = {1.f, 1.f};
+///  spline.approximateFunction( xMin, xMax, F); // initialize spline to approximate F on [0., 1.]x[0., 1.] area
+///
+///  float x[] = {.1, .3};
+///  float S = spline.interpolate(x); // interpolated value at (.1,.3)
+///
+///  -- another way to create of the spline is:
+///
+///  o2::gpu::Spline<float> spline(nDimX, nDimY, nKnots, knotsU );
+///  spline.interpolate(x, &S);
 ///
 ///  --- See also SplineHelper::test();
 ///
 
 /// ==================================================================================================
 ///
-/// Declare the Spline class as a template with one optional parameter.
+/// Declare the Spline class as a template with two optional parameters.
 ///
-/// The default value is just an indicator of the absence of the second parameter.
-/// (The right way would be to use variadic templates for this case,
-/// but they are screwed up in the ROOT linker).
-///
-/// Class specifications depend on the YdimT value. They can be found in SplineSpecs.h
+/// Class specializations depend on the XdimT, YdimT values. They can be found in SplineSpecs.h
 ///
 /// \param DataT data type: float or double
-/// \param YdimT >= 0 : number of Y dimensions,
-///               < 0 : max possible number of Y dimensions
-///              default : no info about Y dimensions
+/// \param XdimT
+///    XdimT > 0 : the number of X dimensions is known at the compile time and is equal to XdimT
+///    XdimT = 0 : the number of X dimensions will be set in the runtime
+///    XdimT < 0 : the number of X dimensions will be set in the runtime, and it will not exceed abs(XdimT)
+/// \param YdimT same for the Y dimensions
 ///
 template <typename DataT, int XdimT = 0, int YdimT = 0>
 class Spline
-  : public SplineSpec<DataT,
-                      XdimT, (XdimT > 0), false,
-                      YdimT, (YdimT > 0), false>
+  : public SplineSpec<DataT, XdimT, YdimT, SplineUtil::getSpec(XdimT, YdimT)>
 {
   typedef SplineContainer<DataT> TVeryBase;
-  typedef SplineSpec<DataT,
-                     XdimT, (XdimT > 0), false,
-                     YdimT, (YdimT > 0), false>
-    TBase;
+  typedef SplineSpec<DataT, XdimT, YdimT, SplineUtil::getSpec(XdimT, YdimT)> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;

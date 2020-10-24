@@ -24,7 +24,7 @@
 #endif
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE) // code invisible on GPU and in the standalone compilation
-#include "SplineHelper1D.h"
+#include "Spline1DHelper.h"
 #include "TFile.h"
 #include "GPUCommonMath.h"
 templateClassImp(GPUCA_NAMESPACE::gpu::Spline1DContainer);
@@ -171,7 +171,7 @@ void Spline1DContainer<DataT>::approximateFunction(
   int nAxiliaryDataPoints)
 {
   /// approximate a function F with this spline
-  SplineHelper1D<DataT> helper;
+  Spline1DHelper<DataT> helper;
   helper.approximateFunction(*reinterpret_cast<Spline1D<DataT>*>(this), xMin, xMax, F, nAxiliaryDataPoints);
 }
 
@@ -265,13 +265,9 @@ void Spline1DContainer<DataT>::setFutureBufferAddress(char* futureFlatBufferPtr)
 template <class DataT>
 int Spline1DContainer<DataT>::test(const bool draw, const bool drawDataPoints)
 {
-  return SplineHelper1D<DataT>::test(draw, drawDataPoints);
+  return Spline1DHelper<DataT>::test(draw, drawDataPoints);
 }
 #endif // GPUCA_GPUCODE
 
 template class GPUCA_NAMESPACE::gpu::Spline1DContainer<float>;
 template class GPUCA_NAMESPACE::gpu::Spline1DContainer<double>;
-template class GPUCA_NAMESPACE::gpu::Spline1DSpec<float, -999999, true, false, false, true>;
-template class GPUCA_NAMESPACE::gpu::Spline1DSpec<double, -999999, true, false, false, true>;
-template class GPUCA_NAMESPACE::gpu::Spline1DSpec<float, -999999, false, false, false, true>;
-template class GPUCA_NAMESPACE::gpu::Spline1DSpec<double, -999999, false, false, false, true>;

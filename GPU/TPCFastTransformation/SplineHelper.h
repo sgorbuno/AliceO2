@@ -24,7 +24,7 @@
 #include "TString.h"
 #include "Spline1D.h"
 #include "Spline.h"
-#include "SplineHelper1D.h"
+#include "Spline1DHelper.h"
 #include <functional>
 
 namespace GPUCA_NAMESPACE
@@ -85,7 +85,7 @@ class SplineHelper
 
   int getNumberOfDataPoints() const { return mNumberOfDataPoints; }
 
-  const SplineHelper1D<DataT>& getHelper(int dimX) const { return mHelpers[dimX]; }
+  const Spline1DHelper<DataT>& getHelper(int dimX) const { return mHelpers[dimX]; }
 
   /// _______________  Utilities   ________________________
 
@@ -110,7 +110,7 @@ class SplineHelper
   int mFdimensions;        ///< number of F dimensions
   int mNumberOfParameters; ///< number of parameters
   int mNumberOfDataPoints; ///< number of data points
-  std::vector<SplineHelper1D<DataT>> mHelpers;
+  std::vector<Spline1DHelper<DataT>> mHelpers;
 };
 
 template <typename DataT>

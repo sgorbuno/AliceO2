@@ -8,13 +8,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  SplineHelper2D.h
-/// \brief Definition of SplineHelper2D class
+/// \file  Spline2DHelper.h
+/// \brief Definition of Spline2DHelper class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER2D_H
-#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SPLINEHELPER2D_H
+#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_Spline2DHelper_H
+#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_Spline2DHelper_H
 
 #include <cmath>
 #include <vector>
@@ -23,7 +23,7 @@
 #include "GPUCommonRtypes.h"
 #include "Spline1D.h"
 #include "Spline2D.h"
-#include "SplineHelper1D.h"
+#include "Spline1DHelper.h"
 #include <functional>
 #include <string>
 
@@ -33,25 +33,25 @@ namespace gpu
 {
 
 ///
-/// The SplineHelper2D class is to initialize Spline* objects
+/// The Spline2DHelper class is to initialize Spline* objects
 ///
 template <typename DataT>
-class SplineHelper2D
+class Spline2DHelper
 {
  public:
   /// _____________  Constructors / destructors __________________________
 
   /// Default constructor
-  SplineHelper2D();
+  Spline2DHelper();
 
   /// Copy constructor: disabled
-  SplineHelper2D(const SplineHelper2D&) CON_DELETE;
+  Spline2DHelper(const Spline2DHelper&) CON_DELETE;
 
   /// Assignment operator: disabled
-  SplineHelper2D& operator=(const SplineHelper2D&) CON_DELETE;
+  Spline2DHelper& operator=(const Spline2DHelper&) CON_DELETE;
 
   /// Destructor
-  ~SplineHelper2D() CON_DEFAULT;
+  ~Spline2DHelper() CON_DEFAULT;
 
   /// _______________  Main functionality  ________________________
 
@@ -88,8 +88,8 @@ class SplineHelper2D
 
   int getNumberOfDataPoints() const { return getNumberOfDataPointsU1() * getNumberOfDataPointsU2(); }
 
-  const SplineHelper1D<DataT>& getHelperU1() const { return mHelperU1; }
-  const SplineHelper1D<DataT>& getHelperU2() const { return mHelperU2; }
+  const Spline1DHelper<DataT>& getHelperU1() const { return mHelperU1; }
+  const Spline1DHelper<DataT>& getHelperU2() const { return mHelperU2; }
 
   /// _______________  Utilities   ________________________
 
@@ -107,16 +107,16 @@ class SplineHelper2D
 
   std::string mError = ""; ///< error string
   int mFdimensions;        ///< n of F dimensions
-  SplineHelper1D<DataT> mHelperU1;
-  SplineHelper1D<DataT> mHelperU2;
+  Spline1DHelper<DataT> mHelperU1;
+  Spline1DHelper<DataT> mHelperU2;
 
 #ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(SplineHelper2D, 0);
+  ClassDefNV(Spline2DHelper, 0);
 #endif
 };
 
 template <typename DataT>
-void SplineHelper2D<DataT>::approximateFunction(
+void Spline2DHelper<DataT>::approximateFunction(
   Spline2D<DataT>& spline,
   double x1Min, double x1Max, double x2Min, double x2Max,
   std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F,
@@ -129,7 +129,7 @@ void SplineHelper2D<DataT>::approximateFunction(
 }
 
 template <typename DataT>
-int SplineHelper2D<DataT>::setSpline(
+int Spline2DHelper<DataT>::setSpline(
   const Spline2D<DataT>& spline, int nAuxiliaryPointsU, int nAuxiliaryPointsV)
 {
   // Prepare creation of 2D irregular spline
@@ -139,10 +139,10 @@ int SplineHelper2D<DataT>::setSpline(
   int ret = 0;
   mFdimensions = spline.getYdimensions();
   if (mHelperU1.setSpline(spline.getGridX1(), mFdimensions, nAuxiliaryPointsU) != 0) {
-    ret = storeError(-2, "SplineHelper2D::setSpline2D: error by setting U axis");
+    ret = storeError(-2, "Spline2DHelper::setSpline2D: error by setting U axis");
   }
   if (mHelperU2.setSpline(spline.getGridX2(), mFdimensions, nAuxiliaryPointsV) != 0) {
-    ret = storeError(-3, "SplineHelper2D::setSpline2D: error by setting V axis");
+    ret = storeError(-3, "Spline2DHelper::setSpline2D: error by setting V axis");
   }
   return ret;
 }

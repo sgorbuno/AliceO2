@@ -8,13 +8,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  SplineHelper1D.h
-/// \brief Definition of SplineHelper1D class
+/// \file  Spline1DHelper.h
+/// \brief Definition of Spline1DHelper class
 
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
-#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SplineHelper1D_H
-#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_SplineHelper1D_H
+#ifndef ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_Spline1DHelper_H
+#define ALICEO2_GPUCOMMON_TPCFASTTRANSFORMATION_Spline1DHelper_H
 
 #include <cmath>
 #include <vector>
@@ -30,10 +30,10 @@ namespace GPUCA_NAMESPACE
 namespace gpu
 {
 ///
-/// The SplineHelper1D class is to initialize parameters for Spline1D class
+/// The Spline1DHelper class is to initialize parameters for Spline1D class
 ///
 template <typename DataT>
-class SplineHelper1D
+class Spline1DHelper
 {
  public:
   ///
@@ -52,16 +52,16 @@ class SplineHelper1D
   /// _____________  Constructors / destructors __________________________
 
   /// Default constructor
-  SplineHelper1D();
+  Spline1DHelper();
 
   /// Copy constructor: disabled
-  SplineHelper1D(const SplineHelper1D&) CON_DEFAULT;
+  Spline1DHelper(const Spline1DHelper&) CON_DEFAULT;
 
   /// Assignment operator: disabled
-  SplineHelper1D& operator=(const SplineHelper1D&) CON_DEFAULT;
+  Spline1DHelper& operator=(const Spline1DHelper&) CON_DEFAULT;
 
   /// Destructor
-  ~SplineHelper1D() CON_DEFAULT;
+  ~Spline1DHelper() CON_DEFAULT;
 
   /// _______________  Main functionality  ________________________
 
@@ -139,7 +139,7 @@ class SplineHelper1D
   std::vector<double> mLSMmatrixSvalues;
 
 #ifndef GPUCA_ALIROOT_LIB
-  ClassDefNV(SplineHelper1D, 0);
+  ClassDefNV(Spline1DHelper, 0);
 #endif
 };
 

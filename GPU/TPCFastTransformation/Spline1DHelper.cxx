@@ -8,14 +8,14 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file  SplineHelper1D.cxx
-/// \brief Implementation of SplineHelper1D class
+/// \file  Spline1DHelper.cxx
+/// \brief Implementation of Spline1DHelper class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
 
-#include "SplineHelper1D.h"
+#include "Spline1DHelper.h"
 #include "TMath.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
@@ -35,19 +35,19 @@ templateClassImp(GPUCA_NAMESPACE::gpu::Spline1DHelper);
 using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT>
-SplineHelper1D<DataT>::SplineHelper1D() : mError(), mSpline(), mFdimensions(0)
+Spline1DHelper<DataT>::Spline1DHelper() : mError(), mSpline(), mFdimensions(0)
 {
 }
 
 template <typename DataT>
-int SplineHelper1D<DataT>::storeError(int code, const char* msg)
+int Spline1DHelper<DataT>::storeError(int code, const char* msg)
 {
   mError = msg;
   return code;
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunctionClassic(Spline1D<DataT>& spline,
+void Spline1DHelper<DataT>::approximateFunctionClassic(Spline1D<DataT>& spline,
                                                        double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F)
 {
   /// Create classic spline parameters for a given input function F
@@ -170,7 +170,7 @@ void SplineHelper1D<DataT>::approximateFunctionClassic(Spline1D<DataT>& spline,
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunction(
+void Spline1DHelper<DataT>::approximateFunction(
   Spline1D<DataT>& spline, double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F,
   int nAuxiliaryDataPoints)
 {
@@ -181,7 +181,7 @@ void SplineHelper1D<DataT>::approximateFunction(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunctionGradually(
+void Spline1DHelper<DataT>::approximateFunctionGradually(
   Spline1D<DataT>& spline, double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F,
   int nAuxiliaryDataPoints)
 {
@@ -192,7 +192,7 @@ void SplineHelper1D<DataT>::approximateFunctionGradually(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunction(
+void Spline1DHelper<DataT>::approximateFunction(
   DataT* Sparameters, double xMin, double xMax, std::function<void(double x, double f[])> F) const
 {
   /// Create best-fit spline parameters for a given input function F
@@ -206,7 +206,7 @@ void SplineHelper1D<DataT>::approximateFunction(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunctionGradually(
+void Spline1DHelper<DataT>::approximateFunctionGradually(
   DataT* Sparameters, double xMin, double xMax, std::function<void(double x, double f[])> F) const
 {
   /// Create best-fit spline parameters gradually for a given input function F
@@ -220,7 +220,7 @@ void SplineHelper1D<DataT>::approximateFunctionGradually(
 }
 
 template <typename DataT>
-int SplineHelper1D<DataT>::setSpline(
+int Spline1DHelper<DataT>::setSpline(
   const Spline1D<DataT>& spline, int nFdimensions, int nAuxiliaryDataPoints)
 {
   // Prepare creation of a best-fit spline
@@ -240,7 +240,7 @@ int SplineHelper1D<DataT>::setSpline(
   mFdimensions = nFdimensions;
   int nPoints = 0;
   if (!spline.isConstructed()) {
-    ret = storeError(-1, "SplineHelper1D<DataT>::setSpline: input spline is not constructed");
+    ret = storeError(-1, "Spline1DHelper<DataT>::setSpline: input spline is not constructed");
     mSpline.recreate(0, 2);
     nAuxiliaryDataPoints = 2;
     nPoints = 4;
@@ -255,7 +255,7 @@ int SplineHelper1D<DataT>::setSpline(
     if (nPoints < 2 * mSpline.getNumberOfKnots()) {
       nAuxiliaryDataPoints = 2;
       nPoints = 1 + mSpline.getUmax() + mSpline.getUmax() * nAuxiliaryDataPoints;
-      ret = storeError(-3, "SplineHelper1D::setSpline: too few nAuxiliaryDataPoints, increase to 2");
+      ret = storeError(-3, "Spline1DHelper::setSpline: too few nAuxiliaryDataPoints, increase to 2");
     }
   }
 
@@ -338,7 +338,7 @@ int SplineHelper1D<DataT>::setSpline(
     bool ok = bk.Invert(A);
 
     if (!ok) {
-      ret = storeError(-4, "SplineHelper1D::setSpline: internal error - can not invert the matrix");
+      ret = storeError(-4, "Spline1DHelper::setSpline: internal error - can not invert the matrix");
       A.Zero();
     }
     mLSMmatrixFull.resize(nPar * nPar);
@@ -352,7 +352,7 @@ int SplineHelper1D<DataT>::setSpline(
   {
     TDecompBK bk(Z, 0);
     if (!bk.Invert(Z)) {
-      ret = storeError(-5, "SplineHelper1D::setSpline: internal error - can not invert the matrix");
+      ret = storeError(-5, "Spline1DHelper::setSpline: internal error - can not invert the matrix");
       Z.Zero();
     }
     mLSMmatrixSderivatives.resize(nKnots * nKnots);
@@ -367,7 +367,7 @@ int SplineHelper1D<DataT>::setSpline(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunction(
+void Spline1DHelper<DataT>::approximateFunction(
   DataT* Sparameters,
   const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
@@ -402,7 +402,7 @@ void SplineHelper1D<DataT>::approximateFunction(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateFunctionGradually(
+void Spline1DHelper<DataT>::approximateFunctionGradually(
   DataT* Sparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim */]) const
 {
   /// gradually approximate a function given as an array of values at data points
@@ -412,7 +412,7 @@ void SplineHelper1D<DataT>::approximateFunctionGradually(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::copySfromDataPoints(
+void Spline1DHelper<DataT>::copySfromDataPoints(
   DataT* Sparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// a tool for the gradual approximation: set spline values S_i at knots == function values
@@ -426,7 +426,7 @@ void SplineHelper1D<DataT>::copySfromDataPoints(
 }
 
 template <typename DataT>
-void SplineHelper1D<DataT>::approximateDerivatives(
+void Spline1DHelper<DataT>::approximateDerivatives(
   DataT* Sparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// a tool for the gradual approximation:
@@ -483,7 +483,7 @@ void SplineHelper1D<DataT>::approximateDerivatives(
 }
 
 template <typename DataT>
-int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
+int Spline1DHelper<DataT>::test(const bool draw, const bool drawDataPoints)
 {
   using namespace std;
 
@@ -601,7 +601,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
       }
     }
 
-    SplineHelper1D<DataT> helper;
+    Spline1DHelper<DataT> helper;
     helper.setSpline(spline2, Ndim, nAuxiliaryPoints);
     helper.approximateFunctionGradually(spline2, 0., TMath::Pi(), F, nAuxiliaryPoints);
 
@@ -693,7 +693,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
 
       if (drawDataPoints) {
         for (int j = 0; j < helper.getNumberOfDataPoints(); j++) {
-          const typename SplineHelper1D<DataT>::DataPoint& p = helper.getDataPoint(j);
+          const typename Spline1DHelper<DataT>::DataPoint& p = helper.getDataPoint(j);
           if (p.isKnot) {
             continue;
           }
@@ -733,7 +733,7 @@ int SplineHelper1D<DataT>::test(const bool draw, const bool drawDataPoints)
   return 0;
 }
 
-template class GPUCA_NAMESPACE::gpu::SplineHelper1D<float>;
-template class GPUCA_NAMESPACE::gpu::SplineHelper1D<double>;
+template class GPUCA_NAMESPACE::gpu::Spline1DHelper<float>;
+template class GPUCA_NAMESPACE::gpu::Spline1DHelper<double>;
 
 #endif

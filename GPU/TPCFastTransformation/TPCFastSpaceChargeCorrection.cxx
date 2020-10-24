@@ -19,7 +19,7 @@
 #include <iostream>
 #include <cmath>
 #include "ChebyshevFit1D.h"
-#include "SplineHelper2D.h"
+#include "Spline2DHelper.h"
 #endif
 
 using namespace GPUCA_NAMESPACE::gpu;
@@ -497,7 +497,7 @@ void TPCFastSpaceChargeCorrection::initInverse(bool prn)
 
   initMaxDriftLength(prn);
 
-  SplineHelper2D<float> helper;
+  Spline2DHelper<float> helper;
   std::vector<double> dataPointF;
   std::vector<float> splineParameters;
 

@@ -75,7 +75,7 @@ namespace gpu
 ///
 /// One can store all F-dependent spline parameters outside of the spline object
 /// and provide them at each interpolation call.
-/// To do so, create a spline with nYdimensions=0; create spline parameters for F via SplineHelper1D class;
+/// To do so, create a spline with nYdimensions=0; create spline parameters for F via Spline1DHelper class;
 /// then use special interpolateU(..) methods for the interpolation.
 ///
 /// This feature allows one to use the same spline object for the approximation of different functions
@@ -100,7 +100,7 @@ namespace gpu
 /// but a high number can slow down the spline's creation.
 ///
 /// It is also possible to construct the spline classically - by taking F(x) values only at knots and making
-/// the first and the second derivatives of S(x) continuous. Use the corresponding method from SplineHelper1D.
+/// the first and the second derivatives of S(x) continuous. Use the corresponding method from Spline1DHelper.
 ///
 /// ---- Example of creating a spline ----
 ///
@@ -123,25 +123,22 @@ namespace gpu
 
 /// ==================================================================================================
 ///
-/// Declare the Spline1D class as a template with one optional parameter.
+/// Declare the Spline1D class as a template with one optional parameters.
 ///
-/// The default value is just an indicator of the absence of the second parameter.
-/// (The right way would be to use variadic templates for this case,
-/// but they are screwed up in the ROOT linker).
-///
-/// Class specifications depend on the YdimT value. They can be found in Spline1DSpecs.h
+/// Class specializations depend on the XdimT, YdimT values. They can be found in SplineSpecs.h
 ///
 /// \param DataT data type: float or double
-/// \param YdimT >= 0 : number of Y dimensions,
-///               < 0 : max possible number of Y dimensions
-///              default : no info about Y dimensions
+/// \param YdimT
+///    YdimT > 0 : the number of Y dimensions is known at the compile time and is equal to XdimT
+///    YdimT = 0 : the number of Y dimensions will be set in the runtime
+///    YdimT < 0 : the number of Y dimensions will be set in the runtime, and it will not exceed abs(YdimT)
 ///
-template <typename DataT, int YdimT = -999999>
+template <typename DataT, int YdimT = 0>
 class Spline1D
-  : public Spline1DSpec<DataT, YdimT, false, (YdimT >= 0), (YdimT == 1), (YdimT == -999999)>
+  : public Spline1DSpec<DataT, YdimT, Spline1DUtil::getSpec(YdimT)>
 {
   typedef Spline1DContainer<DataT> TVeryBase;
-  typedef Spline1DSpec<DataT, YdimT, false, (YdimT >= 0), (YdimT == 1), (YdimT == -999999)> TBase;
+  typedef Spline1DSpec<DataT, YdimT, Spline1DUtil::getSpec(YdimT)> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;

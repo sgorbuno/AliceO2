@@ -43,7 +43,7 @@ namespace gpu
 ///
 /// --- Example of creating a spline ---
 ///
-///  auto F = [&](float x1, float x2, float f[] ) {
+///  auto F = [&](double x1, double x2, double f[] ) {
 ///   f[0] = 1.f + x1 + x2*x2; // F(x1,x2)
 ///  };
 ///  const int nKnotsU=2;
@@ -54,30 +54,27 @@ namespace gpu
 ///  spline.approximateFunction(0., 1., 0.,1., F); //initialize spline to approximate F on [0., 1.]x[0., 1.] area
 ///  float S = spline.interpolate(.1, .3 ); // interpolated value at (.1,.3)
 ///
-///  --- See also SplineHelper2D::test();
+///  --- See also Spline2DHelper::test();
 ///
 
 /// ==================================================================================================
 ///
-/// Declare the Spline2D class as a template with one optional parameter.
+/// Declare the Spline1D class as a template with one optional parameters.
 ///
-/// The default value is just an indicator of the absence of the second parameter.
-/// (The right way would be to use variadic templates for this case,
-/// but they are screwed up in the ROOT linker).
-///
-/// Class specifications depend on the YdimT value. They can be found in Spline2DSpecs.h
+/// Class specializations depend on the XdimT, YdimT values. They can be found in SplineSpecs.h
 ///
 /// \param DataT data type: float or double
-/// \param YdimT >= 0 : number of Y dimensions,
-///               < 0 : max possible number of Y dimensions
-///              default : no info about Y dimensions
+/// \param YdimT
+///    YdimT > 0 : the number of Y dimensions is known at the compile time and is equal to XdimT
+///    YdimT = 0 : the number of Y dimensions will be set in the runtime
+///    YdimT < 0 : the number of Y dimensions will be set in the runtime, and it will not exceed abs(YdimT)
 ///
-template <typename DataT, int YdimT = -999999>
+template <typename DataT, int YdimT = 0>
 class Spline2D
-  : public Spline2DSpec<DataT, YdimT, false, (YdimT >= 0), (YdimT == 1), (YdimT == -999999)>
+  : public Spline2DSpec<DataT, YdimT, Spline1DUtil::getSpec(YdimT)>
 {
   typedef Spline2DContainer<DataT> TVeryBase;
-  typedef Spline2DSpec<DataT, YdimT, false, (YdimT >= 0), (YdimT == 1), (YdimT == -999999)> TBase;
+  typedef Spline2DSpec<DataT, YdimT, Spline1DUtil::getSpec(YdimT)> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;

@@ -32,32 +32,10 @@ namespace GPUCA_NAMESPACE
 namespace gpu
 {
 
-/// Spline2DSpec class declares different specifications of the Spline2D class.
-/// (See Spline2D.h for the description.)
-///
-/// The specifications depend on the value of Spline2D's template parameter YdimT.
-/// Specifications have different constructors and slightly different declarations of methods.
-///
-/// The meaning of the template parameters:
-///
-/// \param DataT data type: float or double
-/// \param YdimT
-///     >= 0 : YdimT is the number of Y dimensions. Use it when it is known at the compile time.
-///  not set : the number of Y dimensions not known and will be set in the runtime
-///     < 0  : the number of Y dimensions will be set in the runtime, but it will not exceed abs(YdimT)
-/// \param YisAnyT      YdimT is any. This case is a parent for all other specifications.
-/// \param YisPositiveT YdimT >= 0
-/// \param YisOneT      YdimT == 1
-/// \param YisAbsent    YdimT is not set (it is equal to some specific default value)
-///
-template <typename DataT, int YdimT, bool YisAnyT, bool YisPositiveT, bool YisOneT, bool YisAbsent>
-class Spline2DSpec;
-
 /// ==================================================================================================
-/// The class Spline2DContainer is a base class of Spline2D.
-/// It contains all the class members and methods which only depends on the DataT data type
-/// and do not depend on other template parameters of Spline2D.
-/// It also contains all non-inlined methods with the implementation in Spline2DSpec.cxx file.
+/// The class Spline2DContainer is a base Spline2D class.
+/// It contains all the class members and those methods which only depends on the DataT data type.
+/// It also contains all non-inlined methods with the implementation in SplineSpec.cxx file.
 ///
 /// DataT is a data type, which is supposed to be either double or float.
 /// For other possible data types one has to add the corresponding instantiation line
@@ -218,15 +196,36 @@ class Spline2DContainer : public FlatObject
 };
 
 /// ==================================================================================================
-/// The specification declares common methods for all other Spline1D specifications.
+///
+/// Spline2DSpec class declares different specializations of the Spline2D class.
+/// They are the same as the Spline1D specializations. (See Spline1DSpec.h)
+///
+/// The meaning of the template parameters:
+///
+/// \param DataT data type: float or double
+/// \param YdimT
+///    YdimT > 0 : the number of Y dimensions is known at the compile time and is equal to YdimT
+///    YdimT = 0 : the number of Y dimensions will be set in the runtime
+///    YdimT < 0 : the number of Y dimensions will be set in the runtime, and it will not exceed abs(XdimT)
+/// \param SpecT specialisation number:
+///  0 - a parent class for all other specializations
+///  1 - nYdim>0: nYdim is set at the compile time
+///  2 - nYdim<0: nYdim must be set during runtime
+///  3 - specialization where nYdim==1 (a small add-on on top of the other specs)
+///
+template <typename DataT, int YdimT, int SpecT>
+class Spline2DSpec;
+
+/// ==================================================================================================
+/// Specialization 0 declares common methods for all other Spline2D specializations.
 /// Implementations of the methods may depend on the YdimT value.
 ///
-template <typename DataT, int YdimT, bool YisPositiveT, bool YisOneT, bool YisAbsent>
-class Spline2DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbsent>
+template <typename DataT, int YdimT>
+class Spline2DSpec<DataT, YdimT, 0>
   : public Spline2DContainer<DataT>
 {
   typedef Spline2DContainer<DataT> TBase;
-  typedef Spline1DSpec<DataT, YdimT, true, YisPositiveT, YisOneT, YisAbsent> TGrid1D;
+  typedef Spline1DSpec<DataT, YdimT, 0> TGrid1D;
 
  public:
   typedef typename TBase::SafetyLevel SafetyLevel;
@@ -245,8 +244,8 @@ class Spline2DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
   GPUd() void interpolateU(int inpYdim, GPUgeneric() const DataT Parameters[],
                            DataT u1, DataT u2, GPUgeneric() DataT S[/*inpYdim*/]) const
   {
-    auto nYdim = TGrid1D::getYdim(typename TGrid1D::YisPositiveTbool{}, inpYdim);
-    auto maxYdim4 = 4 * TGrid1D::getMaxYdim(typename TGrid1D::YisAbsentTbool{}, inpYdim);
+    auto nYdim = TGrid1D::getYdim(typename TGrid1D::YdimCase{}, inpYdim);
+    auto maxYdim4 = 4 * TGrid1D::getMaxYdim(typename TGrid1D::YdimCase{}, inpYdim);
 
     auto nYdim2 = nYdim * 2;
     auto nYdim4 = nYdim * 4;
@@ -286,7 +285,7 @@ class Spline2DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
 
     DataT parU[maxYdim4]; // interpolated values { {Y1,Y2,Y3,Y1'v,Y2'v,Y3'v}(v0), {Y1,Y2,Y3,Y1'v,Y2'v,Y3'v}(v1) } at u
 
-    typedef Spline1DSpec<DataT, 4 * YdimT, true, YisPositiveT, YisOneT, YisAbsent> TGridX1;
+    typedef Spline1DSpec<DataT, 4 * YdimT, 0> TGridX1;
     const TGridX1& gridX1 = *((const TGridX1*)&mGridX1);
 
     gridX1.interpolateU(nYdim4, knotU, Su0, Du0, Su1, Du1, u, parU);
@@ -296,7 +295,7 @@ class Spline2DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
     const DataT* Sv1 = parU + nYdim2;
     const DataT* Dv1 = parU + nYdim2 + nYdim;
 
-    typedef Spline1DSpec<DataT, YdimT, true, YisPositiveT, YisOneT, YisAbsent> TGridX2;
+    typedef Spline1DSpec<DataT, YdimT, 0> TGridX2;
     const TGridX2& gridX2 = *((const TGridX2*)&mGridX2);
     gridX2.interpolateU(nYdim, knotV, Sv0, Dv0, Sv1, Dv1, v, S);
   }
@@ -310,15 +309,15 @@ class Spline2DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
 };
 
 /// ==================================================================================================
-/// Specification YdimT>=0 where the number of Y dimensions is taken from a template argument YdimT
+/// Specialization 1: YdimT>0 where the number of Y dimensions is taken from template parameters
 /// at the compile time
 ///
 template <typename DataT, int YdimT>
-class Spline2DSpec<DataT, YdimT, false /*YisAnyT*/, true /*YisPositiveT*/, false /*YisOneT*/, false /*YisAbsentT*/>
-  : public Spline2DSpec<DataT, YdimT, true, true, false, false>
+class Spline2DSpec<DataT, YdimT, 1>
+  : public Spline2DSpec<DataT, YdimT, 0>
 {
   typedef Spline2DContainer<DataT> TVeryBase;
-  typedef Spline2DSpec<DataT, YdimT, true, true, false, false> TBase;
+  typedef Spline2DSpec<DataT, YdimT, 0> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;
@@ -388,41 +387,15 @@ class Spline2DSpec<DataT, YdimT, false /*YisAnyT*/, true /*YisPositiveT*/, false
 };
 
 /// ==================================================================================================
-/// Specification where the number of Y dimensions is 1.
+/// Specialization 2 (YdimT<=0) where the numbaer of Y dimensions
+/// must be set in the runtime via a constructor parameter
 ///
-template <typename DataT>
-class Spline2DSpec<DataT, 1, false /*YisAnyT*/, true /*YisPositiveT*/, true /*YisOneT*/, false /*YisAbsentT*/>
-  : public Spline2DSpec<DataT, 1, false, true, false, false>
-{
-  typedef Spline2DSpec<DataT, 1, false, true, false, false> TBase;
-
- public:
-  using TBase::TBase; // inherit constructors
-
-  /// Simplified interface for 1D: return the interpolated value
-  GPUd() DataT interpolate(DataT x1, DataT x2) const
-  {
-    DataT S = 0.;
-    TBase::interpolate(x1, x2, &S);
-    return S;
-  }
-
-  // this parent method should be public anyhow,
-  // but w/o this extra declaration compiler gets confused
-  using TBase::interpolate;
-};
-
-/// ==================================================================================================
-/// A specification (YdimT<0) where the number of Y dimensions is set in the runtime
-/// via a constructor argument.
-/// Specification currently doesn't depend on the YisAbsentT value.
-///
-template <typename DataT, int YdimT, bool YisAbsentT>
-class Spline2DSpec<DataT, YdimT, false /*YisAnyT*/, false /*YisPositiveT*/, false /*YisOneT*/, YisAbsentT>
-  : public Spline2DSpec<DataT, YdimT, true, false, false, YisAbsentT>
+template <typename DataT, int YdimT>
+class Spline2DSpec<DataT, YdimT, 2>
+  : public Spline2DSpec<DataT, YdimT, 0>
 {
   typedef Spline2DContainer<DataT> TVeryBase;
-  typedef Spline2DSpec<DataT, YdimT, true, false, false, YisAbsentT> TBase;
+  typedef Spline2DSpec<DataT, YdimT, 0> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;
@@ -469,6 +442,30 @@ class Spline2DSpec<DataT, YdimT, false /*YisAnyT*/, false /*YisPositiveT*/, fals
   using TBase::interpolateU;
 };
 
+/// ==================================================================================================
+/// Specialization 3, where the number of Y dimensions is 1.
+///
+template <typename DataT>
+class Spline2DSpec<DataT, 1, 3>
+  : public Spline2DSpec<DataT, 1, Spline1DUtil::getSpec(999)>
+{
+  typedef Spline2DSpec<DataT, 1, Spline1DUtil::getSpec(999)> TBase;
+
+ public:
+  using TBase::TBase; // inherit constructors
+
+  /// Simplified interface for 1D: return the interpolated value
+  GPUd() DataT interpolate(DataT x1, DataT x2) const
+  {
+    DataT S = 0.;
+    TBase::interpolate(x1, x2, &S);
+    return S;
+  }
+
+  // this parent method should be public anyhow,
+  // but w/o this extra declaration compiler gets confused
+  using TBase::interpolate;
+};
 } // namespace gpu
 } // namespace GPUCA_NAMESPACE
 

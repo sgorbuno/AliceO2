@@ -284,7 +284,7 @@ void SplineHelper<DataT>::approximateFunction(
     for (int i = dimension; i < mXdimensions - 1; i++) {
       currentNumbers[i] = numberOfDataPoints[i + 1];
     }
-    std::cout << " current numbers: ";
+    ///std::cout << " current numbers: ";
     for (int i = 0; i < mXdimensions - 1; i++) {
       //std::cout << currentNumbers[i] << ",";
     }

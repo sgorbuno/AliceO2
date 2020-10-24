@@ -9,13 +9,13 @@
 // or submit itself to any jurisdiction.
 
 /// \file  Spline.cxx
-/// \brief Implementation of SplineHelper2D class
+/// \brief Implementation of Spline2DHelper class
 ///
 /// \author  Sergey Gorbunov <sergey.gorbunov@cern.ch>
 
 #if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
 
-#include "SplineHelper2D.h"
+#include "Spline2DHelper.h"
 #include "TMath.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
@@ -33,19 +33,19 @@
 using namespace GPUCA_NAMESPACE::gpu;
 
 template <typename DataT>
-SplineHelper2D<DataT>::SplineHelper2D() : mError(), mFdimensions(0), mHelperU1(), mHelperU2()
+Spline2DHelper<DataT>::Spline2DHelper() : mError(), mFdimensions(0), mHelperU1(), mHelperU2()
 {
 }
 
 template <typename DataT>
-int SplineHelper2D<DataT>::storeError(int code, const char* msg)
+int Spline2DHelper<DataT>::storeError(int code, const char* msg)
 {
   mError = msg;
   return code;
 }
 
 template <typename DataT>
-void SplineHelper2D<DataT>::approximateFunction(
+void Spline2DHelper<DataT>::approximateFunction(
   DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
   std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F) const
 {
@@ -68,7 +68,7 @@ void SplineHelper2D<DataT>::approximateFunction(
 }
 
 template <typename DataT>
-void SplineHelper2D<DataT>::approximateFunctionBatch(
+void Spline2DHelper<DataT>::approximateFunctionBatch(
   DataT* Fparameters, double x1Min, double x1Max, double x2Min, double x2Max,
   std::function<void(const std::vector<double>& x1, const std::vector<double>& x2, std::vector<double> f[/*mFdimensions*/])> F,
   unsigned int batchsize) const
@@ -131,7 +131,7 @@ void SplineHelper2D<DataT>::approximateFunctionBatch(
 }
 
 template <typename DataT>
-void SplineHelper2D<DataT>::approximateFunction(
+void Spline2DHelper<DataT>::approximateFunction(
   DataT* Fparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const
 {
   /// approximate a function given as an array of values at data points
@@ -223,7 +223,7 @@ void SplineHelper2D<DataT>::approximateFunction(
 }
 
 template <typename DataT>
-int SplineHelper2D<DataT>::test(const bool draw, const bool drawDataPoints)
+int Spline2DHelper<DataT>::test(const bool draw, const bool drawDataPoints)
 {
   using namespace std;
 
@@ -433,12 +433,12 @@ int SplineHelper2D<DataT>::test(const bool draw, const bool drawDataPoints)
       knots->Draw("s:u:v", "type==1", "same"); // knots
 
       if (drawDataPoints) {
-        SplineHelper2D<DataT> helper;
+        Spline2DHelper<DataT> helper;
         helper.setSpline(spline, 4, 4);
         for (int ipu = 0; ipu < helper.getHelperU1().getNumberOfDataPoints(); ipu++) {
-          const typename SplineHelper1D<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
+          const typename Spline1DHelper<DataT>::DataPoint& pu = helper.getHelperU1().getDataPoint(ipu);
           for (int ipv = 0; ipv < helper.getHelperU2().getNumberOfDataPoints(); ipv++) {
-            const typename SplineHelper1D<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
+            const typename Spline1DHelper<DataT>::DataPoint& pv = helper.getHelperU2().getDataPoint(ipv);
             if (pu.isKnot && pv.isKnot) {
               continue;
             }
@@ -478,7 +478,7 @@ int SplineHelper2D<DataT>::test(const bool draw, const bool drawDataPoints)
   return 0;
 }
 
-template class GPUCA_NAMESPACE::gpu::SplineHelper2D<float>;
-template class GPUCA_NAMESPACE::gpu::SplineHelper2D<double>;
+template class GPUCA_NAMESPACE::gpu::Spline2DHelper<float>;
+template class GPUCA_NAMESPACE::gpu::Spline2DHelper<double>;
 
 #endif

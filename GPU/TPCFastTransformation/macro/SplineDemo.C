@@ -17,7 +17,7 @@
 #include "TLine.h"
 #include "GPU/Spline1D.h"
 #include "GPU/IrregularSpline1D.h"
-#include "GPU/SplineHelper1D.h"
+#include "GPU/Spline1DHelper.h"
 #include "Math/Functor.h"
 #include "Math/ChebyshevApprox.h"
 
@@ -138,7 +138,7 @@ int SplineDemo()
     spline.approximateFunction(0, nKnots - 1, F, nAxiliaryPoints);
 
     o2::gpu::Spline1D<float, 1> splineClassic(nKnots);
-    o2::gpu::SplineHelper1D<float> helper;
+    o2::gpu::Spline1DHelper<float> helper;
     helper.approximateFunctionClassic(splineClassic, 0, nKnots - 1, F);
 
     IrregularSpline1D splineLocal;
@@ -169,7 +169,7 @@ int SplineDemo()
 
     helper.setSpline(spline, 1, nAxiliaryPoints);
     for (int j = 0; j < helper.getNumberOfDataPoints(); j++) {
-      const typename SplineHelper1D<float>::DataPoint& p = helper.getDataPoint(j);
+      const typename Spline1DHelper<float>::DataPoint& p = helper.getDataPoint(j);
       double f0;
       F(p.u, &f0);
       double fs = spline.interpolate(spline.convUtoX(p.u));

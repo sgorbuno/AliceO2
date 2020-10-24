@@ -28,31 +28,38 @@ namespace GPUCA_NAMESPACE
 {
 namespace gpu
 {
-/// Spline1DSpec class declares different specifications of the Spline1D class.
-/// (See Spline1D.h for the description.)
+
+/// ==================================================================================================
+/// Utilities for the Spline class
 ///
-/// The specifications depend on the value of Spline1D's template parameter YdimT.
-/// Specifications have different constructors and slightly different declarations of methods.
-///
-/// The meaning of the template parameters:
-///
-/// \param DataT data type: float or double
-/// \param YdimT
-///     >= 0 : YdimT is the number of Y dimensions. Use it when it is known at the compile time.
-///  not set : the number of Y dimensions not known and will be set in the runtime
-///     < 0  : the number of Y dimensions will be set in the runtime, but it will not exceed abs(YdimT)
-/// \param YisAnyT      YdimT is any. This case is a parent for all other specifications.
-/// \param YisPositiveT YdimT >= 0
-/// \param YisOneT      YdimT == 1
-/// \param YisAbsentT   YdimT is not set (it is equal to some specific default value)
-///
-template <typename DataT, int YdimT, bool YisAnyT, bool YisPositiveT, bool YisOneT, bool YisAbsentT>
-class Spline1DSpec;
+class Spline1DUtil
+{
+ public:
+  /// Calculate a Spline specialization number depending on nXdim, nYdim
+  ///
+  static constexpr int getSpec(int nYdim)
+  {
+    // List of the Spline class specializations:
+    //
+    //  0 - a parent class for other specializations
+    //  1 - nYdim>0: nYdim is set at the compile time
+    //  2 - nYdim<=0: nYdim must be set during runtime
+    //  3 - specialization where nYdim==1 (a small add-on on top of the other specs)
+
+    if (nYdim == 1) {
+      return 3;
+    }
+    if (nYdim > 0) {
+      return 1;
+    } else {
+      return 2;
+    }
+  }
+};
 
 /// ==================================================================================================
 /// The class Spline1DContainer is a base class of Spline1D.
-/// It contains all the class members and methods which only depends on the DataT data type
-/// and do not depend on other template parameters of Spline1D.
+/// It contains all the class members and those methods which only depends on the DataT data type.
 /// It also contains all non-inlined methods with the implementation in Spline1DSpec.cxx file.
 ///
 /// DataT is a data type, which is supposed to be either double or float.
@@ -264,11 +271,34 @@ GPUdi() void Spline1DContainer<DataT>::setXrange(DataT xMin, DataT xMax)
 }
 
 /// ==================================================================================================
-/// The specification declares common methods for all other Spline1D specifications.
+///
+/// Spline1DSpec class declares different specializations of the Spline1D class.
+///
+/// The specializations depend on the value of Spline1D's template parameter YdimT.
+/// specializations have different constructors and slightly different declarations of methods.
+///
+/// The meaning of the template parameters:
+///
+/// \param DataT data type: float or double
+/// \param YdimT
+///    YdimT > 0 : the number of Y dimensions is known at the compile time and is equal to YdimT
+///    YdimT = 0 : the number of Y dimensions will be set in the runtime
+///    YdimT < 0 : the number of Y dimensions will be set in the runtime, and it will not exceed abs(XdimT)
+/// \param SpecT specialisation number:
+///  0 - a parent class for all other specializations
+///  1 - nYdim>0: nYdim is set at the compile time
+///  2 - nYdim<0: nYdim must be set during runtime
+///  3 - specialization where nYdim==1 (a small add-on on top of the other specs)
+///
+template <typename DataT, int YdimT, int SpecT>
+class Spline1DSpec;
+
+/// ==================================================================================================
+/// Specialization 0 declares common methods for all other Spline2D specializations.
 /// Implementations of the methods may depend on the YdimT value.
 ///
-template <typename DataT, int YdimT, bool YisPositiveT, bool YisOneT, bool YisAbsentT>
-class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbsentT> : public Spline1DContainer<DataT>
+template <typename DataT, int YdimT>
+class Spline1DSpec<DataT, YdimT, 0> : public Spline1DContainer<DataT>
 {
   typedef Spline1DContainer<DataT> TBase;
 
@@ -278,17 +308,17 @@ class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
 
   /// _______________  Template magic  ________________________
 
-  /// An expression getYdim(YisPositiveTbool{},int) is either an integer or a constexpr integer,
-  /// depending on the YisPositiveT value
+  /// An expression getYdim(YdimCase{},int) is either an integer or a constexpr integer,
+  /// depending on the (YdimT>0) value
   ///
-  typedef std::integral_constant<bool, YisPositiveT> YisPositiveTbool;
+  typedef std::integral_constant<bool, (YdimT > 0)> YdimCase;
   static constexpr int getYdim(std::true_type, int) { return YdimT; }
   static int getYdim(std::false_type, int nYdim) { return nYdim; }
 
-  /// An expression getMaxYdim(YisAbsentTbool{},int) is either an integer or a constexpr integer,
-  /// depending on the YisAbsentT value
+  /// An expression getMaxYdim(YdimMaxCase{},int) is either an integer or a constexpr integer,
+  /// depending on the (YdimT==0) value
   ///
-  typedef std::integral_constant<bool, YisAbsentT> YisAbsentTbool;
+  typedef std::integral_constant<bool, (YdimT == 0)> YdimMaxCase;
   static int getMaxYdim(std::true_type, int nYdim) { return nYdim; }
   static constexpr int getMaxYdim(std::false_type, int) { return abs(YdimT); }
 
@@ -305,7 +335,7 @@ class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
   GPUd() void interpolateU(int inpYdim, GPUgeneric() const DataT Parameters[],
                            DataT u, GPUgeneric() DataT S[/*nYdim*/]) const
   {
-    auto nYdim = getYdim(YisPositiveTbool{}, inpYdim);
+    auto nYdim = getYdim(YdimCase{}, inpYdim);
     int iknot = TBase::template getLeftKnotIndexForU<SafeT>(u);
     const DataT* d = Parameters + (2 * nYdim) * iknot;
     interpolateU(nYdim, getKnots()[iknot], &(d[0]), &(d[nYdim]), &(d[2 * nYdim]), &(d[3 * nYdim]), u, S);
@@ -320,7 +350,7 @@ class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
                            GPUgeneric() const T Sr[/*mYdim*/], GPUgeneric() const T Dr[/*mYdim*/],
                            DataT u, GPUgeneric() T S[/*mYdim*/]) const
   {
-    auto nYdim = getYdim(YisPositiveTbool{}, inpYdim);
+    auto nYdim = getYdim(YdimCase{}, inpYdim);
     T uu = T(u - knotL.u);
     T li = T(knotL.Li);
     T v = uu * li; // scaled u
@@ -359,15 +389,15 @@ class Spline1DSpec<DataT, YdimT, true /*YisAnyT*/, YisPositiveT, YisOneT, YisAbs
 };
 
 /// ==================================================================================================
-/// Specification YdimT>=0 where the number of Y dimensions is taken from a template argument YdimT
+/// Specialization 1: YdimT>0 where the number of Y dimensions is taken from template parameters
 /// at the compile time
 ///
 template <typename DataT, int YdimT>
-class Spline1DSpec<DataT, YdimT, false /*YisAnyT*/, true /*YisPositiveT*/, false /*YisOneT*/, false /*YisAbsentT*/>
-  : public Spline1DSpec<DataT, YdimT, true, true, false, false>
+class Spline1DSpec<DataT, YdimT, 1>
+  : public Spline1DSpec<DataT, YdimT, 0>
 {
   typedef Spline1DContainer<DataT> TVeryBase;
-  typedef Spline1DSpec<DataT, YdimT, true, true, false, false> TBase;
+  typedef Spline1DSpec<DataT, YdimT, 0> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;
@@ -450,37 +480,15 @@ class Spline1DSpec<DataT, YdimT, false /*YisAnyT*/, true /*YisPositiveT*/, false
 };
 
 /// ==================================================================================================
-/// Specification where the number of Y dimensions is 1.
+/// Specialization 2 (YdimT<=0) where the numbaer of Y dimensions
+/// must be set in the runtime via a constructor parameter
 ///
-template <typename DataT>
-class Spline1DSpec<DataT, 1, false /*YisAnyT*/, true /*YisPositiveT*/, true /*YisOneT*/, false /*YisAbsentT*/>
-  : public Spline1DSpec<DataT, 1, false, true, false, false>
-{
-  typedef Spline1DSpec<DataT, 1, false, true, false, false> TBase;
-
- public:
-  using TBase::TBase; // inherit constructors
-
-  /// Simplified interface for 1D: return the interpolated value
-  GPUd() DataT interpolate(DataT x) const
-  {
-    DataT S = 0.;
-    TBase::interpolate(x, &S);
-    return S;
-  }
-};
-
-/// ==================================================================================================
-/// A specification (YdimT<0) where the number of Y dimensions is set in the runtime
-/// via a constructor argument.
-/// Specification currently doesn't depend on the YisAbsentT value.
-///
-template <typename DataT, int YdimT, bool YisAbsentT>
-class Spline1DSpec<DataT, YdimT, false /*YisAnyT*/, false /*YisPositiveT*/, false /*YisOneT*/, YisAbsentT>
-  : public Spline1DSpec<DataT, YdimT, true, false, false, YisAbsentT>
+template <typename DataT, int YdimT>
+class Spline1DSpec<DataT, YdimT, 2>
+  : public Spline1DSpec<DataT, YdimT, 0>
 {
   typedef Spline1DContainer<DataT> TVeryBase;
-  typedef Spline1DSpec<DataT, YdimT, true, false, false, YisAbsentT> TBase;
+  typedef Spline1DSpec<DataT, YdimT, 0> TBase;
 
  public:
   typedef typename TVeryBase::SafetyLevel SafetyLevel;
@@ -520,6 +528,27 @@ class Spline1DSpec<DataT, YdimT, false /*YisAnyT*/, false /*YisPositiveT*/, fals
 #ifndef GPUCA_ALIROOT_LIB
   ClassDefNV(Spline1DSpec, 0);
 #endif
+};
+
+/// ==================================================================================================
+/// Specialization 3, where the number of Y dimensions is 1.
+///
+template <typename DataT>
+class Spline1DSpec<DataT, 1, 3>
+  : public Spline1DSpec<DataT, 1, Spline1DUtil::getSpec(999)>
+{
+  typedef Spline1DSpec<DataT, 1, Spline1DUtil::getSpec(999)> TBase;
+
+ public:
+  using TBase::TBase; // inherit constructors
+
+  /// Simplified interface for 1D: return the interpolated value
+  GPUd() DataT interpolate(DataT x) const
+  {
+    DataT S = 0.;
+    TBase::interpolate(x, &S);
+    return S;
+  }
 };
 
 } // namespace gpu

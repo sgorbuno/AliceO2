@@ -27,7 +27,7 @@
 #include "TRandom.h"
 #include "Riostream.h"
 #include "TMath.h"
-#include "SplineHelper2D.h"
+#include "Spline2DHelper.h"
 #include "TCanvas.h"
 #include "TNtuple.h"
 #include "TFile.h"
@@ -199,7 +199,7 @@ void Spline2DContainer<DataT>::approximateFunction(
   int nAuxiliaryDataPointsX1, int nAuxiliaryDataPointsX2)
 {
   /// approximate a function F with this spline
-  SplineHelper2D<DataT> helper;
+  Spline2DHelper<DataT> helper;
   helper.approximateFunction(*reinterpret_cast<Spline2D<DataT>*>(this), x1Min, x1Max, x2Min, x2Max, F, nAuxiliaryDataPointsX1, nAuxiliaryDataPointsX2);
 }
 
@@ -221,7 +221,7 @@ Spline2DContainer<DataT>* Spline2DContainer<DataT>::readFromFile(
 template <typename DataT>
 int Spline2DContainer<DataT>::test(const bool draw, const bool drawDataPoints)
 {
-  return SplineHelper2D<DataT>::test(draw, drawDataPoints);
+  return Spline2DHelper<DataT>::test(draw, drawDataPoints);
 }
 
 #endif // GPUCA_GPUCODE && !GPUCA_STANDALONE
