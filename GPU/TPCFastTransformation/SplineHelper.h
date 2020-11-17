@@ -24,7 +24,7 @@
 #include "TString.h"
 #include "Spline1D.h"
 #include "Spline.h"
-#include "Spline1DHelper.h"
+#include "SplineHelper1D.h"
 #include <functional>
 
 namespace GPUCA_NAMESPACE
@@ -56,50 +56,48 @@ class SplineHelper
   /// _______________  Main functionality  ________________________
 
   /// Create best-fit spline parameters for a given input function F
-  void approximateFunction(SplineContainer<DataT>& spline,
-                           const double xMin[/* Xdim */], const double xMax[/* Xdim */],
-                           std::function<void(const double x[/* Xdim */], double f[/* Fdim */])> F,
+  template <bool isConsistentT>
+  void approximateFunction(SplineBase<DataT, isConsistentT>& spline,
+                           const DataT xMin[/* Xdim */], const DataT xMax[/* Xdim */],
+                           std::function<void(const DataT x[/* Xdim */], DataT f[/* Fdim */])> F,
                            const int nAxiliaryDataPoints[/* Xdim */] = nullptr);
 
   /// _______________   Interface for a step-wise construction of the best-fit spline   ________________________
 
   /// precompute everything needed for the construction
-  int setSpline(const SplineContainer<DataT>& spline, const int nAxiliaryPoints[/* Xdim */]);
+  template <bool isConsistentT>
+  int setSpline(const SplineBase<DataT, isConsistentT>& spline, const int nAxiliaryPoints[/* Xdim */]);
 
   /// approximate std::function, output in Fparameters
   void approximateFunction(
-    DataT* Fparameters, const double xMin[/* mXdimensions */], const double xMax[/* mXdimensions */],
-    std::function<void(const double x[/* mXdimensions */], double f[/* mFdimensions */])> F) const;
+    DataT* Fparameters, const DataT xMin[/* mXdimensions */], const DataT xMax[/* mXdimensions */],
+    std::function<void(const DataT x[/* mXdimensions */], DataT f[/* mFdimensions */])> F) const;
 
   /// approximate std::function, output in Fparameters. F calculates values for a batch of points.
   void approximateFunctionBatch(
-    DataT* Fparameters, const double xMin[/* mXdimensions */], const double xMax[/* mXdimensions */],
-    std::function<void(const std::vector<double> x[/* mXdimensions */], std::vector<double> f[/*mFdimensions*/])> F,
+    DataT* Fparameters, const DataT xMin[/* mXdimensions */], const DataT xMax[/* mXdimensions */],
+    std::function<void(const std::vector<DataT> x[/* mXdimensions */], std::vector<DataT> f[/*mFdimensions*/])> F,
     unsigned int batchsize) const;
 
   /// approximate a function given as an array of values at data points
   void approximateFunction(
-    DataT* Fparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
+    DataT* Fparameters, const DataT DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
 
   int getNumberOfDataPoints(int dimX) const { return mHelpers[dimX].getNumberOfDataPoints(); }
 
   int getNumberOfDataPoints() const { return mNumberOfDataPoints; }
 
-  const Spline1DHelper<DataT>& getHelper(int dimX) const { return mHelpers[dimX]; }
+  const SplineHelper1D<DataT>& getHelper(int dimX) const { return mHelpers[dimX]; }
 
   /// _______________  Utilities   ________________________
 
   ///  Gives error string
   const char* getLastError() const { return mError.Data(); }
-
-#if !defined(GPUCA_GPUCODE) && !defined(GPUCA_STANDALONE)
-  /// Test the Spline class functionality
-  static int test(const bool draw = 0, const bool drawDataPoints = 1);
-#endif
-
-  static int arraytopoints(int point, int result[], const int numbers[], int dim);
-
-  static int pointstoarray(const int indices[], const int numbers[], int dim);
+  
+  
+  static int arraytopoints ( int point, int result[], const int numbers[],  int dim);
+  
+  static int pointstoarray ( const int indices[], const int numbers[], int dim);
 
  private:
   /// Stores an error message
@@ -110,31 +108,31 @@ class SplineHelper
   int mFdimensions;        ///< number of F dimensions
   int mNumberOfParameters; ///< number of parameters
   int mNumberOfDataPoints; ///< number of data points
-  std::vector<Spline1DHelper<DataT>> mHelpers;
+  std::vector<SplineHelper1D<DataT>> mHelpers;
 };
 
+
+
 template <typename DataT>
+template <bool isConsistentT>
 void SplineHelper<DataT>::approximateFunction(
-  SplineContainer<DataT>& spline,
-  const double xMin[/* Xdim */], const double xMax[/* Xdim */],
-  std::function<void(const double x[/* Xdim */], double f[/* Fdim */])> F,
+  SplineBase<DataT, isConsistentT>& spline,
+  const DataT xMin[/* Xdim */], const DataT xMax[/* Xdim */],
+  std::function<void(const DataT x[/* Xdim */], DataT f[/* Fdim */])> F,
   const int nAxiliaryDataPoints[/* Xdim */])
 {
   /// Create best-fit spline parameters for a given input function F
-  setSpline(spline, nAxiliaryDataPoints);
-  approximateFunction(spline.getParameters(), xMin, xMax, F);
-  DataT xxMin[spline.getXdimensions()];
-  DataT xxMax[spline.getXdimensions()];
-  for (int i = 0; i < spline.getXdimensions(); i++) {
-    xxMin[i] = xMin[i];
-    xxMax[i] = xMax[i];
+  if (spline.isConsistent()) {
+    setSpline(spline, nAxiliaryDataPoints);
+    approximateFunction(spline.getFparameters(), xMin, xMax, F);
   }
-  spline.setXrange(xxMin, xxMax);
+  spline.setXrange(xMin, xMax);
 }
 
 template <typename DataT>
+template <bool isConsistentT>
 int SplineHelper<DataT>::setSpline(
-  const SplineContainer<DataT>& spline, const int nAxiliaryPoints[/* Xdim */])
+  const SplineBase<DataT, isConsistentT>& spline, const int nAxiliaryPoints[/* Xdim */])
 {
   // Prepare creation of an irregular spline
   // The should be at least one (better, two) axiliary measurements on each segnment between two knots and at least 2*nKnots measurements in total
@@ -142,7 +140,7 @@ int SplineHelper<DataT>::setSpline(
 
   int ret = 0;
   mXdimensions = spline.getXdimensions();
-  mFdimensions = spline.getYdimensions();
+  mFdimensions = spline.getFdimensions();
   mNumberOfParameters = spline.getNumberOfParameters();
   mNumberOfDataPoints = 1;
   mHelpers.clear();

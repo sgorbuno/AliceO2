@@ -20,7 +20,7 @@
 #include "AliTPCTransform.h"
 #include "AliTPCcalibDB.h"
 #include "TPCFastTransform.h"
-#include "Spline2DHelper.h"
+#include "SplineHelper2D.h"
 
 using namespace GPUCA_NAMESPACE::gpu;
 
@@ -280,9 +280,9 @@ int TPCFastTransformManager::updateCalibration(TPCFastTransform& fastTransform,
       const TPCFastSpaceChargeCorrection::SplineType& spline = correction.getSpline(slice, row);
       float* data = correction.getSplineData(slice, row);
 
-      Spline2DHelper<float> helper;
+      SplineHelper2D<float> helper;
       helper.setSpline(spline, 4, 4);
-      auto F = [&](double su, double sv, double dxuv[3]) {
+      auto F = [&](float su, float sv, float dxuv[3]) {
         float x = rowInfo.x;
         // x, u, v cordinates of the knot (local cartesian coord. of slice
         // towards central electrode )
@@ -326,9 +326,7 @@ int TPCFastTransformManager::updateCalibration(TPCFastTransform& fastTransform,
     } // row
   }   // slice
 
-#ifndef GPUCA_ALIROOT_LIB // Disable in AliRoot case temporarily, since it crashes, and is not used anyway
   correction.initInverse();
-#endif
 
   // set back the time-of-flight correction;
 

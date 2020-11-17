@@ -11,15 +11,13 @@
 set(MODULE TPCFastTransformation)
 
 set(SRCS
-    SplineSpec.cxx
-    Spline.cxx
-    SplineHelper.cxx
-    Spline1DSpec.cxx
-    Spline1D.cxx
-    Spline1DHelper.cxx
-    Spline2DSpec.cxx
+    Spline.cxx  
+    Spline1D.cxx  
     Spline2D.cxx
-    Spline2DHelper.cxx
+    SplineHelper.cxx
+    SplineHelperTest.cxx
+    SplineHelper1D.cxx
+    SplineHelper2D.cxx
     ChebyshevFit1D.cxx
     devtools/IrregularSpline1D.cxx
     devtools/IrregularSpline2D3D.cxx
@@ -31,7 +29,7 @@ set(SRCS
 )
 
 string(REPLACE ".cxx" ".h" HDRS_CINT_O2 "${SRCS}")
-set(HDRS_CINT_O2 ${HDRS_CINT_O2} SplineUtil.h devtools/RegularSpline1D.h)
+set(HDRS_CINT_O2 ${HDRS_CINT_O2} devtools/RegularSpline1D.h)
 
 if(${ALIGPU_BUILD_TYPE} STREQUAL "O2")
   o2_add_library(${MODULE}

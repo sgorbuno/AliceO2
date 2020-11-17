@@ -21,7 +21,7 @@
 #include "TPCBase/Sector.h"
 #include "DataFormatsTPC/Defs.h"
 #include "TPCFastTransform.h"
-#include "Spline2DHelper.h"
+#include "SplineHelper2D.h"
 #include "Riostream.h"
 #include "FairLogger.h"
 
@@ -65,9 +65,8 @@ void TPCFastTransformHelperO2::init()
   for (int iRow = 0; iRow < mGeo.getNumberOfRows(); iRow++) {
     Sector sector = 0;
     int regionNumber = 0;
-    while (iRow >= mapper.getGlobalRowOffsetRegion(regionNumber) + mapper.getNumberOfRowsRegion(regionNumber)) {
+    while (iRow >= mapper.getGlobalRowOffsetRegion(regionNumber) + mapper.getNumberOfRowsRegion(regionNumber))
       regionNumber++;
-    }
 
     const PadRegionInfo& region = mapper.getPadRegionInfo(regionNumber);
 
@@ -246,7 +245,7 @@ int TPCFastTransformHelperO2::updateCalibration(TPCFastTransform& fastTransform,
   // spline corrections for xyz
   // Time-of-flight correction: ldrift += dist-to-vtx*tofCorr
 
-  const double t0 = elParam.getAverageShapingTime() / elParam.ZbinWidth;
+  const double t0 = elParam.PeakingTime / elParam.ZbinWidth;
 
   const double vdCorrY = 0.;
   const double ldCorr = 0.;
@@ -266,9 +265,9 @@ int TPCFastTransformHelperO2::updateCalibration(TPCFastTransform& fastTransform,
       for (int row = 0; row < correction.getGeometry().getNumberOfRows(); row++) {
         const TPCFastSpaceChargeCorrection::SplineType& spline = correction.getSpline(slice, row);
         float* data = correction.getSplineData(slice, row);
-        Spline2DHelper<float> helper;
+        SplineHelper2D<float> helper;
         helper.setSpline(spline, 3, 3);
-        auto F = [&](double su, double sv, double dxuv[3]) {
+        auto F = [&](float su, float sv, float dxuv[3]) {
           getSpaceChargeCorrection(slice, row, su, sv, dxuv[0], dxuv[1], dxuv[2]);
         };
         helper.approximateFunction(data, 0., 1., 0., 1., F);
@@ -284,7 +283,7 @@ int TPCFastTransformHelperO2::updateCalibration(TPCFastTransform& fastTransform,
   return 0;
 }
 
-int TPCFastTransformHelperO2::getSpaceChargeCorrection(int slice, int row, double su, double sv, double& dx, double& du, double& dv)
+int TPCFastTransformHelperO2::getSpaceChargeCorrection(int slice, int row, float su, float sv, float& dx, float& du, float& dv)
 {
   // get space charge correction in internal TPCFastTransform coordinates su,sv->dx,du,dv
 

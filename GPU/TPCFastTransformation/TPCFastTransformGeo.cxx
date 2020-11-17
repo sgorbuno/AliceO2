@@ -152,12 +152,12 @@ int TPCFastTransformGeo::test(int slice, int row, float ly, float lz) const
 
   int error = 0;
 
-  if (!isConstructed()) {
+  if (!isConstructed())
     error = -1;
-  }
-  if (mNumberOfRows <= 0 || mNumberOfRows >= MaxNumberOfRows) {
+
+  if (mNumberOfRows <= 0 || mNumberOfRows >= MaxNumberOfRows)
     error = -2;
-  }
+
   float lx = getRowInfo(row).x;
   float lx1 = 0.f, ly1 = 0.f, lz1 = 0.f;
   float gx = 0.f, gy = 0.f, gz = 0.f;
