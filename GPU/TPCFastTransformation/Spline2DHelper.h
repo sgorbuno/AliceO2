@@ -63,6 +63,12 @@ class Spline2DHelper
     std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F,
     int nAuxiliaryDataPointsU1 = 4, int nAuxiliaryDataPointsU2 = 4);
 
+  void approximateFunction1(
+    Spline2DContainer<DataT>& spline,
+    double x1Min, double x1Max, double x2Min, double x2Max,
+    std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F,
+    int nAuxiliaryDataPointsU1 = 4, int nAuxiliaryDataPointsU2 = 4);
+
   /// _______________   Interface for a step-wise construction of the best-fit spline   ________________________
 
   /// precompute everything needed for the construction
@@ -82,6 +88,11 @@ class Spline2DHelper
   /// approximate a function given as an array of values at data points
   void approximateFunction(
     DataT* Fparameters, const double DataPointF[/*getNumberOfDataPoints() x nFdim*/]) const;
+
+  void approximateDataPoints(
+    Spline2DContainer<DataT>& spline, double x1Min, double x1Max, double x2Min, double x2Max,
+    const double dataPointX1[], const double dataPointX2[], const double dataPointF[/*getNumberOfDataPoints() x nFdim*/],
+    int nDataPoints);
 
   int getNumberOfDataPointsU1() const { return mHelperU1.getNumberOfDataPoints(); }
 

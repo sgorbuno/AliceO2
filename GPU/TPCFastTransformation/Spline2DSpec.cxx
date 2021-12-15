@@ -201,7 +201,7 @@ void Spline2DContainer<DataT>::approximateFunction(
 {
   /// approximate a function F with this spline
   Spline2DHelper<DataT> helper;
-  helper.approximateFunction(*reinterpret_cast<Spline2D<DataT>*>(this), x1Min, x1Max, x2Min, x2Max, F, nAuxiliaryDataPointsX1, nAuxiliaryDataPointsX2);
+  helper.approximateFunction1(*reinterpret_cast<Spline2D<DataT>*>(this), x1Min, x1Max, x2Min, x2Max, F, nAuxiliaryDataPointsX1, nAuxiliaryDataPointsX2);
 }
 
 #ifndef GPUCA_ALIROOT_LIB

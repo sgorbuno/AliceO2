@@ -67,6 +67,11 @@ class Spline1DHelper
   /// _______________  Main functionality  ________________________
 
   /// Create best-fit spline parameters for a given input function F
+  void approximateDataPoints(Spline1DContainer<DataT>& spline,
+                             double xMin, double xMax,
+                             double x[], double f[], int nDataPoints);
+
+  /// Create best-fit spline parameters for a given input function F
   void approximateFunction(Spline1DContainer<DataT>& spline,
                            double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F,
                            int nAuxiliaryDataPoints = 4);
@@ -84,6 +89,9 @@ class Spline1DHelper
 
   /// precompute everything needed for the construction
   int setSpline(const Spline1DContainer<DataT>& spline, int nFdimensions, int nAuxiliaryDataPoints);
+
+  /// precompute everything needed for the construction
+  int setSpline(const Spline1DContainer<DataT>& spline, int nFdimensions, double xMin, double xMax, double vx[], int nDataPoints);
 
   /// approximate std::function, output in Fparameters
   void approximateFunction(DataT* Fparameters, double xMin, double xMax, std::function<void(double x, double f[])> F) const;
@@ -114,6 +122,11 @@ class Spline1DHelper
   int getKnotDataPoint(int iknot) const { return mKnotDataPoints[iknot]; }
 
   const DataPoint& getDataPoint(int ip) const { return mDataPoints[ip]; }
+
+  /// Get derivatives of the interpolated value {S(u): 1D -> nYdim} at the segment [knotL, next knotR]
+  /// over the spline values Sl, Sr and the slopes Dl, Dr
+  static void getSplineUderivatives(const typename Spline1D<double>::Knot& knotL, double u,
+                                    double& dSl, double& dDl, double& dSr, double& dDr);
 
   ///  Gives error string
   const char* getLastError() const { return mError.c_str(); }

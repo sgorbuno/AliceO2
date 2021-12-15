@@ -255,8 +255,8 @@ class Spline2DSpec<DataT, YdimT, 0>
     const auto nYdim2 = nYdim * 2;
     const auto nYdim4 = nYdim * 4;
 
-    const float& u = u1;
-    const float& v = u2;
+    const DataT& u = u1;
+    const DataT& v = u2;
     int nu = mGridX1.getNumberOfKnots();
     int iu = mGridX1.template getLeftKnotIndexForU<SafeT>(u);
     int iv = mGridX2.template getLeftKnotIndexForU<SafeT>(v);

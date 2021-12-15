@@ -48,6 +48,24 @@ int Spline1DHelper<DataT>::storeError(int code, const char* msg)
 }
 
 template <typename DataT>
+void Spline1DHelper<DataT>::getSplineUderivatives(const typename Spline1D<double>::Knot& knotL, double u,
+                                                  double& dSl, double& dDl, double& dSr, double& dDr)
+{
+  /// Get derivatives of the interpolated value {S(u): 1D -> nYdim} at the segment [knotL, next knotR]
+  /// over the spline values Sl, Sr and the slopes Dl, Dr
+  u = u - knotL.u;
+  double v = u * double(knotL.Li); // scaled u
+  double vm1 = v - 1.;
+  double a = u * vm1;
+  double v2 = v * v;
+  dSr = v2 * (3. - 2 * v);
+  dSl = 1. - dSr;
+  dDl = vm1 * a;
+  dDr = v * a;
+  // F(u) = dSl * Sl + dSr * Sr + dDl * Dl + dDr * Dr;
+}
+
+template <typename DataT>
 void Spline1DHelper<DataT>::approximateFunctionClassic(Spline1DContainer<DataT>& spline,
                                                        double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F)
 {
@@ -171,6 +189,19 @@ void Spline1DHelper<DataT>::approximateFunctionClassic(Spline1DContainer<DataT>&
 }
 
 template <typename DataT>
+void Spline1DHelper<DataT>::approximateDataPoints(
+  Spline1DContainer<DataT>& spline,
+  double xMin, double xMax,
+  double vx[], double vf[], int nDataPoints)
+{
+  /// Create best-fit spline parameters for a given input function F
+
+  spline.setXrange(xMin, xMax);
+  setSpline(spline, spline.getYdimensions(), xMin, xMax, vx, nDataPoints);
+  approximateFunction(spline.getParameters(), vf);
+}
+
+template <typename DataT>
 void Spline1DHelper<DataT>::approximateFunction(
   Spline1DContainer<DataT>& spline, double xMin, double xMax, std::function<void(double x, double f[/*spline.getFdimensions()*/])> F,
   int nAuxiliaryDataPoints)
@@ -219,6 +250,7 @@ void Spline1DHelper<DataT>::approximateFunctionGradually(
   }
   approximateFunctionGradually(Sparameters, vF.data());
 }
+
 
 template <typename DataT>
 int Spline1DHelper<DataT>::setSpline(
@@ -315,6 +347,281 @@ int Spline1DHelper<DataT>::setSpline(
     A(j + 3, j + 2) += p.cS1 * p.cZ1;
 
     A(j + 3, j + 3) += p.cZ1 * p.cZ1;
+  }
+
+  // copy symmetric matrix elements
+
+  for (int i = 0; i < nPar; i++) {
+    for (int j = i + 1; j < nPar; j++) {
+      A(i, j) = A(j, i);
+    }
+  }
+
+  TMatrixDSym Z(nKnots);
+  mLSMmatrixSvalues.resize(nKnots * nKnots);
+  for (int i = 0, k = 0; i < nKnots; i++) {
+    for (int j = 0; j < nKnots; j++, k++) {
+      mLSMmatrixSvalues[k] = A(i * 2 + 1, j * 2);
+      Z(i, j) = A(i * 2 + 1, j * 2 + 1);
+    }
+  }
+
+  {
+    TDecompBK bk(A, 0);
+    bool ok = bk.Invert(A);
+
+    if (!ok) {
+      ret = storeError(-4, "Spline1DHelper::setSpline: internal error - can not invert the matrix");
+      A.Zero();
+    }
+    mLSMmatrixFull.resize(nPar * nPar);
+    for (int i = 0, k = 0; i < nPar; i++) {
+      for (int j = 0; j < nPar; j++, k++) {
+        mLSMmatrixFull[k] = A(i, j);
+      }
+    }
+  }
+
+  {
+    TDecompBK bk(Z, 0);
+    if (!bk.Invert(Z)) {
+      ret = storeError(-5, "Spline1DHelper::setSpline: internal error - can not invert the matrix");
+      Z.Zero();
+    }
+    mLSMmatrixSderivatives.resize(nKnots * nKnots);
+    for (int i = 0, k = 0; i < nKnots; i++) {
+      for (int j = 0; j < nKnots; j++, k++) {
+        mLSMmatrixSderivatives[k] = Z(i, j);
+      }
+    }
+  }
+
+  return ret;
+}
+
+template <typename DataT>
+int Spline1DHelper<DataT>::setSpline(
+  const Spline1DContainer<DataT>& spline, int nFdimensions, double xMin, double xMax, double vx[], int nDataPoints)
+{
+  // Prepare creation of a best-fit spline
+  //
+  // Data points will be set at all integer U (that includes all knots),
+  // plus at nAuxiliaryDataPoints points between the integers.
+  //
+  // nAuxiliaryDataPoints must be >= 2
+  //
+  // nAuxiliaryDataPoints==1 is also possible, but there must be at least
+  // one integer U without a knot, in order to get 2*nKnots data points in total.
+  //
+  // The return value is an error index, 0 means no error
+
+  int ret = 0;
+
+  mFdimensions = nFdimensions;
+  int nPoints = nDataPoints;
+  if (!spline.isConstructed()) {
+    ret = storeError(-1, "Spline1DHelper<DataT>::setSpline: input spline is not constructed");
+    mSpline.recreate(0, 2);
+  } else {
+    std::vector<int> knots;
+    for (int i = 0; i < spline.getNumberOfKnots(); i++) {
+      knots.push_back(spline.getKnot(i).getU());
+    }
+    mSpline.recreate(0, spline.getNumberOfKnots(), knots.data());
+  }
+
+  mSpline.setXrange(xMin, xMax);
+
+  const int nPar = 2 * mSpline.getNumberOfKnots(); // n parameters for 1D
+
+  mDataPoints.resize(nPoints);
+
+  for (int i = 0; i < nPoints; ++i) {
+    DataPoint& p = mDataPoints[i];
+    double u = mSpline.convXtoU(vx[i]);
+    int iKnot = mSpline.getLeftKnotIndexForU(u);
+    p.iKnot = iKnot;
+    p.isKnot = 0;
+    p.u = u;
+    const typename Spline1D<double>::Knot& knot0 = mSpline.getKnot(iKnot);
+    getSplineUderivatives(knot0, u, p.cS0, p.cZ0, p.cS1, p.cZ1);
+  }
+
+  const int nKnots = mSpline.getNumberOfKnots();
+
+  TMatrixDSym A(nPar);
+  A.Zero();
+
+  for (int i = 0; i < nPoints; ++i) {
+    DataPoint& p = mDataPoints[i];
+    int j = p.iKnot * 2;
+    A(j + 0, j + 0) += p.cS0 * p.cS0;
+    A(j + 1, j + 0) += p.cS0 * p.cZ0;
+    A(j + 2, j + 0) += p.cS0 * p.cS1;
+    A(j + 3, j + 0) += p.cS0 * p.cZ1;
+
+    A(j + 1, j + 1) += p.cZ0 * p.cZ0;
+    A(j + 2, j + 1) += p.cZ0 * p.cS1;
+    A(j + 3, j + 1) += p.cZ0 * p.cZ1;
+
+    A(j + 2, j + 2) += p.cS1 * p.cS1;
+    A(j + 3, j + 2) += p.cS1 * p.cZ1;
+
+    A(j + 3, j + 3) += p.cZ1 * p.cZ1;
+  }
+
+  for (int iKnot = 0; iKnot < nKnots - 2; ++iKnot) {
+    const typename Spline1D<double>::Knot& knot0 = mSpline.getKnot(iKnot);
+    const typename Spline1D<double>::Knot& knot1 = mSpline.getKnot(iKnot + 1);
+    const typename Spline1D<double>::Knot& knot2 = mSpline.getKnot(iKnot + 2);
+    /*
+    another way to calculate f(u):
+     T uu = T(u - knotL.u);
+     T v = uu * T(knotL.Li); // scaled u
+     T vm1 = v-1;
+     T v2 = v * v;
+     float cSr = 3*v2 - 2*v3;
+     float cSl = 1-cSr;
+     float cDl = (v3-2*v2+v)*knotL.L;
+     float cDr = (v3-v2)*knotL.L;
+     return cSl*Sl + cSr*Sr + cDl*Dl + cDr*Dr;
+     ()'v:
+     aSr = 6*v - 6*v2
+     aSl = -aSr
+     aDl = (3*v2-4*v+1)*knotL.L;
+     aDr = (3*v2-2*v)*knotL.L;
+     ()''v
+     bSr = 6 -12*v
+     bSl = -bSr
+     bDl = (6*v-4)*knotL.L;
+     bDr = (6*v-2)*knotL.L;
+     ()''u
+     dSr = (6 - 12*v)*knotL.Li*knotL.Li;
+     dSl = -dSr
+     dDl = (6*v-4)*knotL.Li;
+     dDr = (6*v-2)*knotL.Li;
+     */
+
+    double l0 = knot0.Li;
+    double l1 = knot1.Li;
+    /*
+     v1 = +6*l0*l0*s0 + 2*l0*z0 - 6*l0*l0*s1 + 4*l0*z1 ;
+     v2 = -6*l1*l1*s1 - 4*l1*z1 + 6*l1*l1*s2 - 2*l1*z2 ; 
+     v2-v1 = -6*l1*l1*s1 - 4*l1*z1 + 6*l1*l1*s2 - 2*l1*z2 -6*l0*l0*s0 - 2*l0*z0 + 6*l0*l0*s1 - 4*l0*z1
+     = -6*l0*l0*s0 - 2*l0*z0 -6*(l1*l1-l0*l0)*s1 - 4*(l0+l1)*z1 + 6*l1*l1*s2 - 2*l1*z2
+    */
+    double c = 0.01;
+    double cS0 = c * -3 * l0 * l0;
+    double cZ0 = c * -l0;
+    double cS1 = c * -3 * (l1 * l1 - l0 * l0);
+    double cZ1 = c * -2 * (l0 + l1);
+    double cS2 = c * 3 * l1 * l1;
+    double cZ2 = c * -l1;
+
+    int j = iKnot * 2;
+
+    A(j + 0, j + 0) += cS0 * cS0;
+    A(j + 1, j + 0) += cS0 * cZ0;
+    A(j + 2, j + 0) += cS0 * cS1;
+    A(j + 3, j + 0) += cS0 * cZ1;
+    A(j + 4, j + 0) += cS0 * cS2;
+    A(j + 5, j + 0) += cS0 * cZ2;
+
+    A(j + 1, j + 1) += cZ0 * cZ0;
+    A(j + 2, j + 1) += cZ0 * cS1;
+    A(j + 3, j + 1) += cZ0 * cZ1;
+    A(j + 4, j + 1) += cZ0 * cS2;
+    A(j + 5, j + 1) += cZ0 * cZ2;
+
+    A(j + 2, j + 2) += cS1 * cS1;
+    A(j + 3, j + 2) += cS1 * cZ1;
+    A(j + 4, j + 2) += cS1 * cS2;
+    A(j + 5, j + 2) += cS1 * cZ2;
+
+    A(j + 3, j + 3) += cZ1 * cZ1;
+    A(j + 4, j + 3) += cZ1 * cS2;
+    A(j + 5, j + 3) += cZ1 * cZ2;
+
+    A(j + 4, j + 4) += cS2 * cS2;
+    A(j + 5, j + 4) += cS2 * cZ2;
+
+    A(j + 5, j + 5) += cZ2 * cZ2;
+  }
+
+  for (int iKnot = -1; iKnot < nKnots - 2; ++iKnot) {
+
+    const typename Spline1D<double>::Knot& knot1 = mSpline.getKnot(iKnot + 1);
+    /*
+     ()''u
+     dSr = (3 - 6*v)*knotL.Li*knotL.Li;
+     dSl = -dSr
+     dDl = (3*v-2)*knotL.Li;
+     dDr = (3*v-1)*knotL.Li;
+     */
+
+    double l1 = knot1.Li;
+    /*
+     v2 = -3*l1*l1*s1 - 2*l1*z1 + 3*l1*l1*s2 - l1*z2 ; 
+    */
+    double c = 0.01;
+    double cS1 = c * -3 * (l1 * l1);
+    double cZ1 = c * -2 * (l1);
+    double cS2 = c * 3 * l1 * l1;
+    double cZ2 = c * -l1;
+
+    int j = iKnot * 2;
+
+    A(j + 2, j + 2) += cS1 * cS1;
+    A(j + 3, j + 2) += cS1 * cZ1;
+    A(j + 4, j + 2) += cS1 * cS2;
+    A(j + 5, j + 2) += cS1 * cZ2;
+
+    A(j + 3, j + 3) += cZ1 * cZ1;
+    A(j + 4, j + 3) += cZ1 * cS2;
+    A(j + 5, j + 3) += cZ1 * cZ2;
+
+    A(j + 4, j + 4) += cS2 * cS2;
+    A(j + 5, j + 4) += cS2 * cZ2;
+
+    A(j + 5, j + 5) += cZ2 * cZ2;
+  }
+
+  {
+    int iKnot = nKnots - 2;
+    const typename Spline1D<double>::Knot& knot0 = mSpline.getKnot(iKnot);
+    /*
+     ()''u
+     dSr = (3 - 6*v)*knotL.Li*knotL.Li;
+     dSl = -dSr
+     dDl = (3*v-2)*knotL.Li;
+     dDr = (3*v-1)*knotL.Li;
+     */
+
+    double l0 = knot0.Li;
+    /*
+     v1 = +3*l0*l0*s0 + l0*z0 - 3*l0*l0*s1 + 2*l0*z1 ;
+    */
+    double c = 0.01;
+    double cS0 = c * 3 * l0 * l0;
+    double cZ0 = c * l0;
+    double cS1 = c * -3 * l0 * l0;
+    double cZ1 = c * 2 * l0;
+
+    int j = iKnot * 2;
+
+    A(j + 0, j + 0) += cS0 * cS0;
+    A(j + 1, j + 0) += cS0 * cZ0;
+    A(j + 2, j + 0) += cS0 * cS1;
+    A(j + 3, j + 0) += cS0 * cZ1;
+
+    A(j + 1, j + 1) += cZ0 * cZ0;
+    A(j + 2, j + 1) += cZ0 * cS1;
+    A(j + 3, j + 1) += cZ0 * cZ1;
+
+    A(j + 2, j + 2) += cS1 * cS1;
+    A(j + 3, j + 2) += cS1 * cZ1;
+
+    A(j + 3, j + 3) += cZ1 * cZ1;
   }
 
   // copy symmetric matrix elements

@@ -223,6 +223,191 @@ void Spline2DHelper<DataT>::approximateFunction(
   }
 }
 
+template <typename DataT>
+void Spline2DHelper<DataT>::approximateFunction1(
+  Spline2DContainer<DataT>& spline,
+  double x1Min, double x1Max, double x2Min, double x2Max,
+  std::function<void(double x1, double x2, double f[/*spline.getYdimensions()*/])> F,
+  int nAuxiliaryDataPointsU1, int nAuxiliaryDataPointsU2)
+{
+  /// Create best-fit spline parameters for a given input function F
+  
+  setSpline(spline, nAuxiliaryDataPointsU1, nAuxiliaryDataPointsU2);
+
+  std::vector<double> dataPointX1(getNumberOfDataPoints());
+  std::vector<double> dataPointX2(getNumberOfDataPoints());
+  std::vector<double> dataPointF(getNumberOfDataPoints() * mFdimensions);
+
+  double scaleX1 = (x1Max - x1Min) / ((double)mHelperU1.getSpline().getUmax());
+  double scaleX2 = (x2Max - x2Min) / ((double)mHelperU2.getSpline().getUmax());
+
+  for (int iv = 0; iv < getNumberOfDataPointsU2(); iv++) {
+    double x2 = x2Min + mHelperU2.getDataPoint(iv).u * scaleX2;
+    for (int iu = 0; iu < getNumberOfDataPointsU1(); iu++) {
+      double x1 = x1Min + mHelperU1.getDataPoint(iu).u * scaleX1;
+      int ind = iv * getNumberOfDataPointsU1() + iu;
+      dataPointX1[ind] = x1;
+      dataPointX2[ind] = x2;
+      F(x1, x2, &dataPointF[ind * mFdimensions]);
+    }
+  }
+  approximateDataPoints( spline, x1Min, x1Max, x2Min, x2Max, &dataPointX1[0], &dataPointX2[0], &dataPointF[0], getNumberOfDataPoints() );
+}
+
+template <typename DataT>
+void Spline2DHelper<DataT>::approximateDataPoints(
+  Spline2DContainer<DataT>& spline, double x1Min, double x1Max, double x2Min, double x2Max,
+  const double dataPointX1[], const double dataPointX2[], const double dataPointF[/*getNumberOfDataPoints() x nFdim*/],
+  int nDataPoints)
+{
+  /// Create best-fit spline parameters for a given input function F
+
+  mFdimensions = spline.getYdimensions();
+
+  spline.setXrange(x1Min, x1Max, x2Min, x2Max);
+
+  Spline1D<double, 0> gridU;
+  Spline1D<double, 0> gridV;
+  {
+    std::vector<int> knots;
+    for (int i = 0; i < spline.getGridX1().getNumberOfKnots(); i++) {
+      knots.push_back(spline.getGridX1().getKnot(i).getU());
+    }
+    gridU.recreate(0, knots.size(), knots.data());
+    gridU.setXrange(x1Min, x1Max);
+  }
+  {
+    std::vector<int> knots;
+    for (int i = 0; i < spline.getGridX2().getNumberOfKnots(); i++) {
+      knots.push_back(spline.getGridX2().getKnot(i).getU());
+    }
+    gridV.recreate(0, knots.size(), knots.data());
+    gridV.setXrange(x2Min, x2Max);
+  }
+
+  int nFdim = spline.getYdimensions();
+  int nFdim4 = 4 * nFdim;
+
+  int nu = gridU.getNumberOfKnots();
+
+  const int nPar = 4 * spline.getNumberOfKnots(); // n parameters for 1D
+
+  TMatrixDSym A(nPar);
+  A.Zero();
+
+  double B[nFdim][nPar];
+  for (int idim = 0; idim < nFdim; idim++) {
+    for (int i = 0; i < nPar; i++) {
+      B[idim][i] = 0.;
+    }
+  }
+
+  for (int iPoint = 0; iPoint < nDataPoints; ++iPoint) {
+    double u = gridU.convXtoU(dataPointX1[iPoint]);
+    double v = gridV.convXtoU(dataPointX2[iPoint]);
+
+    int iu = gridU.getLeftKnotIndexForU(u);
+    int iv = gridV.getLeftKnotIndexForU(v);
+
+    const typename Spline1D<double>::Knot& knotU = gridU.getKnot(iu);
+    const typename Spline1D<double>::Knot& knotV = gridV.getKnot(iv);
+
+    // indices of parameters that are involved in spline calculation, 1D case
+    int i00 = (nu * iv + iu) * 4; // values { S, S'v, S'u, S''vu } at {u0, v0}
+    int i01 = i00 + 4 * nu;       // values { ... } at {u0, v1}
+
+    double dSl, dDl, dSr, dDr;
+    Spline1DHelper<double>::getSplineUderivatives(knotU, u, dSl, dDl, dSr, dDr);
+    double dSd, dDd, dSu, dDu;
+    Spline1DHelper<double>::getSplineUderivatives(knotV, v, dSd, dDd, dSu, dDu);
+
+    // A = Parameters + i00,  B = Parameters + i01
+    // S = dSl * (dSd * A[0] + dDd * A[1]) + dDl * (dSd * A[2] + dDd * A[3]) +
+    //     dSr * (dSd * A[4] + dDd * A[5]) + dDr * (dSd * A[6] + dDd * A[7]) +
+    //     dSl * (dSu * B[0] + dDu * B[1]) + dDl * (dSu * B[2] + dDu * B[3]) +
+    //     dSr * (dSu * B[4] + dDu * B[5]) + dDr * (dSu * B[6] + dDu * B[7]);
+
+    double a[8] = {dSl * dSd, dSl * dDd, dDl * dSd, dDl * dDd,
+                   dSr * dSd, dSr * dDd, dDr * dSd, dDr * dDd};
+    double b[8] = {dSl * dSu, dSl * dDu, dDl * dSu, dDl * dDu,
+                   dSr * dSu, dSr * dDu, dDr * dSu, dDr * dDu};
+
+    // S = sum a[i]*A[i] + b[i]*B[i]
+    {
+      int i0 = i00;
+      int j0 = i00;
+      for (int i = 0; i < 8; i++) {
+        for (int j = 0; j <= i; j++) {
+          A(i0 + i, j0 + j) += a[i] * a[j];
+        }
+      }
+    }
+    {
+      int i0 = i01;
+      int j0 = i00;
+      for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+          A(i0 + i, j0 + j) += b[i] * a[j];
+        }
+      }
+    }
+    {
+      int i0 = i01;
+      int j0 = i01;
+      for (int i = 0; i < 8; i++) {
+        for (int j = 0; j <= i; j++) {
+          A(i0 + i, j0 + j) += b[i] * b[j];
+        }
+      }
+    }
+
+    for (int iDim = 0; iDim < nFdim; iDim++) {
+      double f = (double)dataPointF[iPoint * nFdim + iDim];
+      for (int i = 0; i < 8; i++) {
+        B[iDim][i00 + i] += f * a[i];
+        B[iDim][i01 + i] += f * b[i];
+      }
+    }
+  } // data points
+
+  // copy symmetric matrix elements
+
+  for (int i = 0; i < nPar; i++) {
+    for (int j = i + 1; j < nPar; j++) {
+      A(i, j) = A(j, i);
+    }
+  }
+
+  std::vector<double> lsmMatrix;
+
+  {
+    TDecompBK bk(A, 0);
+    bool ok = bk.Invert(A);
+
+    if (!ok) {
+      storeError(-4, "Spline2DHelper::approximateDataPoints: internal error - can not invert the matrix");
+      A.Zero();
+    }
+    lsmMatrix.resize(nPar * nPar);
+    for (int i = 0, k = 0; i < nPar; i++) {
+      for (int j = 0; j < nPar; j++, k++) {
+        lsmMatrix[k] = A(i, j);
+      }
+    }
+  }
+
+  const double* row = lsmMatrix.data();
+  for (int iDim = 0; iDim < nFdim; iDim++) {
+    for (int i = 0; i < nPar; i++, row += nPar) {
+      double s = 0.;
+      for (int j = 0; j < nPar; j++) {
+        s += row[j] * B[iDim][j];
+      }
+      spline.getParameters()[i * nFdim + iDim] = (DataT)s;
+    }
+  }
+}
+
 #ifndef GPUCA_ALIROOT_LIB
 template <typename DataT>
 int Spline2DHelper<DataT>::test(const bool draw, const bool drawDataPoints)
