@@ -40,7 +40,7 @@ GPUd() void GPUTPCGMSectorTrack::Set(const GPUTPCGMMerger* merger, const GPUTPCT
   if (merger->Param().par.earlyTpcTransform) {
     mTZOffset = t.GetZOffset();
   } else {
-    mTZOffset = merger->GetConstantMem()->calibObjects.fastTransformHelper->getCorrMap()->convZOffsetToVertexTime(sector, t.GetZOffset(), merger->Param().continuousMaxTimeBin);
+    mTZOffset = merger->GetConstantMem()->calibObjects.fastTransformHelper->getCorrMap()->convZOffsetToVertexTime(t.GetZOffset(), merger->Param().continuousMaxTimeBin);
   }
   mNClusters = sectorTr->NHits();
 }
@@ -318,7 +318,7 @@ GPUd() bool GPUTPCGMSectorTrack::TransportToX(GPUTPCGMMerger* merger, float x, f
   if (merger->Param().par.earlyTpcTransform) {
     b.SetZOffsetLinear(mTZOffset);
   } else {
-    b.SetZOffsetLinear(merger->GetConstantMem()->calibObjects.fastTransformHelper->getCorrMap()->convVertexTimeToZOffset(mSector, mTZOffset, merger->Param().continuousMaxTimeBin));
+    b.SetZOffsetLinear(merger->GetConstantMem()->calibObjects.fastTransformHelper->getCorrMap()->convVertexTimeToZOffset(mTZOffset, merger->Param().continuousMaxTimeBin));
   }
 
   if (!doCov) {
@@ -474,7 +474,7 @@ GPUd() bool GPUTPCGMSectorTrack::TransportToXAlpha(GPUTPCGMMerger* merger, float
   if (merger->Param().par.earlyTpcTransform) {
     b.SetZOffsetLinear(mTZOffset);
   } else {
-    b.SetZOffsetLinear(merger->GetConstantMem()->calibObjects.fastTransformHelper->getCorrMap()->convVertexTimeToZOffset(mSector, mTZOffset, merger->Param().continuousMaxTimeBin));
+    b.SetZOffsetLinear(merger->GetConstantMem()->calibObjects.fastTransformHelper->getCorrMap()->convVertexTimeToZOffset(mTZOffset, merger->Param().continuousMaxTimeBin));
   }
 
   b.SetCov(0, c00 + h2 * h2c22 + h4 * h4c44 + 2.f * (h2 * c20ph4c42 + h4 * c40));
