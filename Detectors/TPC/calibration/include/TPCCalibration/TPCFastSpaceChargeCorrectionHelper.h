@@ -94,7 +94,8 @@ class TPCFastSpaceChargeCorrectionHelper
   /// \note voxel trees wont be changed. They are read as non-const because of the ROOT::TTreeProcessorMT interface
   std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> createFromTrackResiduals(
     const o2::tpc::TrackResiduals& trackResiduals, TTree* voxResTree, TTree* voxResTreeInverse, //
-    bool useSmoothed, bool invertSigns);
+    bool useSmoothed, bool invertSigns, TPCFastSpaceChargeCorrectionMap* correctionMapDirect = nullptr,
+    TPCFastSpaceChargeCorrectionMap* correctionMapInverse = nullptr);
 
   /// _______________  Utilities   ________________________
 

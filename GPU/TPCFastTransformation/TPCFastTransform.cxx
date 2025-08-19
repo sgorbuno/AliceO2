@@ -102,11 +102,7 @@ void TPCFastTransform::startConstruction(const TPCFastSpaceChargeCorrection& cor
   mTimeStamp = 0;
   mApplyCorrection = 1;
   mT0 = 0.f;
-  mVdrift = 0.f;
-  mVdriftCorrY = 0.f;
-  mLdriftCorr = 0.f;
-  mTOFcorr = 0.f;
-  mPrimVtxZ = 0.f;
+  mVdrift = 0.f;  
   mLumi = DEFLUMI;
   mLumiError = 0.f;
   mIDC = DEFIDC;

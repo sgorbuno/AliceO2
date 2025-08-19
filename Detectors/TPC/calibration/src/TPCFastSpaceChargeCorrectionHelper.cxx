@@ -381,7 +381,9 @@ void TPCFastSpaceChargeCorrectionHelper::testGeometry(const TPCFastTransformGeo&
 }
 
 std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrectionHelper::createFromTrackResiduals(
-  const o2::tpc::TrackResiduals& trackResiduals, TTree* voxResTree, TTree* voxResTreeInverse, bool useSmoothed, bool invertSigns)
+  const o2::tpc::TrackResiduals& trackResiduals, TTree* voxResTree, TTree* voxResTreeInverse, bool useSmoothed, bool invertSigns,
+  TPCFastSpaceChargeCorrectionMap* correctionMapDirect,
+  TPCFastSpaceChargeCorrectionMap* correctionMapInverse)
 {
   // create o2::gpu::TPCFastSpaceChargeCorrection  from o2::tpc::TrackResiduals::VoxRes voxel tree
 
@@ -603,6 +605,22 @@ std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrect
       processor.Process(myThread);
     }
 
+    // SG!! test: mirror the data for TPC C side
+
+    for (int iSector = 0; iSector < geo.getNumberOfSectorsA(); iSector++) {
+      for (int iRow = 0; iRow < nRows; iRow++) {
+        for (int iy = 0; iy < nY2Xbins; iy++) {
+          for (int iz = 0; iz < nZ2Xbins; iz++) {
+            auto& dataA = vSectorData[iSector * nRows + iRow][iy * nZ2Xbins + iz];
+            auto& dataC = vSectorData[(iSector + geo.getNumberOfSectorsA()) * nRows + iRow][iy * nZ2Xbins + iz];
+            dataC = dataA;          // copy the data
+            dataC.mZ = -dataC.mZ;   // mirror the Z coordinate
+            dataC.mCz = -dataC.mCz; // mirror the Z correction
+          }
+        }
+      }
+    }
+
     for (int iSector = 0; iSector < nSectors; iSector++) {
 
       // now process the data row-by-row
@@ -642,13 +660,23 @@ std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrect
                 if (data.mNentries > 0) { // voxel contains data
                   vox.mSmoothingStep = 0; // take original data
                   isDataFound = true;
-                  if (fabs(x - data.mX) > 1. || fabs(vox.mY - data.mY) > 5. || fabs(vox.mZ - data.mZ) > 5.) {
-                    std::cout << directionName << ": fitted voxel is too far from the nominal position: "
-                              << " sector " << iSector << " row " << iRow
-                              << " center x " << x << " y " << vox.mY << " z " << vox.mZ
-                              << " fitted x " << data.mX << " y " << data.mY << " z " << data.mZ
-                              << std::endl;
+                  if (fabs(x - data.mX) > 1. || fabs(vox.mY - data.mY) > vox.mDy / 2 || fabs(vox.mZ - data.mZ) > vox.mDz / 2) {
+                    LOG(warning) << directionName << ": fitted voxel position is outside the voxel: "
+                                 << " sector " << iSector << " row " << iRow
+                                 << " center x " << x << " y " << vox.mY << " z " << vox.mZ
+                                 //                                 << " fitted x " << data.mX << " y " << data.mY << " z " << data.mZ
+                                 << " dx " << data.mX - x << " dy " << data.mY - vox.mY
+                                 << " dz " << data.mZ - vox.mZ
+                                 << " bin size y " << vox.mDy << " bin size z " << vox.mDz;
                   }
+                  // SG!!! test
+                  if (fabs(vox.mY - data.mY) > vox.mDy / 2.) {
+                    data.mY = vox.mY;
+                  }
+                  if (fabs(vox.mZ - data.mZ) > vox.mDz / 2.) {
+                    data.mZ = vox.mZ;
+                  }
+
                 } else { // no data, take voxel center position
                   data.mCx = 0.;
                   data.mCy = 0.;
@@ -657,8 +685,9 @@ std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrect
                   data.mY = vox.mY;
                   data.mZ = vox.mZ;
                   vox.mSmoothingStep = 100; // fill this data point with smoothed values from the neighbours
+                  //vox.mSmoothingStep = 0;   // SG!! test
                 }
-                if (0) { // debug: always use voxel center instead of the mean position
+                if (0) { // SG!!! debug: always use voxel center instead of the mean position
                   data.mY = vox.mY;
                   data.mZ = vox.mZ;
                 }
@@ -723,8 +752,8 @@ std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrect
                   vox.mSmoothingStep = ismooth;
                 }
               } // iz
-            } // iy
-          } // ismooth
+            }   // iy
+          }     // ismooth
 
           if (nRepairs > 0) {
             LOG(debug) << "Sector " << iSector << " row " << iRow << ": " << nRepairs << " voxel repairs for " << nY2Xbins * nZ2Xbins << " voxels";
@@ -784,7 +813,7 @@ std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrect
           } // iy
 
         } // iRow
-      }; // myThread
+      };  // myThread
 
       // run n threads
 
@@ -808,6 +837,13 @@ std::unique_ptr<o2::gpu::TPCFastSpaceChargeCorrection> TPCFastSpaceChargeCorrect
     LOG(info) << "fast space charge correction helper: create space charge from the map of data points..";
 
     TStopwatch watch4;
+
+    if (!processingInverseCorrection && correctionMapDirect) {
+      *correctionMapDirect = helper->getCorrectionMap();
+    }
+    if (processingInverseCorrection && correctionMapInverse) {
+      *correctionMapInverse = helper->getCorrectionMap();
+    }
 
     helper->fillSpaceChargeCorrectionFromMap(correction, processingInverseCorrection);
 
@@ -1076,11 +1112,11 @@ void TPCFastSpaceChargeCorrectionHelper::MergeCorrections(
               }
 
             } // iv
-          } // iu
-        } // corrections
+          }   // iu
+        }     // corrections
 
       } // row
-    }; // thread
+    };  // thread
 
     std::vector<std::thread> threads(mNthreads);
 
