@@ -231,6 +231,8 @@ class TPCFastSpaceChargeCorrection : public FlatObject
   GPUh() double testInverse(bool prn = 0);
 #endif
 
+  GPUd() float getSplineScaleForV(int32_t slice, int32_t row, float v) const;
+
  private:
   /// relocate buffer pointers
   void relocateBufferPointers(const char* oldBuffer, char* newBuffer);
@@ -372,6 +374,9 @@ GPUdi() void TPCFastSpaceChargeCorrection::convUVtoGrid(int32_t slice, int32_t r
   gv = (gv - sv0) / (1.f - sv0);
   gu *= spline.getGridX1().getUmax();
   gv *= spline.getGridX2().getUmax();
+  if (gv < 0.f) {
+    gv = 0.f;
+  }
 }
 
 GPUdi() void TPCFastSpaceChargeCorrection::convGridToUV(int32_t slice, int32_t row, float gridU, float gridV, float& u, float& v) const
@@ -385,6 +390,15 @@ GPUdi() void TPCFastSpaceChargeCorrection::convGridToUV(int32_t slice, int32_t r
   float su = gridU / spline.getGridX1().getUmax();
   float sv = sv0 + gridV / spline.getGridX2().getUmax() * (1.f - sv0);
   mGeo.convScaledUVtoUV(slice, row, su, sv, u, v);
+}
+
+GPUdi() float TPCFastSpaceChargeCorrection::getSplineScaleForV(int32_t slice, int32_t row, float v) const
+{
+  const SliceRowInfo& info = getSliceRowInfo(slice, row);
+  if (info.gridV0 < 1.e-4f) {
+    return (v >= info.gridV0) ? 1.f : 0.f;
+  }
+  return GPUCommonMath::Clamp(v / info.gridV0, 0.f, 1.f);
 }
 
 GPUdi() void TPCFastSpaceChargeCorrection::convCorrectedUVtoGrid(int32_t slice, int32_t row, float corrU, float corrV, float& gridU, float& gridV) const
@@ -408,9 +422,10 @@ GPUdi() int32_t TPCFastSpaceChargeCorrection::getCorrection(int32_t slice, int32
   if (CAMath::Abs(dxuv[0]) > 100 || CAMath::Abs(dxuv[1]) > 100 || CAMath::Abs(dxuv[2]) > 100) {
     dxuv[0] = dxuv[1] = dxuv[2] = 0;
   }
-  dx = dxuv[0];
-  du = dxuv[1];
-  dv = dxuv[2];
+  float scaleV = getSplineScaleForV(slice, row, v);
+  dx = scaleV * dxuv[0];
+  du = scaleV * dxuv[1];
+  dv = scaleV * dxuv[2];
   return 0;
 }
 
@@ -425,9 +440,10 @@ GPUdi() int32_t TPCFastSpaceChargeCorrection::getCorrectionOld(int32_t slice, in
   if (CAMath::Abs(dxuv[0]) > 100 || CAMath::Abs(dxuv[1]) > 100 || CAMath::Abs(dxuv[2]) > 100) {
     dxuv[0] = dxuv[1] = dxuv[2] = 0;
   }
-  dx = dxuv[0];
-  du = dxuv[1];
-  dv = dxuv[2];
+  float scaleV = getSplineScaleForV(slice, row, v);
+  dx = scaleV * dxuv[0];
+  du = scaleV * dxuv[1];
+  dv = scaleV * dxuv[2];
   return 0;
 }
 
@@ -444,7 +460,8 @@ GPUdi() void TPCFastSpaceChargeCorrection::getCorrectionInvCorrectedX(
   if (CAMath::Abs(dx) > 100) {
     dx = 0;
   }
-  x = mGeo.getRowInfo(row).x + dx;
+  float scaleV = getSplineScaleForV(slice, row, corrV);
+  x = mGeo.getRowInfo(row).x + scaleV * dx;
 }
 
 GPUdi() void TPCFastSpaceChargeCorrection::getCorrectionInvUV(
@@ -461,8 +478,9 @@ GPUdi() void TPCFastSpaceChargeCorrection::getCorrectionInvUV(
   if (CAMath::Abs(duv[0]) > 100 || CAMath::Abs(duv[1]) > 100) {
     duv[0] = duv[1] = 0;
   }
-  nomU = corrU - duv[0];
-  nomV = corrV - duv[1];
+  float scaleV = getSplineScaleForV(slice, row, corrV);
+  nomU = corrU - scaleV * duv[0];
+  nomV = corrV - scaleV * duv[1];
 }
 
 GPUdi() float TPCFastSpaceChargeCorrection::getMaxDriftLength(int32_t slice, int32_t row, float pad) const
