@@ -89,6 +89,9 @@
 #pragma read \
   sourceClass = "o2::gpu::TPCFastSpaceChargeCorrection" targetClass = "o2::gpu::TPCFastSpaceChargeCorrection" source = "float fInterpolationSafetyMargin" version = "[-3]" target = "" code = "{}";
 
+#pragma read \
+  sourceClass = "o2::gpu::TPCFastSpaceChargeCorrection" targetClass = "o2::gpu::TPCFastSpaceChargeCorrection" source = "" version = "[-3]" target = "mIsConvertedFromVersion" code = "{ mIsConvertedFromVersion = 3; }";
+
 #pragma link C++ class o2::gpu::CorrectionMapsHelper + ;
 #pragma link C++ struct o2::gpu::MultivariatePolynomialContainer + ;
 #pragma link C++ struct o2::gpu::NDPiecewisePolynomialContainer + ;

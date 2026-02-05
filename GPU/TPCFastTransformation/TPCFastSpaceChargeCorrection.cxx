@@ -113,6 +113,8 @@ void TPCFastSpaceChargeCorrection::cloneFromObject(const TPCFastSpaceChargeCorre
 
   mClassVersion = obj.mClassVersion;
 
+  mIsConvertedFromVersion = obj.mIsConvertedFromVersion;
+
   for (int32_t i = 0; i < TPCFastTransformGeo::getNumberOfSectors() * TPCFastTransformGeo::getMaxNumberOfRows(); i++) {
     mSectorRowInfos[i] = obj.mSectorRowInfos[i];
   }
@@ -285,8 +287,8 @@ void TPCFastSpaceChargeCorrection::setActualBufferAddress(char* actualFlatBuffer
         }
 
         newSectorRow.resetMaxValues();
-        newSectorRow.updateMaxValues(-50.f, -50.f, -50.f);
-        newSectorRow.updateMaxValues(50.f, 50.f, 50.f);
+        newSectorRow.updateMaxValues(-100.f, -100.f, -100.f);
+        newSectorRow.updateMaxValues(100.f, 100.f, 100.f);
       }
     }
   }

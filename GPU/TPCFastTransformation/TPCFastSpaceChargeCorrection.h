@@ -338,6 +338,9 @@ class TPCFastSpaceChargeCorrection : public FlatObject
   /// The actual version must be set in startConstruction().
   int32_t mClassVersion{3};
 
+  /// @brief  Version from which the object was converted
+  int32_t mIsConvertedFromVersion{-1}; ///< version from which the object was converted
+
   SectorRowInfo mSectorRowInfos[TPCFastTransformGeo::getNumberOfSectors() * TPCFastTransformGeo::getMaxNumberOfRows()]; ///< SectorRowInfo array
 
   ClassDefNV(TPCFastSpaceChargeCorrection, 4);
@@ -491,9 +494,16 @@ GPUdi() std::array<float, 3> TPCFastSpaceChargeCorrection::getCorrectionLocal(in
   float dxyz[3];
   spline.interpolateAtU(splineData, val[0], val[1], dxyz);
 
+  if (mIsConvertedFromVersion == 3) { // different cropping strategy in version 3
+    if (CAMath::Abs(dxyz[0]) > 100.f || CAMath::Abs(dxyz[1]) > 100.f || CAMath::Abs(dxyz[2]) > 100.f) {
+      val[2] = 0.f;
+    }
+  }
+
   float dx = val[2] * GPUCommonMath::Clamp(dxyz[0], info.minCorr[0], info.maxCorr[0]);
   float dy = val[2] * GPUCommonMath::Clamp(dxyz[1], info.minCorr[1], info.maxCorr[1]);
   float dz = val[2] * GPUCommonMath::Clamp(dxyz[2], info.minCorr[2], info.maxCorr[2]);
+
   return {dx, dy, dz};
 }
 
@@ -503,6 +513,11 @@ GPUdi() float TPCFastSpaceChargeCorrection::getCorrectionXatRealYZ(int32_t secto
   auto val = convRealLocalToGrid(sector, row, realY, realZ);
   float dx = 0;
   getSplineInvX(sector, row).interpolateAtU(getCorrectionDataInvX(sector, row), val[0], val[1], &dx);
+  if (mIsConvertedFromVersion == 3) { // different cropping strategy in version 3
+    if (CAMath::Abs(dx) > 100.f) {
+      val[2] = 0.f;
+    }
+  }
   dx = val[2] * GPUCommonMath::Clamp(dx, info.minCorr[0], info.maxCorr[0]);
   return dx;
 }
@@ -513,6 +528,11 @@ GPUdi() std::array<float, 2> TPCFastSpaceChargeCorrection::getCorrectionYZatReal
   const auto& info = getSectorRowInfo(sector, row);
   float dyz[2];
   getSplineInvYZ(sector, row).interpolateAtU(getCorrectionDataInvYZ(sector, row), val[0], val[1], dyz);
+  if (mIsConvertedFromVersion == 3) { // different cropping strategy in version 3
+    if (CAMath::Abs(dyz[0]) > 100.f || CAMath::Abs(dyz[1]) > 100.f) {
+      val[2] = 0.f;
+    }
+  }
   dyz[0] = val[2] * GPUCommonMath::Clamp(dyz[0], info.minCorr[1], info.maxCorr[1]);
   dyz[1] = val[2] * GPUCommonMath::Clamp(dyz[1], info.minCorr[2], info.maxCorr[2]);
   return {dyz[0], dyz[1]};
