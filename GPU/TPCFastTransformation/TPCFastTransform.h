@@ -356,7 +356,7 @@ GPUdi() void TPCFastTransform::convPadTimeToLocal(int32_t sector, int32_t row, f
 
 GPUdi() void TPCFastTransform::convPadTimeToLocalInTimeFrame(int32_t sector, int32_t row, float pad, float time, float& y, float& z, float maxTimeBin) const
 {
-  float l = (time - mT0 - maxTimeBin) * mVdrift; // drift length [cm]
+  float l = getGeometry().getTPCzLength() + (time - mT0 - maxTimeBin) * mVdrift; // drift length [cm]
   const auto localval = getGeometry().convPadDriftLengthToLocal(sector, row, pad, l);
   y = localval[0];
   z = localval[1];
