@@ -1030,18 +1030,37 @@ void TPCFastSpaceChargeCorrectionHelper::initInverse(std::vector<o2::gpu::TPCFas
   LOGP(info, "Inverse tooks: {}s", duration);
 }
 
-void TPCFastSpaceChargeCorrectionHelper::mergeCorrections(
-  o2::gpu::TPCFastSpaceChargeCorrection& mainCorrection, float mainScale,
-  const std::vector<std::pair<const o2::gpu::TPCFastSpaceChargeCorrection*, float>>& additionalCorrections, bool /*prn*/)
+void TPCFastSpaceChargeCorrectionHelper::addCorrections(
+  o2::gpu::TPCFastSpaceChargeCorrection& mainCorrection, double mainScale,
+  const std::vector<std::pair<const o2::gpu::TPCFastSpaceChargeCorrection*, double>>& additionalCorrections)
 {
-  /// merge several corrections
+  /// weighted add of several corrections
+  SectorScales mainSectorScale;
+  mainSectorScale.fill(mainScale);
+  std::vector<std::pair<const o2::gpu::TPCFastSpaceChargeCorrection*, SectorScales>> additionalSectorScales;
+  for (const auto& corr : additionalCorrections) {
+    SectorScales sectorScale;
+    sectorScale.fill(corr.second);
+    additionalSectorScales.emplace_back(corr.first, sectorScale);
+  }
+
+  addCorrections(mainCorrection, mainSectorScale, additionalSectorScales);
+}
+
+void TPCFastSpaceChargeCorrectionHelper::addCorrections(
+  o2::gpu::TPCFastSpaceChargeCorrection& mainCorrection, SectorScales mainScale,
+  const std::vector<std::pair<const o2::gpu::TPCFastSpaceChargeCorrection*, SectorScales>>& additionalCorrections)
+{
+  /// weighted add of several corrections
 
   TStopwatch watch;
-  LOG(info) << "fast space charge correction helper: Merge corrections";
+  LOG(info) << "fast space charge correction helper: Add corrections";
 
   const auto& geo = mainCorrection.getGeometry();
 
   for (int sector = 0; sector < geo.getNumberOfSectors(); sector++) {
+
+    float secMainScale = mainScale[sector];
 
     auto myThread = [&](int iThread) {
       for (int row = iThread; row < geo.getNumberOfRows(); row += mNthreads) {
@@ -1059,10 +1078,10 @@ void TPCFastSpaceChargeCorrectionHelper::mergeCorrections(
 
         { // scale the main correction
           for (int i = 0; i < 3; i++) {
-            secRowInfo.maxCorr[i] *= mainScale;
-            secRowInfo.minCorr[i] *= mainScale;
+            secRowInfo.maxCorr[i] *= secMainScale;
+            secRowInfo.minCorr[i] *= secMainScale;
           }
-          double parscale[4] = {mainScale, mainScale, mainScale, mainScale * mainScale};
+          double parscale[4] = {secMainScale, secMainScale, secMainScale, secMainScale * secMainScale};
           for (int iknot = 0, ind = 0; iknot < spline.getNumberOfKnots(); iknot++) {
             for (int ipar = 0; ipar < nKnotPar1d; ++ipar) {
               for (int idim = 0; idim < 3; idim++, ind++) {
@@ -1093,7 +1112,7 @@ void TPCFastSpaceChargeCorrectionHelper::mergeCorrections(
 
         for (int icorr = 0; icorr < additionalCorrections.size(); ++icorr) {
           const auto& corr = *(additionalCorrections[icorr].first);
-          double scale = additionalCorrections[icorr].second;
+          double scale = additionalCorrections[icorr].second[sector];
           auto& linfo = corr.getSectorRowInfo(sector, row);
           secRowInfo.updateMaxValues(linfo.getMaxValues(), scale);
           secRowInfo.updateMaxValues(linfo.getMinValues(), scale);
@@ -1169,7 +1188,93 @@ void TPCFastSpaceChargeCorrectionHelper::mergeCorrections(
     }
 
   } // sector
-  float duration = watch.RealTime();
+  double duration = watch.RealTime();
+  LOGP(info, "Merge of corrections tooks: {}s", duration);
+}
+
+void TPCFastSpaceChargeCorrectionHelper::mergeCorrections(o2::gpu::TPCFastSpaceChargeCorrection& destinationCorrection,
+                                                          const o2::gpu::TPCFastSpaceChargeCorrection& sourceCorrection,
+                                                          const std::vector<int>& sectors)
+{
+  /// merge of two corrections sector-wise
+  TStopwatch watch;
+  LOG(info) << "fast space charge correction helper: Merge corrections";
+
+  const auto& geo = destinationCorrection.getGeometry();
+
+  for (int sector : sectors) {
+    if (sector < 0 || sector >= geo.getNumberOfSectors()) {
+      LOGP(fatal, "Invalid sector number {}. Valid range is [0, {})", sector, geo.getNumberOfSectors());
+      continue;
+    }
+    auto myThread = [&](int iThread) {
+      for (int row = iThread; row < geo.getNumberOfRows(); row += mNthreads) {
+
+        { // replace the direct correction
+          const auto& destSpline = destinationCorrection.getSpline(sector, row);
+          float* destSplineParameters = destinationCorrection.getCorrectionData(sector, row);
+          const auto& sourceSpline = sourceCorrection.getSpline(sector, row);
+          const float* sourceSplineParameters = sourceCorrection.getCorrectionData(sector, row);
+
+          // ensure the splines are compatible
+          if (destSpline.getGridX1().getNumberOfKnots() != sourceSpline.getGridX1().getNumberOfKnots() ||
+              destSpline.getGridX2().getNumberOfKnots() != sourceSpline.getGridX2().getNumberOfKnots()) {
+            LOGP(error, "Splines for sector {} row {} are not compatible: number of knots in U or V direction do not match", sector, row);
+            continue;
+          }
+          // replace the destination correction with the source correction for this sector and row
+          memcpy(destSplineParameters, sourceSplineParameters, destSpline.getNumberOfParameters() * sizeof(float));
+        }
+
+        { // replace the inverse correction X
+          const auto& destSpline = destinationCorrection.getSplineInvX(sector, row);
+          float* destSplineParameters = destinationCorrection.getCorrectionDataInvX(sector, row);
+          const auto& sourceSpline = sourceCorrection.getSplineInvX(sector, row);
+          const float* sourceSplineParameters = sourceCorrection.getCorrectionDataInvX(sector, row);
+          // ensure the splines are compatible
+          if (destSpline.getGridX1().getNumberOfKnots() != sourceSpline.getGridX1().getNumberOfKnots() ||
+              destSpline.getGridX2().getNumberOfKnots() != sourceSpline.getGridX2().getNumberOfKnots()) {
+            LOGP(error, "Inverse X splines for sector {} row {} are not compatible: number of knots in U or V direction do not match", sector, row);
+            continue;
+          }
+          memcpy(destSplineParameters, sourceSplineParameters, destSpline.getNumberOfParameters() * sizeof(float));
+        }
+
+        { // replace the inverse correction YZ
+          const auto& destSpline = destinationCorrection.getSplineInvYZ(sector, row);
+          float* destSplineParameters = destinationCorrection.getCorrectionDataInvYZ(sector, row);
+          const auto& sourceSpline = sourceCorrection.getSplineInvYZ(sector, row);
+          const float* sourceSplineParameters = sourceCorrection.getCorrectionDataInvYZ(sector, row);
+          // ensure the splines are compatible
+          if (destSpline.getGridX1().getNumberOfKnots() != sourceSpline.getGridX1().getNumberOfKnots() ||
+              destSpline.getGridX2().getNumberOfKnots() != sourceSpline.getGridX2().getNumberOfKnots()) {
+            LOGP(error, "Inverse YZ splines for sector {} row {} are not compatible: number of knots in U or V direction do not match", sector, row);
+            continue;
+          }
+          memcpy(destSplineParameters, sourceSplineParameters, destSpline.getNumberOfParameters() * sizeof(float));
+        }
+
+        // replace the sector row info
+        auto& destSecRowInfo = destinationCorrection.getSectorRowInfo(sector, row);
+        const auto& sourceSecRowInfo = sourceCorrection.getSectorRowInfo(sector, row);
+        destSecRowInfo = sourceSecRowInfo;
+      } // row
+    }; // thread
+
+    std::vector<std::thread> threads(mNthreads);
+
+    // run n threads
+    for (int i = 0; i < mNthreads; i++) {
+      threads[i] = std::thread(myThread, i);
+    }
+
+    // wait for the threads to finish
+    for (auto& th : threads) {
+      th.join();
+    }
+
+  } // sector
+  double duration = watch.RealTime();
   LOGP(info, "Merge of corrections tooks: {}s", duration);
 }
 
