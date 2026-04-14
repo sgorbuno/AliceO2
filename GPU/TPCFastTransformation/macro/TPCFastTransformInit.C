@@ -180,7 +180,7 @@ void TPCFastTransformInit(const char* fileName = "debugVoxRes.root", const char*
 
     const char* fileName = outFileName;
 
-    // fileName = "~/test/master/TPCFastTransform_VoxRes.root";
+     //fileName = "~/alidock/test/master/TPCFastTransform_VoxRes.root";
 
     std::cout << "load corrections from file " << fileName << std::endl;
 
@@ -306,18 +306,13 @@ void TPCFastTransformInit(const char* fileName = "debugVoxRes.root", const char*
 
   auto getInvCorrections = [&](int iSector, int iRow, float realY, float realZ, float& ix, float& iy, float& iz) {
     // get the inverse corrections ix, iy, iz at x,y,z
-    ix = corr.getCorrectionXatRealYZ(iSector, iRow, realY, realZ);
-    const auto c = corr.getCorrectionYZatRealYZ(iSector, iRow, realY, realZ);
-    iy = c[0];
-    iz = c[1];
+    ix = corr.getCorrectionXatRealYZ(iSector, iRow, realY, realZ);    
+    corr.getCorrectionYZatRealYZ(iSector, iRow, realY, realZ, iy, iz);
   };
 
   auto getAllCorrections = [&](int iSector, int iRow, float y, float z, float& cx, float& cy, float& cz, float& ix, float& iy, float& iz) {
     // get the corrections cx,cy,cz at x,y,z
-    const auto c = corr.getCorrectionLocal(iSector, iRow, y, z);
-    cx = c[0];
-    cy = c[1];
-    cz = c[2];
+    corr.getCorrectionLocal(iSector, iRow, y, z, cx, cy, cz);
     getInvCorrections(iSector, iRow, y + cy, z + cz, ix, iy, iz);
   };
 
@@ -582,15 +577,15 @@ void TPCFastTransformInit(const char* fileName = "debugVoxRes.root", const char*
           float correctionY = point.mDy;
           float correctionZ = point.mDz;
           if (direction == 0) {
-            auto [cx, cy, cz] =
-              corr.getCorrectionLocal(iSector, iRow, y, z);
+            float cx, cy, cz;
+            corr.getCorrectionLocal(iSector, iRow, y, z, cx, cy, cz);
             ntFitPoints->Fill(iSector, iRow, x, y, z, correctionX, correctionY,
                               correctionZ, cx, cy, cz);
           } else {
             float cx =
               corr.getCorrectionXatRealYZ(iSector, iRow, y, z);
-            auto [cy, cz] =
-              corr.getCorrectionYZatRealYZ(iSector, iRow, y, z);
+            float cy, cz;
+            corr.getCorrectionYZatRealYZ(iSector, iRow, y, z, cy, cz);
             ntInvFitPoints->Fill(iSector, iRow, x, y, z, correctionX, correctionY,
                                  correctionZ, cx, cy, cz);
           }
