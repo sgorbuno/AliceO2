@@ -42,7 +42,7 @@ class TPCFastSpaceChargeCorrection : public FlatObject
   friend class TPCFastTransformPOD;
 
  public:
-  // obsolete structure, declared here only for backward compatibility
+  // obsolete structure, declared here only for the backward compatibility
   struct SliceInfo {
     ClassDefNV(SliceInfo, 2);
   };
@@ -308,7 +308,7 @@ class TPCFastSpaceChargeCorrection : public FlatObject
 
   char* mCorrectionData[3]; //! (transient!!) pointer to the spline data in the flat buffer
 
-  size_t mCorrectionDataSize[3]; ///< size of the data per transformation (direct, inverseX, inverse YZ) in the flat buffer
+  size_t mSectorDataSize[3]; ///< size of the sector data per transformation (direct, inverseX, inverse YZ) in the flat buffer
 
   /// Class version. It is used to read older versions from disc.
   /// The default version 3 is the one before this field was introduced.
