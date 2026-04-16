@@ -308,7 +308,7 @@ class TPCFastSpaceChargeCorrection : public FlatObject
 
   char* mCorrectionData[3]; //! (transient!!) pointer to the spline data in the flat buffer
 
-  size_t mSectorDataSize[3]; ///< size of the sector data per transformation (direct, inverseX, inverse YZ) in the flat buffer
+  size_t mSectorDataSizeBytes[3]; ///< size of the sector data per transformation (direct, inverseX, inverse YZ) in the flat buffer
 
   /// Class version. It is used to read older versions from disc.
   /// The default version 3 is the one before this field was introduced.
@@ -339,14 +339,14 @@ GPUdi() TPCFastSpaceChargeCorrection::SplineType& TPCFastSpaceChargeCorrection::
 GPUdi() float* TPCFastSpaceChargeCorrection::getCorrectionData(int32_t sector, int32_t row, int32_t iSpline)
 {
   /// Gives pointer to spline data
-  size_t offset = sector * mSectorDataSize[iSpline] + getRowInfo(row).dataOffsetBytes[iSpline];
+  size_t offset = sector * mSectorDataSizeBytes[iSpline] + getRowInfo(row).dataOffsetBytes[iSpline];
   return reinterpret_cast<float*>(mCorrectionData[iSpline] + offset);
 }
 
 GPUdi() const float* TPCFastSpaceChargeCorrection::getCorrectionData(int32_t sector, int32_t row, int32_t iSpline) const
 {
   /// Gives pointer to spline data
-  size_t offset = sector * mSectorDataSize[iSpline] + getRowInfo(row).dataOffsetBytes[iSpline];
+  size_t offset = sector * mSectorDataSizeBytes[iSpline] + getRowInfo(row).dataOffsetBytes[iSpline];
   return reinterpret_cast<const float*>(mCorrectionData[iSpline] + offset);
 }
 
