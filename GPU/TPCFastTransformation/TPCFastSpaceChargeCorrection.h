@@ -156,7 +156,6 @@ class TPCFastSpaceChargeCorrection : public FlatObject
 
   /// Moving the class with its external buffer to another location
 
-  void setActualBufferAddressOld(char* actualFlatBufferPtr);
   void setActualBufferAddress(char* actualFlatBufferPtr);
   void setFutureBufferAddress(char* futureFlatBufferPtr);
 

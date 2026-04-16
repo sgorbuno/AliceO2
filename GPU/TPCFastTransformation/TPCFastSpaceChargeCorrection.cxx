@@ -126,37 +126,6 @@ void TPCFastSpaceChargeCorrection::moveBufferTo(char* newFlatBufferPtr)
   relocateBufferPointers(oldFlatBufferPtr, mFlatBufferPtr);
 }
 
-void TPCFastSpaceChargeCorrection::setActualBufferAddressOld(char* actualFlatBufferPtr)
-{
-  /// Sets the actual location of the external flat buffer after it has been moved (e.g. to another maschine)
-
-  if (mClassVersion != 4) {
-    LOG(error) << "TPCFastSpaceChargeCorrection::setActualBufferAddress() called with class version " << mClassVersion << ". This is not supported.";
-    return;
-  }
-
-  FlatObject::setActualBufferAddress(actualFlatBufferPtr);
-
-  size_t scSize = sizeof(SplineType) * mNumberOfScenarios;
-
-  mScenarioPtr = reinterpret_cast<SplineType*>(mFlatBufferPtr);
-
-  size_t scBufferOffset = alignSize(scSize, SplineType::getBufferAlignmentBytes());
-  size_t scBufferSize = 0;
-
-  for (int32_t i = 0; i < mNumberOfScenarios; i++) {
-    SplineType& sp = mScenarioPtr[i];
-    sp.setActualBufferAddress(mFlatBufferPtr + scBufferOffset + scBufferSize);
-    scBufferSize = alignSize(scBufferSize + sp.getFlatBufferSize(), sp.getBufferAlignmentBytes());
-  }
-  size_t bufferSize = scBufferOffset + scBufferSize;
-  for (int32_t is = 0; is < 3; is++) {
-    size_t correctionDataOffset = alignSize(bufferSize, SplineType::getParameterAlignmentBytes());
-    mCorrectionData[is] = reinterpret_cast<char*>(mFlatBufferPtr + correctionDataOffset);
-    bufferSize = correctionDataOffset + mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors();
-  }
-}
-
 void TPCFastSpaceChargeCorrection::setActualBufferAddress(char* actualFlatBufferPtr)
 {
   /// Sets the actual location of the external flat buffer after it has been moved (e.g. to another maschine)
