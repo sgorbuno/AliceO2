@@ -147,8 +147,9 @@ void TPCFastSpaceChargeCorrection::setActualBufferAddress(char* actualFlatBuffer
     }
     size_t bufferSize = scBufferOffset + scBufferSize;
     for (int32_t is = 0; is < 3; is++) {
-      mCorrectionData[is] = reinterpret_cast<char*>(mFlatBufferPtr + bufferSize);
-      bufferSize += mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors();
+      size_t correctionDataOffset = alignSize(bufferSize, SplineType::getParameterAlignmentBytes());
+      mCorrectionData[is] = reinterpret_cast<char*>(mFlatBufferPtr + correctionDataOffset);
+      bufferSize = correctionDataOffset + mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors();
     }
     return;
   }
@@ -255,7 +256,7 @@ void TPCFastSpaceChargeCorrection::setActualBufferAddress(char* actualFlatBuffer
 
   for (int32_t is = 0; is < 3; is++) {
     size_t oldCorrectionDataOffset = alignSize(oldBufferSize, SplineType::getParameterAlignmentBytes());
-    size_t correctionDataOffset = bufferSize;
+    size_t correctionDataOffset = alignSize(bufferSize, SplineType::getParameterAlignmentBytes());
     mCorrectionData[is] = reinterpret_cast<char*>(mFlatBufferPtr + correctionDataOffset);
     memmove(mCorrectionData[is], mFlatBufferPtr + oldCorrectionDataOffset, mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors());
     oldBufferSize = oldCorrectionDataOffset + mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors();
@@ -508,15 +509,16 @@ void TPCFastSpaceChargeCorrection::finishConstruction()
   size_t bufferSize = scBufferOffsets[0] + scBufferSize;
   size_t correctionDataOffset[3];
   for (int32_t is = 0; is < 3; is++) {
-    correctionDataOffset[is] = bufferSize;
+    correctionDataOffset[is] = alignSize(bufferSize, SplineType::getParameterAlignmentBytes());
     mSectorDataSizeBytes[is] = 0;
     for (int32_t j = 0; j < mGeo.getNumberOfRows(); j++) {
       RowInfo& row = getRowInfo(j);
       SplineType& spline = mConstructionScenarios[row.splineScenarioID];
-      row.dataOffsetBytes[is] = mSectorDataSizeBytes[is];
-      mSectorDataSizeBytes[is] += spline.getSizeOfParameters();
+      row.dataOffsetBytes[is] = alignSize(mSectorDataSizeBytes[is], SplineType::getParameterAlignmentBytes());
+      mSectorDataSizeBytes[is] = row.dataOffsetBytes[is] + spline.getSizeOfParameters();
     }
-    bufferSize += mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors();
+    mSectorDataSizeBytes[is] = alignSize(mSectorDataSizeBytes[is], SplineType::getParameterAlignmentBytes());
+    bufferSize = correctionDataOffset[is] + mSectorDataSizeBytes[is] * mGeo.getNumberOfSectors();
   }
 
   FlatObject::finishConstruction(bufferSize);
